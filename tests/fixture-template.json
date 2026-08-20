@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "fixture-template",
+  "version": "1.0",
+  "title": "模板导入测试",
+  "description": "仅用于自动化测试",
+  "fields": [
+    {
+      "id": "note",
+      "type": "shortText",
+      "label": "测试文字题",
+      "required": true
+    },
+    {
+      "id": "choices",
+      "type": "multiChoice",
+      "label": "测试多选题",
+      "required": false,
+      "options": [
+        { "id": "a", "label": "选项A" },
+        { "id": "b", "label": "选项B" }
+      ]
+    }
+  ]
+}
