@@ -18,7 +18,7 @@ import {
 } from "./db.js";
 import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.0.0-beta.7";
+const APP_VERSION = "1.0.0-beta.8";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -234,8 +234,25 @@ async function seedDefaultTemplate() {
     }
   }
 
+  if (seedRevision < 4) {
+    const sourceTemplate = validateTemplate(DEFAULT_TEMPLATE);
+    const storedTemplate = await getTemplate(sourceTemplate.key);
+    const sourceField = sourceTemplate.fields.find((field) => field.id === "openEarPreference");
+    const sourceOption = sourceField?.options?.find((option) => option.id === "noPreference");
+    const storedField = storedTemplate?.fields?.find((field) => field.id === "openEarPreference");
+    const hasOption = storedField?.options?.some((option) => option.id === "noPreference");
+    if (storedTemplate && storedField && sourceOption && !hasOption) {
+      await putTemplate({
+        ...storedTemplate,
+        fields: storedTemplate.fields.map((field) => field.id === "openEarPreference"
+          ? { ...field, options: [...field.options, deepClone(sourceOption)] }
+          : field)
+      });
+    }
+  }
+
   await setSetting("defaultTemplateSeeded", true);
-  await setSetting("builtInTemplateSeedRevision", 3);
+  await setSetting("builtInTemplateSeedRevision", 4);
 }
 
 async function refreshContext() {

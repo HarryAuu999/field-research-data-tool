@@ -175,6 +175,12 @@ export const DEFAULT_TEMPLATE = {
         "优先按照参与者习惯的倾斜位置测量，没有明确习惯时按约45°测量。测量1至3次，每次取下治具后重新定位；治具刚好接触耳部表面，避免明显压迫或变形。"
       );
     }
+    if (field.id === "openEarPreference") {
+      return {
+        ...field,
+        options: [...field.options, { id: "noPreference", label: "无偏好" }]
+      };
+    }
     return field;
   })
 };

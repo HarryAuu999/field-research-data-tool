@@ -72,6 +72,9 @@ await migrationPage.evaluate(async () => {
   const { BUILT_IN_TEMPLATES } = await import("./js/default-template.js");
   const legacy = structuredClone(BUILT_IN_TEMPLATES[0]);
   const latest = structuredClone(BUILT_IN_TEMPLATES[1]);
+  latest.fields.find((field) => field.id === "openEarPreference").options = latest.fields
+    .find((field) => field.id === "openEarPreference")
+    .options.filter((option) => option.id !== "noPreference");
   legacy.title = "耳部人体数据采集";
   latest.title = "耳部人体数据采集";
   legacy.key = `${legacy.id}@${legacy.version}`;
@@ -111,6 +114,21 @@ await migrationPage.getByText("问卷版本 V1.1", { exact: true }).waitFor();
 await migrationPage.locator('[data-action="templates"]').click();
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').getByText("佩戴耳厚数据采集", { exact: false }).isVisible(), "升级后V1.0名称没有更新");
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
+const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const template = await new Promise((resolve, reject) => {
+    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.1");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return template.fields.find((field) => field.id === "openEarPreference").options;
+});
+assert(migratedPreferenceOptions.some((option) => option.id === "noPreference" && option.label === "无偏好"), "升级后V1.1缺少无偏好选项");
 await migrationContext.close();
 
 await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
@@ -121,7 +139,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.0.0-beta.7", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.0.0-beta.8", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -154,6 +172,7 @@ await choose('[data-action="select-single"][data-option="tilt45"]');
 await nextTo("耳型大小评价");
 await choose('[data-action="select-single"][data-option="medium"]');
 await nextTo("开放式耳机偏好");
+assert(await page.getByRole("button", { name: "无偏好", exact: true }).isVisible(), "开放式耳机偏好缺少无偏好选项");
 await choose('[data-action="select-single"][data-option="clip"]');
 await nextTo("偏好原因");
 

@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.0-beta.7";
+const APP_VERSION = "1.0.0-beta.8";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
