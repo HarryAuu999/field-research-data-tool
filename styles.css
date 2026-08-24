@@ -6,10 +6,10 @@
   --muted: #555555;
   --quiet: #888888;
   --line: #e5e7eb;
-  --forest: #115e59;
-  --forest-soft: #e0f2f1;
-  --accent: #115e59;
-  --accent-soft: #e0f2f1;
+  --forest: #2b6ea8;
+  --forest-soft: #eaf0f6;
+  --accent: #2b6ea8;
+  --accent-soft: #eaf0f6;
   --danger: #c53030;
   --danger-soft: #fff5f5;
   --shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
@@ -25,6 +25,7 @@ html, body { margin: 0; min-height: 100%; background: var(--paper); }
 body { min-height: 100vh; min-height: 100dvh; }
 
 button, input, textarea { font: inherit; }
+button, input, textarea { -webkit-tap-highlight-color: transparent; }
 button { touch-action: manipulation; }
 
 #app {
@@ -108,7 +109,7 @@ button { touch-action: manipulation; }
   font-weight: 720;
 }
 
-.primary-button { background: var(--forest); color: #fff; box-shadow: 0 10px 24px rgba(35, 54, 47, 0.16); }
+.primary-button { background: var(--forest); color: #fff; box-shadow: 0 10px 24px rgba(43, 110, 168, 0.16); }
 .primary-button.accent { background: var(--accent); color: #27170b; }
 .secondary-button { background: var(--surface); color: var(--forest); border: 1px solid var(--line); }
 .danger-button { background: var(--danger-soft); color: var(--danger); }
@@ -316,7 +317,7 @@ body { color: var(--ink); }
 
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 3px solid rgba(17, 94, 89, 0.22);
+  outline: 3px solid rgba(43, 110, 168, 0.22);
   outline-offset: 2px;
 }
 
@@ -459,8 +460,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   margin-top: auto;
   padding: 16px 16px max(16px, env(safe-area-inset-bottom));
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
+.home-footer .text-button { min-width: 0; padding-inline: 0; text-align: left; }
+.home-footer .text-button:last-child { text-align: right; }
 
 .primary-button, .secondary-button, .danger-button, .text-button {
   min-height: 48px;
@@ -484,7 +489,7 @@ button:disabled { opacity: 0.38; }
 .template-screen { display: flex; flex-direction: column; }
 .template-content { display: grid; gap: 20px; }
 .template-list { display: grid; gap: 12px; overflow: visible; }
-.swipe-row { position: relative; overflow: hidden; border-radius: 8px; background: var(--danger); }
+.swipe-row { position: relative; overflow: hidden; border-radius: 8px; background: transparent; }
 .swipe-content {
   position: relative;
   z-index: 2;
@@ -503,6 +508,8 @@ button:disabled { opacity: 0.38; }
 }
 .swipe-row.revealed .swipe-content { transform: translateX(-80px); }
 .swipe-delete { width: 80px; border: 0; background: var(--danger); color: #fff; font-size: 14px; font-weight: 650; }
+.swipe-delete { visibility: hidden; }
+.swipe-row.revealed .swipe-delete { visibility: visible; }
 .template-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .template-name { overflow: hidden; display: block; color: var(--ink); font-size: 16px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .template-name small { margin-left: 5px; color: var(--quiet); font-size: 12px; font-weight: 400; }
@@ -545,9 +552,22 @@ button:disabled { opacity: 0.38; }
 
 .detail-content { display: grid; gap: 12px; }
 .record-meta { display: grid; gap: 4px; color: var(--quiet); font-size: 12px; }
-.detail-grid { display: block; padding: 16px; }
-.detail-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.detail-grid { display: block; padding: 4px 16px; }
+.detail-row {
+  width: 100%;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
 .detail-row:last-child { border-bottom: 0; }
+.detail-row-copy { min-width: 0; flex: 1; }
 .detail-label { margin: 0 0 6px; display: block; color: var(--quiet); font-size: 13px; font-weight: 550; }
 .detail-value { display: block; color: var(--ink); font-size: 16px; line-height: 1.45; font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; }
 .detail-actions {
@@ -580,7 +600,7 @@ button:disabled { opacity: 0.38; }
 .requirement-chip.is-required { background: var(--forest-soft); color: var(--forest); }
 .question-title { margin: 0; color: var(--ink); font-size: 22px; line-height: 1.3; letter-spacing: -0.02em; }
 .question-description { margin: 8px 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.question-title + .field-wrap, .question-title + .input-with-unit, .question-title + .choice-list, .question-title + .rating-grid { margin-top: 20px; }
+.question-title + .field-wrap, .question-title + .input-with-unit, .question-title + .repeated-number-field, .question-title + .choice-list, .question-title + .rating-grid { margin-top: 20px; }
 
 .field-wrap { display: grid; gap: 10px; }
 .text-input, .number-input, .textarea-input, .other-input {
@@ -607,10 +627,29 @@ button:disabled { opacity: 0.38; }
   border-radius: 8px;
   background: #fff;
 }
-.input-with-unit:focus-within { border: 1.5px solid var(--forest); }
+.input-with-unit:focus-within {
+  border-color: var(--forest);
+  outline: 2px solid var(--forest-soft);
+  outline-offset: 2px;
+}
 .input-with-unit .number-input { min-height: 46px; padding: 10px 0; border: 0; border-radius: 0; }
-.input-with-unit .number-input:focus { border: 0; }
+.input-with-unit .number-input:focus { border: 0; outline: none; }
 .unit-label { min-width: 0; color: var(--muted); font-size: 16px; font-weight: 650; }
+.repeated-number-field { display: grid; gap: 12px; }
+.repeated-input-row { display: grid; gap: 6px; }
+.repeated-input-label { color: var(--muted); font-size: 13px; font-weight: 650; }
+.repeated-summary {
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  border-radius: 6px;
+  background: var(--forest-soft);
+  color: var(--forest);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+}
 .anonymous-row { min-height: 44px; margin: 0; padding: 8px 2px; }
 .anonymous-row input { width: 20px; height: 20px; accent-color: var(--forest); }
 

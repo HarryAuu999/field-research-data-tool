@@ -16,9 +16,9 @@ import {
   replaceDatabaseState,
   setSetting
 } from "./db.js";
-import { DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
+import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.0.0-beta.3";
+const APP_VERSION = "1.0.0-beta.6";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -27,6 +27,7 @@ const SUPPORTED_FIELD_TYPES = new Set([
   "shortText",
   "longText",
   "number",
+  "repeatedNumber",
   "singleChoice",
   "multiChoice",
   "rating",
@@ -58,6 +59,7 @@ const state = {
   formIndex: 0,
   templateCounts: {},
   waitingWorker: null,
+  serviceWorkerRegistration: null,
   toastTimer: null,
   actionBusy: false
 };
@@ -175,6 +177,16 @@ function validateTemplate(input) {
       }
     }
 
+    if (field.type === "repeatedNumber") {
+      if (!Number.isInteger(field.repeatCount) || field.repeatCount < 2 || field.repeatCount > 10) {
+        throw new Error(`重复数字题 ${field.label} 的填写次数必须是2至10`);
+      }
+      const minEntries = field.minEntries ?? (field.required ? 1 : 0);
+      if (!Number.isInteger(minEntries) || minEntries < 0 || minEntries > field.repeatCount) {
+        throw new Error(`重复数字题 ${field.label} 的最少填写数量无效`);
+      }
+    }
+
     if (field.image?.src) {
       const src = String(field.image.src);
       if (!src.startsWith("data:image/") && !src.startsWith("./assets/")) {
@@ -190,12 +202,40 @@ function validateTemplate(input) {
 }
 
 async function seedDefaultTemplate() {
-  const seeded = await getSetting("defaultTemplateSeeded", false);
-  if (seeded) return;
-  const template = validateTemplate(DEFAULT_TEMPLATE);
-  await putTemplate(template);
-  await setSetting("currentTemplateKey", template.key);
+  const wasSeeded = await getSetting("defaultTemplateSeeded", false);
+  const seedRevision = await getSetting("builtInTemplateSeedRevision", wasSeeded ? 1 : 0);
+  if (seedRevision < 2) {
+    const templatesToAdd = seedRevision >= 1 ? [DEFAULT_TEMPLATE] : BUILT_IN_TEMPLATES;
+    for (const source of templatesToAdd) {
+      const template = validateTemplate(source);
+      if (!(await getTemplate(template.key))) await putTemplate(template);
+    }
+
+    const latest = validateTemplate(DEFAULT_TEMPLATE);
+    const currentKey = await getSetting("currentTemplateKey", null);
+    const current = currentKey ? await getTemplate(currentKey) : null;
+    const legacyKey = templateKey(BUILT_IN_TEMPLATES[0]);
+    const legacyDraft = currentKey === legacyKey ? await getDraft(legacyKey) : null;
+    if (!current || (currentKey === legacyKey && !legacyDraft)) {
+      await setSetting("currentTemplateKey", latest.key);
+    }
+  }
+
+  if (seedRevision < 3) {
+    for (const source of BUILT_IN_TEMPLATES) {
+      const sourceTemplate = validateTemplate(source);
+      const storedTemplate = await getTemplate(sourceTemplate.key);
+      if (!storedTemplate || storedTemplate.title === sourceTemplate.title) continue;
+      const storedStructure = storedTemplate.fields.map((field) => [field.id, field.type]);
+      const sourceStructure = sourceTemplate.fields.map((field) => [field.id, field.type]);
+      if (JSON.stringify(storedStructure) === JSON.stringify(sourceStructure)) {
+        await putTemplate({ ...storedTemplate, title: sourceTemplate.title });
+      }
+    }
+  }
+
   await setSetting("defaultTemplateSeeded", true);
+  await setSetting("builtInTemplateSeedRevision", 3);
 }
 
 async function refreshContext() {
@@ -265,7 +305,10 @@ function renderHome() {
           <div class="empty-state card"><p>请先导入一份问卷JSON，才能开始记录。</p></div>
           <button class="secondary-button" type="button" data-action="templates">进入问卷管理</button>
         </div>
-        <footer class="home-footer"><button class="text-button" data-action="backup" type="button">完整数据备份与恢复</button></footer>
+        <footer class="home-footer">
+          <button class="text-button" data-action="backup" type="button">数据备份/恢复</button>
+          <button class="text-button" data-action="check-update" type="button">检查更新</button>
+        </footer>
       </section>`;
     return;
   }
@@ -308,7 +351,10 @@ function renderHome() {
           <button class="secondary-button" type="button" data-action="export-csv" ${state.records.length ? "" : "disabled"}>导出 CSV 数据</button>
         </div>
       </div>
-      <footer class="home-footer"><button class="text-button" data-action="backup" type="button">完整数据备份与恢复</button></footer>
+      <footer class="home-footer">
+        <button class="text-button" data-action="backup" type="button">数据备份/恢复</button>
+        <button class="text-button" data-action="check-update" type="button">检查更新</button>
+      </footer>
     </section>`;
 }
 
@@ -389,13 +435,19 @@ function renderRecordDetail() {
     return;
   }
 
-  const rows = state.currentTemplate.fields
-    .filter((field) => field.type !== "section")
-    .map((field, index) => `
-      <div class="detail-row">
-        <span class="detail-label">${index + 1}. ${escapeHtml(field.label)}</span>
-        <span class="detail-value">${escapeHtml(formatAnswer(field, record.answers[field.id]) || "未填写")}</span>
-      </div>`).join("");
+  let displayIndex = 0;
+  const rows = state.currentTemplate.fields.map((field, fieldIndex) => {
+    if (field.type === "section") return "";
+    displayIndex += 1;
+    return `
+      <button class="detail-row" type="button" data-action="edit-record-at" data-field-index="${fieldIndex}" aria-label="编辑${escapeHtml(field.label)}">
+        <span class="detail-row-copy">
+          <span class="detail-label">${displayIndex}. ${escapeHtml(field.label)}</span>
+          <span class="detail-value">${escapeHtml(formatAnswer(field, record.answers[field.id]) || "未填写")}</span>
+        </span>
+        <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+      </button>`;
+  }).join("");
 
   app.innerHTML = `
     <section class="screen">
@@ -438,6 +490,79 @@ function renderNumberField(field, answer) {
     </div>`;
 }
 
+function validRepeatedValues(answer) {
+  return (Array.isArray(answer) ? answer : [])
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => /^(?:\d+|\d*\.\d+)$/.test(value));
+}
+
+function parseDecimal(value) {
+  const [whole, fraction = ""] = String(value).split(".");
+  return { integer: BigInt(`${whole || "0"}${fraction}`), scale: fraction.length };
+}
+
+function formatScaledInteger(integer, scale) {
+  const negative = integer < 0n;
+  let digits = String(negative ? -integer : integer).padStart(scale + 1, "0");
+  if (scale) {
+    digits = `${digits.slice(0, -scale)}.${digits.slice(-scale)}`.replace(/0+$/, "").replace(/\.$/, "");
+  }
+  if (!digits) digits = "0";
+  return `${negative ? "-" : ""}${digits}`;
+}
+
+function repeatedStats(answer) {
+  const values = validRepeatedValues(answer);
+  if (!values.length) return { count: 0, mean: "", range: "" };
+  const parsed = values.map(parseDecimal);
+  const scale = Math.max(...parsed.map((value) => value.scale));
+  const scaled = parsed.map((value) => value.integer * (10n ** BigInt(scale - value.scale)));
+  const sum = scaled.reduce((total, value) => total + value, 0n);
+
+  let mean;
+  if (values.length === 1) {
+    mean = formatScaledInteger(sum, scale);
+  } else {
+    const extraScale = 4;
+    const divisor = BigInt(values.length);
+    const scaledSum = sum * (10n ** BigInt(extraScale));
+    let quotient = scaledSum / divisor;
+    const remainder = scaledSum % divisor;
+    if (remainder * 2n >= divisor) quotient += 1n;
+    mean = formatScaledInteger(quotient, scale + extraScale);
+  }
+
+  const range = values.length > 1
+    ? formatScaledInteger(scaled.reduce((max, value) => value > max ? value : max) - scaled.reduce((min, value) => value < min ? value : min), scale)
+    : "";
+  return { count: values.length, mean, range };
+}
+
+function repeatedSummaryHtml(field, answer) {
+  const stats = repeatedStats(answer);
+  if (!stats.count) return "";
+  const unit = field.unit ? ` ${escapeHtml(field.unit)}` : "";
+  const parts = [`平均值：${escapeHtml(stats.mean)}${unit}`];
+  if (stats.range) parts.push(`最大差值：${escapeHtml(stats.range)}${unit}`);
+  return parts.map((part) => `<span>${part}</span>`).join("");
+}
+
+function renderRepeatedNumberField(field, answer) {
+  const values = Array.from({ length: field.repeatCount }, (_, index) => Array.isArray(answer) ? answer[index] ?? "" : "");
+  return `
+    <div class="repeated-number-field">
+      ${values.map((value, index) => `
+        <label class="repeated-input-row">
+          <span class="repeated-input-label">第${index + 1}次${index === 0 ? "" : "（选填）"}</span>
+          <span class="input-with-unit">
+            <input class="number-input" data-repeat-input="${index}" type="text" inputmode="${field.integer ? "numeric" : "decimal"}" autocomplete="off" value="${escapeHtml(value)}" placeholder="${escapeHtml(field.placeholder || "")}" />
+            ${field.unit ? `<span class="unit-label">${escapeHtml(field.unit)}</span>` : ""}
+          </span>
+        </label>`).join("")}
+      <div class="repeated-summary" data-repeated-summary ${validRepeatedValues(values).length ? "" : "hidden"}>${repeatedSummaryHtml(field, values)}</div>
+    </div>`;
+}
+
 function renderSingleChoice(field, answer) {
   const current = answer && typeof answer === "object" ? answer : { value: "", otherText: "" };
   return `<div class="choice-list">${field.options.map((option) => {
@@ -476,6 +601,7 @@ function renderFieldControl(field, answer) {
     case "shortText": return renderTextField(field, answer, false);
     case "longText": return renderTextField(field, answer, true);
     case "number": return renderNumberField(field, answer);
+    case "repeatedNumber": return renderRepeatedNumberField(field, answer);
     case "singleChoice": return renderSingleChoice(field, answer);
     case "multiChoice": return renderMultiChoice(field, answer);
     case "rating": return renderRating(field, answer);
@@ -529,8 +655,7 @@ function renderBackup() {
     <section class="screen">
       ${pageHeader("完整备份与恢复")}
       <div class="page-content"><div class="card backup-panel">
-        <h2>低频保险功能</h2>
-        <p>完整JSON包含所有问卷模板、已保存记录和草稿。日常研究只需导出CSV；换手机或担心本地数据丢失时，再使用这里。</p>
+        <p>完整JSON包含所有问卷模板、已保存记录和草稿。更换测试手机或考虑数据可能丢失时使用。</p>
         <div class="backup-actions">
           <button class="secondary-button" type="button" data-action="export-backup">导出完整 JSON 备份</button>
           <button class="danger-button" type="button" data-action="import-backup">从 JSON 恢复整个工具</button>
@@ -543,6 +668,7 @@ function blankAnswer(field) {
   if (field.allowAnonymous) return { value: "", anonymous: false };
   if (field.type === "singleChoice") return { value: "", otherText: "" };
   if (field.type === "multiChoice") return { values: [], otherTextById: {} };
+  if (field.type === "repeatedNumber") return Array.from({ length: field.repeatCount }, () => "");
   return "";
 }
 
@@ -592,6 +718,10 @@ function captureCurrentField() {
     }
   }
 
+  if (field.type === "repeatedNumber") {
+    state.draft.answers[field.id] = Array.from(app.querySelectorAll("[data-repeat-input]"), (input) => input.value);
+  }
+
   if (field.type === "singleChoice") {
     const answer = state.draft.answers[field.id] || { value: "", otherText: "" };
     const other = app.querySelector("[data-other-input]");
@@ -624,6 +754,20 @@ function fieldValidation(field, answer) {
       const pattern = field.integer ? /^\d+$/ : /^(?:\d+|\d*\.\d+)$/;
       if (!pattern.test(value)) return field.integer ? "请输入有效的整数" : "请输入有效数字，可以包含小数点";
     }
+  }
+
+
+  if (field.type === "repeatedNumber") {
+    const values = Array.from({ length: field.repeatCount }, (_, index) => String(Array.isArray(answer) ? answer[index] ?? "" : "").trim());
+    const entered = values.filter(Boolean);
+    const minEntries = field.minEntries ?? (field.required ? 1 : 0);
+    if (entered.length < minEntries) return `请至少填写${minEntries}次“${field.label}”`;
+    for (const value of entered) {
+      const pattern = field.integer ? /^\d+$/ : /^(?:\d+|\d*\.\d+)$/;
+      if (!pattern.test(value)) return field.integer ? "请输入有效的整数" : "请输入有效数字，可以包含小数点";
+    }
+    const lastEnteredIndex = values.reduce((last, value, index) => value ? index : last, -1);
+    if (values.slice(0, lastEnteredIndex + 1).some((value) => !value)) return "请按顺序填写测量数据，不要跳过中间一次";
   }
 
   if (field.type === "singleChoice") {
@@ -739,6 +883,16 @@ function formatAnswer(field, answer, options = {}) {
     return String(answer);
   }
   if (field.type === "number") return String(answer);
+  if (field.type === "repeatedNumber") {
+    const values = (Array.isArray(answer) ? answer : []).map((value) => String(value ?? "").trim()).filter(Boolean);
+    if (!values.length) return "";
+    const stats = repeatedStats(values);
+    const unit = field.unit ? ` ${field.unit}` : "";
+    const parts = values.map((value, index) => `第${index + 1}次：${value}${unit}`);
+    parts.push(`平均值：${stats.mean}${unit}`);
+    if (stats.range) parts.push(`最大差值：${stats.range}${unit}`);
+    return parts.join("；");
+  }
   if (field.type === "singleChoice") {
     const selected = field.options.find((item) => item.id === answer?.value);
     if (!selected) return "";
@@ -767,6 +921,26 @@ function exportHeader(field) {
   return field.unit ? `${field.label}（${field.unit}）` : field.label;
 }
 
+function exportColumns(field) {
+  if (field.type !== "repeatedNumber") {
+    return [{ header: exportHeader(field), value: (answer) => formatAnswer(field, answer, { forExport: true }) }];
+  }
+  const unit = field.unit ? `（${field.unit}）` : "";
+  const columns = Array.from({ length: field.repeatCount }, (_, index) => ({
+    header: `${field.label}－第${index + 1}次${unit}`,
+    value: (answer) => String(Array.isArray(answer) ? answer[index] ?? "" : "")
+  }));
+  columns.push({
+    header: `${field.label}－平均值${unit}`,
+    value: (answer) => repeatedStats(answer).mean
+  });
+  columns.push({
+    header: `${field.label}－最大差值${unit}`,
+    value: (answer) => repeatedStats(answer).range
+  });
+  return columns;
+}
+
 function csvCell(value) {
   let text = String(value ?? "");
   if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
@@ -776,12 +950,13 @@ function csvCell(value) {
 async function exportCsv() {
   if (!state.currentTemplate || !state.records.length) return;
   const fields = state.currentTemplate.fields.filter((field) => field.type !== "section");
-  const headers = ["记录编号", "首次保存时间", "最后修改时间", ...fields.map(exportHeader)];
+  const columns = fields.flatMap(exportColumns);
+  const headers = ["记录编号", "首次保存时间", "最后修改时间", ...columns.map((column) => column.header)];
   const rows = state.records.map((record) => [
     record.recordNumber,
     formatDateTime(record.createdAt),
     formatDateTime(record.updatedAt),
-    ...fields.map((field) => formatAnswer(field, record.answers[field.id], { forExport: true }))
+    ...fields.flatMap((field) => exportColumns(field).map((column) => column.value(record.answers[field.id])))
   ]);
   const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
   const filename = sanitizeFilename(`${state.currentTemplate.title}_V${state.currentTemplate.version}_${compactDate()}_共${state.records.length}份.csv`);
@@ -906,7 +1081,7 @@ async function openRecord(id) {
   render();
 }
 
-async function editSelectedRecord() {
+async function editSelectedRecord(startIndex = 0) {
   if (!state.selectedRecord) return;
   const existingDraft = await getDraft(state.currentTemplate.key);
   if (existingDraft) {
@@ -918,13 +1093,13 @@ async function editSelectedRecord() {
     templateKey: state.currentTemplate.key,
     mode: "edit",
     recordId: state.selectedRecord.id,
-    currentIndex: 0,
+    currentIndex: startIndex,
     answers: deepClone(state.selectedRecord.answers),
     createdAt: timestamp,
     updatedAt: timestamp
   };
   await putDraft(state.draft);
-  state.formIndex = 0;
+  state.formIndex = startIndex;
   state.view = "form";
   render();
 }
@@ -984,8 +1159,10 @@ async function handleAction(action, element) {
     case "next-question": await moveQuestion(1); break;
     case "open-record": await openRecord(element.dataset.id); break;
     case "edit-record": await editSelectedRecord(); break;
+    case "edit-record-at": await editSelectedRecord(Number(element.dataset.fieldIndex) || 0); break;
     case "delete-record": await removeSelectedRecord(); break;
     case "export-csv": await exportCsv(); break;
+    case "check-update": await checkForUpdates(); break;
     case "export-backup": await exportBackup(); break;
     case "import-backup": backupFileInput.click(); break;
     case "select-single": await selectSingle(element.dataset.option); break;
@@ -1059,6 +1236,15 @@ app.addEventListener("click", async (event) => {
 app.addEventListener("input", () => {
   if (state.view !== "form") return;
   captureCurrentField();
+  const field = state.currentTemplate.fields[state.formIndex];
+  if (field?.type === "repeatedNumber") {
+    const summary = app.querySelector("[data-repeated-summary]");
+    const answer = state.draft.answers[field.id];
+    if (summary) {
+      summary.innerHTML = repeatedSummaryHtml(field, answer);
+      summary.hidden = validRepeatedValues(answer).length === 0;
+    }
+  }
   persistDraft().catch(console.error);
 });
 
@@ -1114,9 +1300,39 @@ async function showUpdate(worker) {
   updateBanner.hidden = false;
 }
 
+async function checkForUpdates() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) {
+    showToast("当前环境不支持程序更新检查");
+    return;
+  }
+
+  showToast("正在检查更新…");
+  try {
+    const registration = state.serviceWorkerRegistration
+      || await navigator.serviceWorker.getRegistration("./")
+      || await navigator.serviceWorker.register("./sw.js");
+    state.serviceWorkerRegistration = registration;
+    await registration.update();
+
+    if (registration.waiting) {
+      await showUpdate(registration.waiting);
+      return;
+    }
+    if (registration.installing) {
+      showToast("正在准备新版本，完成后会显示更新提示");
+      return;
+    }
+    showToast(`当前已是最新版本 V${APP_VERSION}`);
+  } catch (error) {
+    console.error(error);
+    showToast("无法检查更新，请确认网络连接后重试");
+  }
+}
+
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
   const registration = await navigator.serviceWorker.register("./sw.js");
+  state.serviceWorkerRegistration = registration;
   if (registration.waiting) await showUpdate(registration.waiting);
 
   registration.addEventListener("updatefound", () => {

@@ -1,8 +1,8 @@
-export const DEFAULT_TEMPLATE = {
+const LEGACY_DEFAULT_TEMPLATE = {
   schemaVersion: 1,
   id: "ear-anthropometry-survey",
   version: "1.0",
-  title: "耳部人体数据采集",
+  title: "佩戴耳厚数据采集",
   description: "由研究人员完成的左耳厚度、佩戴习惯与主观体验记录。",
   fields: [
     {
@@ -146,6 +146,40 @@ export const DEFAULT_TEMPLATE = {
     }
   ]
 };
+
+function repeatedThicknessField(field, description) {
+  return {
+    ...field,
+    type: "repeatedNumber",
+    description,
+    repeatCount: 3,
+    minEntries: 1,
+    placeholder: "输入治具显示的数值"
+  };
+}
+
+export const DEFAULT_TEMPLATE = {
+  ...LEGACY_DEFAULT_TEMPLATE,
+  version: "1.1",
+  description: "由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。",
+  fields: LEGACY_DEFAULT_TEMPLATE.fields.map((field) => {
+    if (field.id === "horizontalThickness") {
+      return repeatedThicknessField(
+        field,
+        "在同一水平佩戴位置测量1至3次。每次取下治具后重新定位；治具刚好接触耳部表面，避免明显压迫或变形。"
+      );
+    }
+    if (field.id === "tiltedThickness") {
+      return repeatedThicknessField(
+        field,
+        "优先按照参与者习惯的倾斜位置测量，没有明确习惯时按约45°测量。测量1至3次，每次取下治具后重新定位；治具刚好接触耳部表面，避免明显压迫或变形。"
+      );
+    }
+    return field;
+  })
+};
+
+export const BUILT_IN_TEMPLATES = [LEGACY_DEFAULT_TEMPLATE, DEFAULT_TEMPLATE];
 
 export function templateKey(template) {
   return `${template.id}@${template.version}`;

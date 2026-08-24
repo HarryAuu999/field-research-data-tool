@@ -20,17 +20,38 @@
 - `title`：手机首页显示的中文名称；
 - `fields`：按填写顺序排列的问题。
 
-## V1.0支持的题型
+## 支持的题型
 
 - `shortText`：短文字；
 - `longText`：长文字；
 - `number`：数字，`integer: true` 时只接受整数；
+- `repeatedNumber`：同一道题填写多次数字，可设置最多次数和最少填写数量；
 - `singleChoice`：单选；
 - `multiChoice`：多选；
 - `rating`：评分；
 - `section`：只显示标题或说明，不导出答案。
 
 所有问题均使用唯一的 `id`，并可设置 `required: true` 或 `false`。
+
+## 重复数字
+
+```json
+{
+  "id": "thickness",
+  "type": "repeatedNumber",
+  "label": "厚度",
+  "required": true,
+  "repeatCount": 3,
+  "minEntries": 1,
+  "unit": "mm",
+  "placeholder": "输入读数"
+}
+```
+
+- `repeatCount`：页面显示的输入框数量，目前允许2至10个；
+- `minEntries`：至少需要填写几个，本例允许只填1次、2次或完整填写3次；
+- 必须从第1次开始按顺序填写，不能跳过中间一次；
+- CSV会分别导出每次原始值、平均值和最大差值；只有1个数据时，最大差值留空。
 
 ## 单选与“其他”文字
 
