@@ -393,7 +393,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .back-button img, .row-chevron, .hero-heading img { display: block; flex: 0 0 auto; }
 
 .home-screen { display: flex; flex-direction: column; }
-.home-content { display: grid; gap: 24px; padding: 16px; }
+.home-content {
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 24px;
+  padding: 16px;
+}
 
 .hero {
   width: 100%;
@@ -456,6 +462,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .count-link .count-value { color: var(--muted); font-size: 15px; }
 
 .home-actions, .draft-actions { display: grid; gap: 12px; margin: 0; }
+.home-actions {
+  align-self: end;
+  width: 100%;
+  gap: 36px;
+  padding-top: 24px;
+}
 .home-footer {
   margin-top: auto;
   padding: 16px 16px max(16px, env(safe-area-inset-bottom));

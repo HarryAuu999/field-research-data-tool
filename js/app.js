@@ -18,7 +18,7 @@ import {
 } from "./db.js";
 import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.0.0-beta.6";
+const APP_VERSION = "1.0.0-beta.7";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
