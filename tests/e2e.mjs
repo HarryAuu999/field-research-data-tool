@@ -198,7 +198,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.1.1", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.1.2", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -272,8 +272,19 @@ await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor()
 assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
 assert(await page.locator("svg[data-analysis-chart]").count() === 2, "已保存记录的简易分析没有使用SVG图表");
 const firstChart = page.locator('[data-analysis-chart="0"]');
-await firstChart.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientX: 180, clientY: 180 });
-assert(await page.locator(".chart-tooltip").first().isVisible(), "图表滑动后没有显示P值提示");
+assert(await firstChart.evaluate((element) => getComputedStyle(element).touchAction) === "pan-y", "图表没有保留纵向页面滚动能力");
+await firstChart.dispatchEvent("pointerdown", { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: 180, clientY: 180 });
+await firstChart.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: 184, clientY: 192 });
+assert(!(await firstChart.evaluate((element) => element.classList.contains("is-scrubbing"))), "纵向手势被错误锁定为P值拖动");
+await firstChart.dispatchEvent("pointerup", { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: 184, clientY: 192 });
+await firstChart.dispatchEvent("pointerdown", { pointerId: 2, pointerType: "touch", isPrimary: true, clientX: 150, clientY: 180 });
+await firstChart.dispatchEvent("pointermove", { pointerId: 2, pointerType: "touch", isPrimary: true, clientX: 164, clientY: 183 });
+assert(await firstChart.evaluate((element) => element.classList.contains("is-scrubbing")), "横向手势没有锁定为P值拖动");
+assert(await page.locator(".chart-tooltip").first().isVisible(), "横向拖动后没有显示P值提示");
+await firstChart.dispatchEvent("pointermove", { pointerId: 2, pointerType: "touch", isPrimary: true, clientX: 210, clientY: 220 });
+assert(await firstChart.evaluate((element) => element.classList.contains("is-scrubbing")), "横向锁定后因斜向移动而中断");
+await firstChart.dispatchEvent("pointerup", { pointerId: 2, pointerType: "touch", isPrimary: true, clientX: 210, clientY: 220 });
+assert(!(await firstChart.evaluate((element) => element.classList.contains("is-scrubbing"))), "松手后没有解除P值拖动锁定");
 const portraitChartWidth = await firstChart.evaluate((element) => element.getBoundingClientRect().width);
 await page.setViewportSize({ width: 844, height: 390 });
 const landscapeChartWidth = await firstChart.evaluate((element) => element.getBoundingClientRect().width);

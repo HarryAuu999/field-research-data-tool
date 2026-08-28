@@ -18,7 +18,7 @@ import {
 } from "./db.js";
 import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.1.2";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -28,6 +28,7 @@ const ANALYSIS_THEMES = {
   blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
+const CHART_GESTURE_THRESHOLD = 8;
 const SUPPORTED_FIELD_TYPES = new Set([
   "shortText",
   "longText",
@@ -833,6 +834,62 @@ function updateChartCursor(chart, clientX) {
   tooltip.hidden = false;
 }
 
+function bindChartGesture(chart) {
+  let gesture = null;
+
+  const finishGesture = (event, allowTap = false) => {
+    if (!gesture || event.pointerId !== gesture.pointerId) return;
+    if (allowTap && !gesture.direction) updateChartCursor(chart, event.clientX);
+    if (chart.hasPointerCapture?.(event.pointerId)) chart.releasePointerCapture(event.pointerId);
+    chart.classList.remove("is-scrubbing");
+    gesture = null;
+  };
+
+  chart.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") {
+      updateChartCursor(chart, event.clientX);
+      return;
+    }
+    if (event.isPrimary === false) return;
+    gesture = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      direction: null
+    };
+  });
+
+  chart.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse") {
+      updateChartCursor(chart, event.clientX);
+      return;
+    }
+    if (!gesture || event.pointerId !== gesture.pointerId) return;
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (!gesture.direction) {
+      if (Math.hypot(deltaX, deltaY) < CHART_GESTURE_THRESHOLD) return;
+      gesture.direction = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
+      if (gesture.direction === "horizontal") {
+        chart.classList.add("is-scrubbing");
+        try { chart.setPointerCapture(event.pointerId); } catch { /* Safari may already own the pointer. */ }
+      }
+    }
+    if (gesture.direction !== "horizontal") return;
+    event.preventDefault();
+    updateChartCursor(chart, event.clientX);
+  }, { passive: false });
+
+  chart.addEventListener("pointerup", (event) => finishGesture(event, true));
+  chart.addEventListener("pointercancel", (event) => finishGesture(event));
+  chart.addEventListener("pointerleave", (event) => {
+    if (event.pointerType !== "mouse") return;
+    const stage = chart.closest(".chart-stage");
+    stage.querySelector(".chart-cursor").hidden = true;
+    stage.querySelector(".chart-tooltip").hidden = true;
+  });
+}
+
 function initializeAnalysisCharts(config) {
   const redrawers = [];
   app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
@@ -845,15 +902,7 @@ function initializeAnalysisCharts(config) {
       chart._distributionModel = drawDistributionChart(chart, values, config, field, theme);
     };
     redrawers.push(redraw);
-    chart.addEventListener("pointerdown", (event) => updateChartCursor(chart, event.clientX));
-    chart.addEventListener("pointermove", (event) => updateChartCursor(chart, event.clientX));
-    chart.addEventListener("pointerleave", (event) => {
-      if (event.pointerType === "mouse") {
-        const stage = chart.closest(".chart-stage");
-        stage.querySelector(".chart-cursor").hidden = true;
-        stage.querySelector(".chart-tooltip").hidden = true;
-      }
-    });
+    bindChartGesture(chart);
     redraw();
   });
   state.analysisResizeObserver = new ResizeObserver(() => redrawers.forEach((redraw) => redraw()));
