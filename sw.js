@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.0-beta.8";
+const APP_VERSION = "1.1";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
@@ -13,6 +13,7 @@ const APP_ASSETS = [
   "./assets/arrow-left.svg",
   "./assets/chevron-right.svg",
   "./assets/check.svg",
+  "./assets/trash.svg",
   "./js/app.js",
   "./js/db.js",
   "./js/default-template.js"

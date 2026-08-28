@@ -130,3 +130,30 @@ CSV的同一列中保存 `1`～`5` 或文字“无法判断”。
 ```
 
 外部网页图片地址会被拒绝，避免现场离线后无法显示。
+
+## 可选的简易分析
+
+简易分析是某一份问卷的可选能力，并不是所有问卷都会显示。当前只支持对数字题或重复数字题进行分布分析：
+
+```json
+{
+  "analysis": {
+    "type": "distribution",
+    "aggregation": "participantMean",
+    "binWidth": 0.5,
+    "percentiles": [20, 50, 80],
+    "fields": [
+      { "id": "horizontalThickness", "label": "水平位置耳厚分布", "theme": "blue" },
+      { "id": "tiltedThickness", "label": "倾斜位置耳厚分布", "theme": "orange" }
+    ]
+  }
+}
+```
+
+- `participantMean`：同一参与者的重复测量先计算平均值，然后该参与者只计入一次；
+- `binWidth`：直方图每个区间的宽度，必须大于0；
+- `percentiles`：需要显示的百分位，数值必须在0至100之间；
+- `fields`：只能引用当前问卷内的`number`或`repeatedNumber`字段；
+- `theme`：目前可使用`blue`或`orange`。
+
+如果问卷不需要简易分析，不要添加`analysis`。统计方法不应由AI自行猜测，应由研究负责人确认。

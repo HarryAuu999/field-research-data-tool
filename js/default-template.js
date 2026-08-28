@@ -187,6 +187,22 @@ export const DEFAULT_TEMPLATE = {
 
 export const BUILT_IN_TEMPLATES = [LEGACY_DEFAULT_TEMPLATE, DEFAULT_TEMPLATE];
 
+// Built-in analysis presets live in the app instead of the stored questionnaire.
+// This lets existing V1.1 questionnaires and records gain read-only analysis
+// without rewriting their saved template or answer data.
+export const ANALYSIS_PRESETS = {
+  "ear-anthropometry-survey@1.1": {
+    type: "distribution",
+    aggregation: "participantMean",
+    binWidth: 0.5,
+    percentiles: [20, 50, 80],
+    fields: [
+      { id: "horizontalThickness", label: "水平位置耳厚分布", theme: "blue" },
+      { id: "tiltedThickness", label: "倾斜位置耳厚分布", theme: "orange" }
+    ]
+  }
+};
+
 export function templateKey(template) {
   return `${template.id}@${template.version}`;
 }

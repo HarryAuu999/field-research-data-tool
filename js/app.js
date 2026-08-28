@@ -16,13 +16,18 @@ import {
   replaceDatabaseState,
   setSetting
 } from "./db.js";
-import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.0.0-beta.8";
+const APP_VERSION = "1.1";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
 const ICON_CHEVRON_RIGHT = "./assets/chevron-right.svg";
+const ICON_TRASH = "./assets/trash.svg";
+const ANALYSIS_THEMES = {
+  blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
+  orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
+};
 const SUPPORTED_FIELD_TYPES = new Set([
   "shortText",
   "longText",
@@ -56,12 +61,15 @@ const state = {
   records: [],
   draft: null,
   selectedRecord: null,
+  selectedTemplate: null,
+  selectedTemplateDraft: null,
   formIndex: 0,
   templateCounts: {},
   waitingWorker: null,
   serviceWorkerRegistration: null,
   toastTimer: null,
-  actionBusy: false
+  actionBusy: false,
+  analysisResizeObserver: null
 };
 
 function escapeHtml(value) {
@@ -195,10 +203,35 @@ function validateTemplate(input) {
     }
   });
 
+  if (input.analysis !== undefined) validateAnalysisConfig(input.analysis, input.fields);
+
   const template = deepClone(input);
   template.key = templateKey(template);
   template.importedAt = template.importedAt || nowIso();
   return template;
+}
+
+function validateAnalysisConfig(config, fields) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
+  if (config.type !== "distribution") throw new Error("目前只支持 distribution 分布分析");
+  if (config.aggregation !== "participantMean") throw new Error("分布分析必须按参与者平均值汇总");
+  if (!Number.isFinite(config.binWidth) || config.binWidth <= 0) throw new Error("分布分析的区间宽度必须大于0");
+  if (!Array.isArray(config.percentiles) || !config.percentiles.length || config.percentiles.some((value) => !Number.isFinite(value) || value <= 0 || value >= 100)) {
+    throw new Error("分布分析的百分位设置无效");
+  }
+  if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("分布分析至少需要一个数字题");
+  const fieldMap = new Map(fields.map((field) => [field.id, field]));
+  for (const item of config.fields) {
+    const field = fieldMap.get(item?.id);
+    if (!field || !["number", "repeatedNumber"].includes(field.type)) throw new Error(`简易分析字段无效：${item?.id || "未命名"}`);
+    if (item.label !== undefined && (typeof item.label !== "string" || !item.label.trim())) throw new Error(`简易分析字段 ${item.id} 的标题无效`);
+    if (item.theme !== undefined && !ANALYSIS_THEMES[item.theme]) throw new Error(`简易分析字段 ${item.id} 的主题色无效`);
+  }
+}
+
+function analysisConfig(template) {
+  if (!template) return null;
+  return template.analysis || ANALYSIS_PRESETS[template.key] || null;
 }
 
 async function seedDefaultTemplate() {
@@ -295,10 +328,14 @@ function pageHeader(title, backAction = "home") {
 }
 
 function render() {
+  state.analysisResizeObserver?.disconnect();
+  state.analysisResizeObserver = null;
   switch (state.view) {
     case "templates": renderTemplates(); break;
+    case "templateOverview": renderTemplateOverview(); break;
     case "records": renderRecords(); break;
     case "recordDetail": renderRecordDetail(); break;
+    case "analysis": renderAnalysis(); break;
     case "form": renderForm(); break;
     case "backup": renderBackup(); break;
     default: renderHome();
@@ -343,6 +380,7 @@ function renderHome() {
   const heroDetail = state.draft
     ? `<span class="hero-version">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version">问卷版本 V${escapeHtml(state.currentTemplate.version)}</span>`;
+  const currentAnalysis = analysisConfig(state.currentTemplate);
 
   app.innerHTML = `
     <section class="screen home-screen">
@@ -365,6 +403,7 @@ function renderHome() {
         </div>
         <div class="home-actions">
           ${draftButtons}
+          ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
           <button class="secondary-button" type="button" data-action="export-csv" ${state.records.length ? "" : "disabled"}>导出 CSV 数据</button>
         </div>
       </div>
@@ -381,8 +420,8 @@ function renderTemplates() {
     const count = state.templateCounts[template.key] ?? 0;
     return `
       <div class="swipe-row" data-template-row="${escapeHtml(template.key)}">
-        <button class="swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}">删除</button>
-        <button class="swipe-content" type="button" data-action="select-template" data-key="${escapeHtml(template.key)}">
+        <button class="swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}" aria-label="删除${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
+        <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}">
           <span class="template-copy">
             <span class="template-name">${escapeHtml(template.title)} <small>V${escapeHtml(template.version)}</small></span>
             <span class="template-meta">${count}份记录 ${isCurrent ? '<span class="current-chip">当前</span>' : ""}</span>
@@ -405,6 +444,66 @@ function renderTemplates() {
       </footer>
     </section>`;
   bindSwipeRows();
+}
+
+function fieldTypeLabel(field) {
+  const labels = {
+    shortText: "短文字",
+    longText: "长文字",
+    number: "数字",
+    repeatedNumber: "重复测量",
+    singleChoice: "单选",
+    multiChoice: "多选",
+    rating: "评分",
+    section: "说明"
+  };
+  return labels[field.type] || field.type;
+}
+
+function renderTemplateOverview() {
+  const template = state.selectedTemplate;
+  if (!template) {
+    state.view = "templates";
+    renderTemplates();
+    return;
+  }
+  const isCurrent = template.key === state.currentTemplate?.key;
+  const count = state.templateCounts[template.key] ?? 0;
+  const config = analysisConfig(template);
+  let questionNumber = 0;
+  const questions = template.fields.map((field) => {
+    if (field.type === "section") {
+      return `<section class="overview-section"><h3>${escapeHtml(field.label)}</h3>${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}</section>`;
+    }
+    questionNumber += 1;
+    const options = ["singleChoice", "multiChoice"].includes(field.type)
+      ? `<p class="overview-options">${field.options.map((option) => escapeHtml(option.label)).join(" · ")}</p>`
+      : "";
+    const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
+    return `
+      <article class="overview-question">
+        <div class="overview-question-heading"><span>Q${questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
+        <p class="overview-question-type">${escapeHtml(fieldTypeLabel(field))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
+        ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
+        ${options}
+      </article>`;
+  }).join("");
+  const startLabel = state.selectedTemplateDraft ? (state.selectedTemplateDraft.mode === "edit" ? "继续修改" : "继续填写") : "开始填写";
+
+  app.innerHTML = `
+    <section class="screen template-overview-screen">
+      ${pageHeader("问卷概览", "templates")}
+      <div class="page-content template-overview-content">
+        <div class="overview-summary">
+          <div class="overview-title-row"><h2>${escapeHtml(template.title)}</h2><span>V${escapeHtml(template.version)}</span></div>
+          <p>${escapeHtml(template.description || "暂无问卷说明")}</p>
+          <div class="overview-meta"><span>${count}份记录</span>${isCurrent ? '<span class="current-chip">当前问卷</span>' : ""}${config ? '<span class="analysis-chip">支持简易分析</span>' : ""}</div>
+        </div>
+        <div class="overview-question-list">${questions}</div>
+        <button class="overview-delete-link" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}">删除此问卷</button>
+      </div>
+      <footer class="overview-footer"><button class="primary-button" type="button" data-action="start-template" data-key="${escapeHtml(template.key)}">${startLabel}</button></footer>
+    </section>`;
 }
 
 function recordName(record) {
@@ -562,6 +661,282 @@ function repeatedSummaryHtml(field, answer) {
   const parts = [`平均值：${escapeHtml(stats.mean)}${unit}`];
   if (stats.range) parts.push(`最大差值：${escapeHtml(stats.range)}${unit}`);
   return parts.map((part) => `<span>${part}</span>`).join("");
+}
+
+function quantile(sortedValues, percentile) {
+  if (!sortedValues.length) return null;
+  if (sortedValues.length === 1) return sortedValues[0];
+  const position = (sortedValues.length - 1) * (percentile / 100);
+  const lower = Math.floor(position);
+  const fraction = position - lower;
+  return sortedValues[lower] + (sortedValues[Math.min(lower + 1, sortedValues.length - 1)] - sortedValues[lower]) * fraction;
+}
+
+function analysisValue(field, answer) {
+  if (field.type === "number") {
+    const value = Number(answer);
+    return Number.isFinite(value) ? value : null;
+  }
+  if (field.type === "repeatedNumber") {
+    const values = validRepeatedValues(answer).map(Number).filter(Number.isFinite);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  }
+  return null;
+}
+
+function fieldDistribution(template, records, fieldId) {
+  const field = template.fields.find((item) => item.id === fieldId);
+  if (!field) return [];
+  return records.map((record) => analysisValue(field, record.answers?.[fieldId])).filter(Number.isFinite).sort((a, b) => a - b);
+}
+
+function sampleStandardDeviation(values) {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Math.sqrt(values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (values.length - 1));
+}
+
+function kdeBandwidth(values, binWidth) {
+  if (values.length < 2) return binWidth;
+  const standardDeviation = sampleStandardDeviation(values);
+  const iqr = quantile(values, 75) - quantile(values, 25);
+  const robustScale = Math.min(...[standardDeviation, iqr / 1.34].filter((value) => value > 0));
+  const scale = Number.isFinite(robustScale) ? robustScale : standardDeviation || binWidth;
+  return Math.max(scale * 0.9 * (values.length ** -0.2), binWidth * 0.18);
+}
+
+function niceCeiling(value) {
+  const raw = Math.max(2, value);
+  if (raw <= 2) return 2;
+  const step = Math.max(1, Math.ceil(raw / 4));
+  return step * 4;
+}
+
+function distributionModel(values, binWidth) {
+  const minimum = values[0];
+  const maximum = values[values.length - 1];
+  let start = Math.floor(minimum / binWidth) * binWidth;
+  let end = Math.ceil(maximum / binWidth) * binWidth;
+  if (end <= start) end = start + binWidth;
+  start -= binWidth * 0.5;
+  end += binWidth * 0.5;
+  const binCount = Math.max(1, Math.ceil((end - start) / binWidth));
+  end = start + binCount * binWidth;
+  const bins = Array.from({ length: binCount }, (_, index) => ({
+    start: start + index * binWidth,
+    end: start + (index + 1) * binWidth,
+    count: 0
+  }));
+  values.forEach((value) => {
+    const index = Math.min(binCount - 1, Math.max(0, Math.floor((value - start) / binWidth)));
+    bins[index].count += 1;
+  });
+
+  const bandwidth = kdeBandwidth(values, binWidth);
+  const curve = values.length > 1 ? Array.from({ length: 181 }, (_, index) => {
+    const x = start + (end - start) * (index / 180);
+    const density = values.reduce((sum, value) => {
+      const z = (x - value) / bandwidth;
+      return sum + Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+    }, 0) / (values.length * bandwidth);
+    return { x, y: density * values.length * binWidth };
+  }) : [];
+  return { values, start, end, bins, curve, bandwidth };
+}
+
+function drawDistributionChart(canvas, values, config, field, theme) {
+  const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(280, Math.round(bounds.width));
+  const height = Math.max(250, Math.round(bounds.height));
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  const context = canvas.getContext("2d");
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  const margin = { top: 42, right: 18, bottom: 42, left: 42 };
+  const plot = { left: margin.left, top: margin.top, right: width - margin.right, bottom: height - margin.bottom };
+  const model = distributionModel(values, config.binWidth);
+  const peak = Math.max(...model.bins.map((bin) => bin.count), ...model.curve.map((point) => point.y), 1);
+  const yMax = niceCeiling(peak * 1.12);
+  const xScale = (value) => plot.left + ((value - model.start) / (model.end - model.start)) * (plot.right - plot.left);
+  const yScale = (value) => plot.bottom - (value / yMax) * (plot.bottom - plot.top);
+
+  context.font = "11px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
+  context.lineWidth = 1;
+  context.textBaseline = "middle";
+  context.textAlign = "right";
+  for (let index = 0; index <= 4; index += 1) {
+    const value = yMax * index / 4;
+    const y = yScale(value);
+    context.strokeStyle = index === 0 ? "#9ca3af" : "#e5e7eb";
+    context.beginPath();
+    context.moveTo(plot.left, y);
+    context.lineTo(plot.right, y);
+    context.stroke();
+    context.fillStyle = "#6b7280";
+    context.fillText(Number.isInteger(value) ? String(value) : value.toFixed(1), plot.left - 7, y);
+  }
+
+  model.bins.forEach((bin) => {
+    const x = xScale(bin.start) + 1;
+    const barWidth = Math.max(1, xScale(bin.end) - xScale(bin.start) - 2);
+    const y = yScale(bin.count);
+    context.fillStyle = theme.fill;
+    context.strokeStyle = theme.base;
+    context.fillRect(x, y, barWidth, plot.bottom - y);
+    context.strokeRect(x, y, barWidth, plot.bottom - y);
+    if (bin.count) {
+      context.fillStyle = "#1f2937";
+      context.textAlign = "center";
+      context.fillText(`${bin.count}人`, x + barWidth / 2, Math.max(plot.top + 8, y - 9));
+    }
+  });
+
+  if (model.curve.length) {
+    context.strokeStyle = theme.base;
+    context.lineWidth = 2.5;
+    context.beginPath();
+    model.curve.forEach((point, index) => {
+      const x = xScale(point.x);
+      const y = yScale(point.y);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.stroke();
+  }
+
+  const percentileGroups = config.percentiles.map((percentile) => {
+    const value = quantile(values, percentile);
+    return { percentiles: [percentile], value, x: xScale(value) };
+  }).reduce((groups, point) => {
+    const previous = groups.at(-1);
+    if (previous && Math.abs(previous.value - point.value) < 0.005) {
+      previous.percentiles.push(...point.percentiles);
+      previous.value = (previous.value + point.value) / 2;
+      previous.x = (previous.x + point.x) / 2;
+    } else {
+      groups.push(point);
+    }
+    return groups;
+  }, []);
+  percentileGroups.forEach((group, index) => {
+    const x = group.x;
+    context.strokeStyle = theme.base;
+    context.lineWidth = 1;
+    context.setLineDash([4, 4]);
+    context.beginPath();
+    context.moveTo(x, plot.top);
+    context.lineTo(x, plot.bottom);
+    context.stroke();
+    context.setLineDash([]);
+    context.fillStyle = theme.base;
+    context.font = "600 10px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
+    context.textAlign = "center";
+    context.fillText(`${group.percentiles.map((value) => `P${value}`).join("/")} ${group.value.toFixed(2)}`, x, 13 + (index % 2) * 14);
+  });
+
+  context.fillStyle = "#6b7280";
+  context.font = "11px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
+  context.textAlign = "center";
+  for (let index = 0; index <= 4; index += 1) {
+    const value = model.start + (model.end - model.start) * index / 4;
+    context.fillText(value.toFixed(1), xScale(value), plot.bottom + 18);
+  }
+  context.save();
+  context.translate(12, (plot.top + plot.bottom) / 2);
+  context.rotate(-Math.PI / 2);
+  context.fillText("人数", 0, 0);
+  context.restore();
+  context.fillText(`耳厚（${field.unit || "数值"}）`, (plot.left + plot.right) / 2, height - 9);
+
+  return { ...model, plot, width, height, xScale, unit: field.unit || "" };
+}
+
+function updateChartCursor(canvas, clientX) {
+  const model = canvas._distributionModel;
+  if (!model) return;
+  const rect = canvas.getBoundingClientRect();
+  const localX = Math.max(model.plot.left, Math.min(model.plot.right, clientX - rect.left));
+  const value = model.start + ((localX - model.plot.left) / (model.plot.right - model.plot.left)) * (model.end - model.start);
+  const percentile = model.values.filter((item) => item <= value).length / model.values.length * 100;
+  const bin = model.bins.find((item, index) => value >= item.start && (value < item.end || index === model.bins.length - 1));
+  const stage = canvas.closest(".chart-stage");
+  const cursor = stage.querySelector(".chart-cursor");
+  const tooltip = stage.querySelector(".chart-tooltip");
+  const left = localX / model.width * 100;
+  cursor.style.left = `${left}%`;
+  cursor.hidden = false;
+  tooltip.style.left = `${Math.max(20, Math.min(80, left))}%`;
+  tooltip.textContent = `P${percentile.toFixed(0)} · ${value.toFixed(2)}${model.unit ? ` ${model.unit}` : ""} · 本区间${bin?.count || 0}人`;
+  tooltip.hidden = false;
+}
+
+function initializeAnalysisCharts(config) {
+  const redrawers = [];
+  app.querySelectorAll("[data-analysis-chart]").forEach((canvas) => {
+    const item = config.fields[Number(canvas.dataset.analysisChart)];
+    const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
+    const values = fieldDistribution(state.currentTemplate, state.records, item.id);
+    const theme = ANALYSIS_THEMES[item.theme] || ANALYSIS_THEMES.blue;
+    const redraw = () => {
+      if (!canvas.isConnected || !values.length) return;
+      canvas._distributionModel = drawDistributionChart(canvas, values, config, field, theme);
+    };
+    redrawers.push(redraw);
+    canvas.addEventListener("pointerdown", (event) => updateChartCursor(canvas, event.clientX));
+    canvas.addEventListener("pointermove", (event) => updateChartCursor(canvas, event.clientX));
+    canvas.addEventListener("pointerleave", (event) => {
+      if (event.pointerType === "mouse") {
+        const stage = canvas.closest(".chart-stage");
+        stage.querySelector(".chart-cursor").hidden = true;
+        stage.querySelector(".chart-tooltip").hidden = true;
+      }
+    });
+    redraw();
+  });
+  state.analysisResizeObserver = new ResizeObserver(() => redrawers.forEach((redraw) => redraw()));
+  app.querySelectorAll(".chart-stage").forEach((stage) => state.analysisResizeObserver.observe(stage));
+}
+
+function renderAnalysis() {
+  const config = analysisConfig(state.currentTemplate);
+  if (!config) {
+    state.view = "home";
+    renderHome();
+    showToast("当前问卷没有配置简易分析");
+    return;
+  }
+  const charts = config.fields.map((item, index) => {
+    const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
+    const values = fieldDistribution(state.currentTemplate, state.records, item.id);
+    const themeName = ANALYSIS_THEMES[item.theme] ? item.theme : "blue";
+    const theme = ANALYSIS_THEMES[themeName];
+    if (!field || !values.length) {
+      return `<section class="analysis-chart-card"><h2>${escapeHtml(item.label || field?.label || item.id)}</h2><div class="analysis-empty">还没有可用于分析的数据</div></section>`;
+    }
+    const percentileText = config.percentiles.map((percentile) => `P${percentile} ${quantile(values, percentile).toFixed(2)} ${field.unit || ""}`).join(" · ");
+    return `
+      <section class="analysis-chart-card" data-chart-theme="${themeName}" style="--chart-color:${theme.base};--chart-fill:${theme.fill}">
+        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>每名参与者先取测量平均值，再只计入一次；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。</p></div>
+        <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span>' : ""}</div>
+        <div class="chart-stage">
+          <canvas data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}"></canvas>
+          <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
+        </div>
+        <p class="percentile-summary">${escapeHtml(percentileText)}</p>
+      </section>`;
+  }).join("");
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">横向滑动图表可查看对应耳厚、P值和所在区间人数。横屏时图表会自动放大。</p>
+        ${charts}
+      </div>
+    </section>`;
+  requestAnimationFrame(() => initializeAnalysisCharts(config));
 }
 
 function renderRepeatedNumberField(field, answer) {
@@ -1070,6 +1445,27 @@ async function selectTemplate(key) {
   render();
 }
 
+async function openTemplateOverview(key) {
+  const template = await getTemplate(key);
+  if (!template) return;
+  state.selectedTemplate = template;
+  state.selectedTemplateDraft = await getDraft(key);
+  state.view = "templateOverview";
+  render();
+}
+
+async function startSelectedTemplate(key) {
+  await setSetting("currentTemplateKey", key);
+  await refreshContext();
+  if (state.draft) {
+    state.formIndex = state.draft.currentIndex || 0;
+    state.view = "form";
+    render();
+    return;
+  }
+  await startNewForm();
+}
+
 async function removeTemplate(key) {
   const template = await getTemplate(key);
   if (!template) return;
@@ -1087,6 +1483,8 @@ async function removeTemplate(key) {
   if (state.currentTemplate?.key === key) await setSetting("currentTemplateKey", remaining[0]?.key || null);
   await refreshContext();
   await loadTemplateCounts();
+  state.selectedTemplate = null;
+  state.selectedTemplateDraft = null;
   state.view = "templates";
   render();
   showToast("问卷及其本地数据已删除");
@@ -1139,15 +1537,80 @@ async function removeSelectedRecord() {
 }
 
 function bindSwipeRows() {
-  app.querySelectorAll("[data-template-row]").forEach((row) => {
-    let startX = 0;
-    row.addEventListener("touchstart", (event) => { startX = event.changedTouches[0].clientX; }, { passive: true });
-    row.addEventListener("touchend", (event) => {
-      const delta = event.changedTouches[0].clientX - startX;
-      if (delta < -45) row.classList.add("revealed");
-      if (delta > 45) row.classList.remove("revealed");
-    }, { passive: true });
+  const rows = Array.from(app.querySelectorAll("[data-template-row]"));
+  const closeOthers = (current = null) => rows.forEach((row) => {
+    if (row !== current) {
+      row.classList.remove("revealed", "dragging");
+      row.querySelector(".swipe-content")?.style.removeProperty("transform");
+    }
   });
+
+  rows.forEach((row) => {
+    const content = row.querySelector(".swipe-content");
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let baseOffset = 0;
+    let currentOffset = 0;
+    let axis = null;
+
+    const settle = (open) => {
+      row.classList.remove("dragging");
+      row.classList.toggle("revealed", open);
+      content.style.removeProperty("transform");
+      currentOffset = open ? -76 : 0;
+    };
+
+    content.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      closeOthers(row);
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      startTime = performance.now();
+      baseOffset = row.classList.contains("revealed") ? -76 : 0;
+      currentOffset = baseOffset;
+      axis = null;
+      try {
+        content.setPointerCapture?.(pointerId);
+      } catch {
+        // Synthetic pointer events used by automated tests do not own a real pointer.
+      }
+    });
+
+    content.addEventListener("pointermove", (event) => {
+      if (pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      if (!axis && Math.max(Math.abs(deltaX), Math.abs(deltaY)) > 6) axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.15 ? "x" : "y";
+      if (axis !== "x") return;
+      event.preventDefault();
+      row.classList.add("dragging");
+      currentOffset = Math.max(-76, Math.min(0, baseOffset + deltaX));
+      content.style.transform = `translateX(${currentOffset}px)`;
+      if (Math.abs(deltaX) > 8) row.dataset.suppressClick = "true";
+    });
+
+    const finish = (event) => {
+      if (pointerId !== event.pointerId) return;
+      const elapsed = Math.max(1, performance.now() - startTime);
+      const velocity = (event.clientX - startX) / elapsed;
+      const open = axis === "x" ? (velocity < -0.45 || (velocity <= 0.45 && currentOffset < -38)) : row.classList.contains("revealed");
+      settle(open);
+      pointerId = null;
+      setTimeout(() => { delete row.dataset.suppressClick; }, 0);
+    };
+    content.addEventListener("pointerup", finish);
+    content.addEventListener("pointercancel", (event) => {
+      if (pointerId !== event.pointerId) return;
+      settle(baseOffset < 0);
+      pointerId = null;
+      delete row.dataset.suppressClick;
+    });
+  });
+
+  app.querySelector(".template-content")?.addEventListener("scroll", () => closeOthers(), { passive: true });
 }
 
 async function handleAction(action, element) {
@@ -1156,8 +1619,11 @@ async function handleAction(action, element) {
       await refreshContext(); state.view = "home"; render(); break;
     case "templates":
       await loadTemplateCounts(); state.view = "templates"; render(); break;
+    case "open-template": await openTemplateOverview(element.dataset.key); break;
+    case "start-template": await startSelectedTemplate(element.dataset.key); break;
     case "records":
       await refreshContext(); state.view = "records"; render(); break;
+    case "analysis": await refreshContext(); state.view = "analysis"; render(); break;
     case "backup": state.view = "backup"; render(); break;
     case "import-template": templateFileInput.click(); break;
     case "select-template": await selectTemplate(element.dataset.key); break;
@@ -1239,6 +1705,10 @@ document.addEventListener("keydown", (event) => {
 app.addEventListener("click", async (event) => {
   const element = event.target.closest("[data-action]");
   if (!element || element.disabled || state.actionBusy) return;
+  if (element.closest("[data-template-row]")?.dataset.suppressClick === "true") {
+    event.preventDefault();
+    return;
+  }
   state.actionBusy = true;
   try {
     await handleAction(element.dataset.action, element);

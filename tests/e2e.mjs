@@ -131,6 +131,63 @@ const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
 assert(migratedPreferenceOptions.some((option) => option.id === "noPreference" && option.label === "无偏好"), "升级后V1.1缺少无偏好选项");
 await migrationContext.close();
 
+const analysisContext = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  isMobile: true,
+  hasTouch: true,
+  locale: "zh-CN"
+});
+const analysisPage = await analysisContext.newPage();
+await analysisPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+await analysisPage.evaluate(async () => {
+  const horizontal = [2.72, 2.88, 3.02, 3.14, 3.2, 3.29, 3.34, 3.41, 3.49, 3.55, 3.59, 3.62, 3.66, 3.71, 3.76, 3.82, 3.91, 4.01, 4.08, 4.15, 4.22, 4.31, 4.39, 4.52, 4.66, 4.82, 5.01, 5.32, 5.76];
+  const tilted = [3.08, 3.22, 3.35, 3.49, 3.58, 3.64, 3.72, 3.81, 3.96, 4.08, 4.19, 4.31, 4.43, 4.51, 4.58, 4.66, 4.75, 4.83, 4.92, 5.03, 5.12, 5.21, 5.34, 5.47, 5.63, 5.79, 6.02, 6.28, 6.66];
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction("records", "readwrite");
+    horizontal.forEach((value, index) => transaction.objectStore("records").put({
+      id: `analysis-${index}`,
+      recordNumber: `A-${index + 1}`,
+      templateKey: "ear-anthropometry-survey@1.1",
+      answers: {
+        horizontalThickness: [String(value - 0.02), String(value), String(value + 0.02)],
+        tiltedThickness: [String(tilted[index] - 0.02), String(tilted[index]), String(tilted[index] + 0.02)]
+      },
+      createdAt: new Date(2026, 7, 1, 9, index).toISOString(),
+      updatedAt: new Date(2026, 7, 1, 9, index).toISOString()
+    }));
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+});
+await analysisPage.reload({ waitUntil: "networkidle" });
+const homeSecondaryBackgrounds = await analysisPage.evaluate(() => ["analysis", "export-csv"].map((action) => {
+  const button = document.querySelector(`[data-action="${action}"]`);
+  return button ? getComputedStyle(button).backgroundColor : null;
+}));
+assert(homeSecondaryBackgrounds.every((color) => color === "rgb(255, 255, 255)"), "主页简易分析或导出CSV按钮不是白底");
+await analysisPage.getByRole("button", { name: "简易分析", exact: true }).click();
+await analysisPage.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
+assert(await analysisPage.getByText("KDE 分布曲线", { exact: true }).count() === 2, "29份模拟记录没有绘制KDE分布曲线");
+const chartThemes = await analysisPage.locator("[data-chart-theme]").evaluateAll((cards) => cards.map((card) => ({
+  name: card.dataset.chartTheme,
+  color: getComputedStyle(card).getPropertyValue("--chart-color").trim()
+})));
+assert(chartThemes.length === 2 && chartThemes[0].name === "blue" && chartThemes[1].name === "orange", "两张分析图没有分别使用蓝色和橙色主题");
+assert(chartThemes[0].color !== chartThemes[1].color, "两张分析图的主题色仍然相同");
+await analysisPage.screenshot({ path: path.join(outputDir, "mobile-analysis.png"), fullPage: true });
+await analysisPage.setViewportSize({ width: 844, height: 390 });
+await analysisPage.screenshot({ path: path.join(outputDir, "mobile-analysis-landscape.png") });
+const landscapeOverflow = await analysisPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+assert(!landscapeOverflow, "横屏简易分析页面出现横向溢出");
+await analysisContext.close();
+
 await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await page.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
 await page.getByText("问卷版本 V1.1", { exact: true }).waitFor();
@@ -139,7 +196,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.0.0-beta.8", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.1", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -192,6 +249,51 @@ await page.screenshot({ path: path.join(outputDir, "mobile-pain-question.png"), 
 await clickAction("next-question");
 
 await page.getByText("1 份", { exact: true }).waitFor();
+assert(await page.getByRole("button", { name: "简易分析", exact: true }).isVisible(), "支持分析的问卷没有显示简易分析入口");
+const beforeAnalysisDatabase = await page.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const read = (store) => new Promise((resolve, reject) => {
+    const request = db.transaction(store).objectStore(store).getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const result = { templates: await read("templates"), records: await read("records") };
+  db.close();
+  return JSON.stringify(result);
+});
+await clickAction("analysis");
+await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
+assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
+const firstChart = page.locator('[data-analysis-chart="0"]');
+await firstChart.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientX: 180, clientY: 180 });
+assert(await page.locator(".chart-tooltip").first().isVisible(), "图表滑动后没有显示P值提示");
+const portraitChartWidth = await firstChart.evaluate((element) => element.getBoundingClientRect().width);
+await page.setViewportSize({ width: 844, height: 390 });
+const landscapeChartWidth = await firstChart.evaluate((element) => element.getBoundingClientRect().width);
+assert(landscapeChartWidth > portraitChartWidth, "横屏后分析图表没有使用更宽空间");
+await assertNoHorizontalOverflow("横屏简易分析页");
+await page.setViewportSize({ width: 390, height: 844 });
+await clickAction("home");
+const afterAnalysisDatabase = await page.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const read = (store) => new Promise((resolve, reject) => {
+    const request = db.transaction(store).objectStore(store).getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const result = { templates: await read("templates"), records: await read("records") };
+  db.close();
+  return JSON.stringify(result);
+});
+assert(afterAnalysisDatabase === beforeAnalysisDatabase, "打开简易分析后问卷模板或已保存记录发生变化");
 await clickAction("records");
 await page.getByText("测试参与者A", { exact: true }).click();
 await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
@@ -272,12 +374,20 @@ await page.locator("#template-file-input").setInputFiles(path.resolve("tests", "
 await page.waitForTimeout(500);
 page.off("dialog", importDialogHandler);
 if (importDialogMessage) throw new Error(importDialogMessage);
-await page.locator('[data-action="select-template"][data-key="fixture-template@1.0"]').waitFor();
+await page.locator('[data-action="open-template"][data-key="fixture-template@1.0"]').waitFor();
 const importedTemplate = page.locator('[data-template-row="fixture-template@1.0"]');
 assert(await importedTemplate.getByText("模板导入测试", { exact: false }).isVisible(), "导入模板名称不正确");
 assert(await importedTemplate.getByText("0份记录", { exact: false }).isVisible(), "导入模板记录数不正确");
 
-await page.locator('[data-action="select-template"][data-key="ear-anthropometry-survey@1.1"]').click();
+await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.1"]').click();
+await page.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
+assert(await page.getByText("支持简易分析", { exact: true }).isVisible(), "问卷概览没有显示简易分析能力");
+assert(await page.getByRole("button", { name: "开始填写", exact: true }).isVisible(), "问卷概览底部缺少开始填写按钮");
+await page.waitForTimeout(2700);
+await page.screenshot({ path: path.join(outputDir, "mobile-template-overview.png") });
+await clickAction("start-template");
+await page.getByRole("heading", { name: "填写问卷", exact: true }).waitFor();
+await clickAction("leave-form");
 await page.locator(".hero-title", { hasText: "佩戴耳厚数据采集" }).waitFor();
 
 await clickAction("backup");
@@ -293,10 +403,18 @@ assert(backup.data.records.length === 1, "完整备份没有包含已保存记�
 
 await clickAction("home");
 await clickAction("templates");
-await page.locator('[data-template-row="fixture-template@1.0"]').evaluate((row) => row.classList.add("revealed"));
+const fixtureSwipeContent = page.locator('[data-template-row="fixture-template@1.0"] .swipe-content');
+await fixtureSwipeContent.dispatchEvent("pointerdown", { pointerId: 7, pointerType: "touch", clientX: 300, clientY: 100 });
+await fixtureSwipeContent.dispatchEvent("pointermove", { pointerId: 7, pointerType: "touch", clientX: 240, clientY: 102 });
+const swipeTransform = await fixtureSwipeContent.evaluate((element) => getComputedStyle(element).transform);
+assert(swipeTransform !== "none", "问卷左滑时条目没有跟随手指移动");
+await fixtureSwipeContent.dispatchEvent("pointerup", { pointerId: 7, pointerType: "touch", clientX: 220, clientY: 102 });
+await page.locator('[data-template-row="fixture-template@1.0"].revealed').waitFor();
+await page.waitForTimeout(2700);
+await page.screenshot({ path: path.join(outputDir, "mobile-template-swipe-revealed.png"), fullPage: true });
 await page.locator('[data-action="delete-template"][data-key="fixture-template@1.0"]').click();
 await confirmCustomDialog("删除问卷");
-await page.locator('[data-action="select-template"][data-key="fixture-template@1.0"]').waitFor({ state: "detached" });
+await page.locator('[data-action="open-template"][data-key="fixture-template@1.0"]').waitFor({ state: "detached" });
 await page.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 
 await clickAction("home");
@@ -321,7 +439,7 @@ const safetyDownload = await safetyDownloadPromise;
 await safetyDownload.saveAs(path.join(outputDir, "pre-restore-safety-backup.json"));
 await page.getByText("1 份", { exact: true }).waitFor();
 await clickAction("templates");
-await page.locator('[data-action="select-template"][data-key="fixture-template@1.0"]').waitFor();
+await page.locator('[data-action="open-template"][data-key="fixture-template@1.0"]').waitFor();
 
 if (errors.length) throw new Error(`浏览器错误：\n${errors.join("\n")}`);
 console.log(JSON.stringify({ passed: true, csvPath, backupPath, screenshots: ["mobile-repeated-measurement.png", "mobile-record-detail.png", "mobile-template-management.png", "mobile-pain-question.png", "mobile-home-offline.png"] }, null, 2));
