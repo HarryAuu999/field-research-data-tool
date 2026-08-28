@@ -175,6 +175,8 @@ assert(homeSecondaryBackgrounds.every((color) => color === "rgb(255, 255, 255)")
 await analysisPage.getByRole("button", { name: "简易分析", exact: true }).click();
 await analysisPage.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await analysisPage.getByText("KDE 分布曲线", { exact: true }).count() === 2, "29份模拟记录没有绘制KDE分布曲线");
+assert(await analysisPage.locator("svg[data-analysis-chart]").count() === 2, "简易分析没有使用SVG图表");
+assert(await analysisPage.locator("canvas[data-analysis-chart]").count() === 0, "简易分析仍然包含Canvas位图");
 const chartThemes = await analysisPage.locator("[data-chart-theme]").evaluateAll((cards) => cards.map((card) => ({
   name: card.dataset.chartTheme,
   color: getComputedStyle(card).getPropertyValue("--chart-color").trim()
@@ -196,7 +198,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.1", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.1.1", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -268,6 +270,7 @@ const beforeAnalysisDatabase = await page.evaluate(async () => {
 await clickAction("analysis");
 await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
+assert(await page.locator("svg[data-analysis-chart]").count() === 2, "已保存记录的简易分析没有使用SVG图表");
 const firstChart = page.locator('[data-analysis-chart="0"]');
 await firstChart.dispatchEvent("pointermove", { pointerId: 1, pointerType: "touch", clientX: 180, clientY: 180 });
 assert(await page.locator(".chart-tooltip").first().isVisible(), "图表滑动后没有显示P值提示");

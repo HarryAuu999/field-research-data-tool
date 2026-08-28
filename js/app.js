@@ -18,7 +18,7 @@ import {
 } from "./db.js";
 import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.1";
+const APP_VERSION = "1.1.1";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -744,17 +744,10 @@ function distributionModel(values, binWidth) {
   return { values, start, end, bins, curve, bandwidth };
 }
 
-function drawDistributionChart(canvas, values, config, field, theme) {
-  const bounds = canvas.getBoundingClientRect();
+function drawDistributionChart(svg, values, config, field, theme) {
+  const bounds = svg.getBoundingClientRect();
   const width = Math.max(280, Math.round(bounds.width));
   const height = Math.max(250, Math.round(bounds.height));
-  const ratio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(width * ratio);
-  canvas.height = Math.round(height * ratio);
-  const context = canvas.getContext("2d");
-  context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  context.clearRect(0, 0, width, height);
-
   const margin = { top: 42, right: 18, bottom: 42, left: 42 };
   const plot = { left: margin.left, top: margin.top, right: width - margin.right, bottom: height - margin.bottom };
   const model = distributionModel(values, config.binWidth);
@@ -762,49 +755,29 @@ function drawDistributionChart(canvas, values, config, field, theme) {
   const yMax = niceCeiling(peak * 1.12);
   const xScale = (value) => plot.left + ((value - model.start) / (model.end - model.start)) * (plot.right - plot.left);
   const yScale = (value) => plot.bottom - (value / yMax) * (plot.bottom - plot.top);
+  const elements = [];
+  const textStyle = "font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif";
 
-  context.font = "11px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
-  context.lineWidth = 1;
-  context.textBaseline = "middle";
-  context.textAlign = "right";
   for (let index = 0; index <= 4; index += 1) {
     const value = yMax * index / 4;
     const y = yScale(value);
-    context.strokeStyle = index === 0 ? "#9ca3af" : "#e5e7eb";
-    context.beginPath();
-    context.moveTo(plot.left, y);
-    context.lineTo(plot.right, y);
-    context.stroke();
-    context.fillStyle = "#6b7280";
-    context.fillText(Number.isInteger(value) ? String(value) : value.toFixed(1), plot.left - 7, y);
+    elements.push(`<line x1="${plot.left}" y1="${y}" x2="${plot.right}" y2="${y}" stroke="${index === 0 ? "#9ca3af" : "#e5e7eb"}" stroke-width="1" />`);
+    elements.push(`<text x="${plot.left - 7}" y="${y}" fill="#6b7280" font-size="11" text-anchor="end" dominant-baseline="middle" style="${textStyle}">${Number.isInteger(value) ? String(value) : value.toFixed(1)}</text>`);
   }
 
   model.bins.forEach((bin) => {
     const x = xScale(bin.start) + 1;
     const barWidth = Math.max(1, xScale(bin.end) - xScale(bin.start) - 2);
     const y = yScale(bin.count);
-    context.fillStyle = theme.fill;
-    context.strokeStyle = theme.base;
-    context.fillRect(x, y, barWidth, plot.bottom - y);
-    context.strokeRect(x, y, barWidth, plot.bottom - y);
+    elements.push(`<rect x="${x}" y="${y}" width="${barWidth}" height="${plot.bottom - y}" fill="${theme.fill}" stroke="${theme.base}" stroke-width="1" />`);
     if (bin.count) {
-      context.fillStyle = "#1f2937";
-      context.textAlign = "center";
-      context.fillText(`${bin.count}人`, x + barWidth / 2, Math.max(plot.top + 8, y - 9));
+      elements.push(`<text x="${x + barWidth / 2}" y="${Math.max(plot.top + 8, y - 9)}" fill="#1f2937" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${bin.count}人</text>`);
     }
   });
 
   if (model.curve.length) {
-    context.strokeStyle = theme.base;
-    context.lineWidth = 2.5;
-    context.beginPath();
-    model.curve.forEach((point, index) => {
-      const x = xScale(point.x);
-      const y = yScale(point.y);
-      if (index === 0) context.moveTo(x, y);
-      else context.lineTo(x, y);
-    });
-    context.stroke();
+    const path = model.curve.map((point, index) => `${index ? "L" : "M"}${xScale(point.x).toFixed(2)} ${yScale(point.y).toFixed(2)}`).join(" ");
+    elements.push(`<path d="${path}" fill="none" stroke="${theme.base}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`);
   }
 
   const percentileGroups = config.percentiles.map((percentile) => {
@@ -823,46 +796,33 @@ function drawDistributionChart(canvas, values, config, field, theme) {
   }, []);
   percentileGroups.forEach((group, index) => {
     const x = group.x;
-    context.strokeStyle = theme.base;
-    context.lineWidth = 1;
-    context.setLineDash([4, 4]);
-    context.beginPath();
-    context.moveTo(x, plot.top);
-    context.lineTo(x, plot.bottom);
-    context.stroke();
-    context.setLineDash([]);
-    context.fillStyle = theme.base;
-    context.font = "600 10px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
-    context.textAlign = "center";
-    context.fillText(`${group.percentiles.map((value) => `P${value}`).join("/")} ${group.value.toFixed(2)}`, x, 13 + (index % 2) * 14);
+    elements.push(`<line x1="${x}" y1="${plot.top}" x2="${x}" y2="${plot.bottom}" stroke="${theme.base}" stroke-width="1" stroke-dasharray="4 4" />`);
+    elements.push(`<text x="${x}" y="${13 + (index % 2) * 14}" fill="${theme.base}" font-size="10" font-weight="600" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${group.percentiles.map((value) => `P${value}`).join("/")} ${group.value.toFixed(2)}</text>`);
   });
 
-  context.fillStyle = "#6b7280";
-  context.font = "11px -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif";
-  context.textAlign = "center";
   for (let index = 0; index <= 4; index += 1) {
     const value = model.start + (model.end - model.start) * index / 4;
-    context.fillText(value.toFixed(1), xScale(value), plot.bottom + 18);
+    elements.push(`<text x="${xScale(value)}" y="${plot.bottom + 18}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${value.toFixed(1)}</text>`);
   }
-  context.save();
-  context.translate(12, (plot.top + plot.bottom) / 2);
-  context.rotate(-Math.PI / 2);
-  context.fillText("人数", 0, 0);
-  context.restore();
-  context.fillText(`耳厚（${field.unit || "数值"}）`, (plot.left + plot.right) / 2, height - 9);
+  elements.push(`<text x="12" y="${(plot.top + plot.bottom) / 2}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 12 ${(plot.top + plot.bottom) / 2})" style="${textStyle}">人数</text>`);
+  elements.push(`<text x="${(plot.left + plot.right) / 2}" y="${height - 9}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">耳厚（${escapeHtml(field.unit || "数值")}）</text>`);
+
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = `<title>${escapeHtml(field.label)}分布图</title>${elements.join("")}`;
 
   return { ...model, plot, width, height, xScale, unit: field.unit || "" };
 }
 
-function updateChartCursor(canvas, clientX) {
-  const model = canvas._distributionModel;
+function updateChartCursor(chart, clientX) {
+  const model = chart._distributionModel;
   if (!model) return;
-  const rect = canvas.getBoundingClientRect();
-  const localX = Math.max(model.plot.left, Math.min(model.plot.right, clientX - rect.left));
+  const rect = chart.getBoundingClientRect();
+  const chartX = (clientX - rect.left) * (model.width / rect.width);
+  const localX = Math.max(model.plot.left, Math.min(model.plot.right, chartX));
   const value = model.start + ((localX - model.plot.left) / (model.plot.right - model.plot.left)) * (model.end - model.start);
   const percentile = model.values.filter((item) => item <= value).length / model.values.length * 100;
   const bin = model.bins.find((item, index) => value >= item.start && (value < item.end || index === model.bins.length - 1));
-  const stage = canvas.closest(".chart-stage");
+  const stage = chart.closest(".chart-stage");
   const cursor = stage.querySelector(".chart-cursor");
   const tooltip = stage.querySelector(".chart-tooltip");
   const left = localX / model.width * 100;
@@ -875,21 +835,21 @@ function updateChartCursor(canvas, clientX) {
 
 function initializeAnalysisCharts(config) {
   const redrawers = [];
-  app.querySelectorAll("[data-analysis-chart]").forEach((canvas) => {
-    const item = config.fields[Number(canvas.dataset.analysisChart)];
+  app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
+    const item = config.fields[Number(chart.dataset.analysisChart)];
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
     const values = fieldDistribution(state.currentTemplate, state.records, item.id);
     const theme = ANALYSIS_THEMES[item.theme] || ANALYSIS_THEMES.blue;
     const redraw = () => {
-      if (!canvas.isConnected || !values.length) return;
-      canvas._distributionModel = drawDistributionChart(canvas, values, config, field, theme);
+      if (!chart.isConnected || !values.length) return;
+      chart._distributionModel = drawDistributionChart(chart, values, config, field, theme);
     };
     redrawers.push(redraw);
-    canvas.addEventListener("pointerdown", (event) => updateChartCursor(canvas, event.clientX));
-    canvas.addEventListener("pointermove", (event) => updateChartCursor(canvas, event.clientX));
-    canvas.addEventListener("pointerleave", (event) => {
+    chart.addEventListener("pointerdown", (event) => updateChartCursor(chart, event.clientX));
+    chart.addEventListener("pointermove", (event) => updateChartCursor(chart, event.clientX));
+    chart.addEventListener("pointerleave", (event) => {
       if (event.pointerType === "mouse") {
-        const stage = canvas.closest(".chart-stage");
+        const stage = chart.closest(".chart-stage");
         stage.querySelector(".chart-cursor").hidden = true;
         stage.querySelector(".chart-tooltip").hidden = true;
       }
@@ -922,7 +882,7 @@ function renderAnalysis() {
         <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>每名参与者先取测量平均值，再只计入一次；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。</p></div>
         <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span>' : ""}</div>
         <div class="chart-stage">
-          <canvas data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}"></canvas>
+          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}" preserveAspectRatio="none"></svg>
           <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
         <p class="percentile-summary">${escapeHtml(percentileText)}</p>
