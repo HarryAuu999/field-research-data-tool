@@ -18,7 +18,7 @@ import {
 } from "./db.js";
 import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
 
-const APP_VERSION = "1.1.2";
+const APP_VERSION = "1.1.3";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -28,7 +28,6 @@ const ANALYSIS_THEMES = {
   blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
-const CHART_GESTURE_THRESHOLD = 8;
 const SUPPORTED_FIELD_TYPES = new Set([
   "shortText",
   "longText",
@@ -814,82 +813,6 @@ function drawDistributionChart(svg, values, config, field, theme) {
   return { ...model, plot, width, height, xScale, unit: field.unit || "" };
 }
 
-function updateChartCursor(chart, clientX) {
-  const model = chart._distributionModel;
-  if (!model) return;
-  const rect = chart.getBoundingClientRect();
-  const chartX = (clientX - rect.left) * (model.width / rect.width);
-  const localX = Math.max(model.plot.left, Math.min(model.plot.right, chartX));
-  const value = model.start + ((localX - model.plot.left) / (model.plot.right - model.plot.left)) * (model.end - model.start);
-  const percentile = model.values.filter((item) => item <= value).length / model.values.length * 100;
-  const bin = model.bins.find((item, index) => value >= item.start && (value < item.end || index === model.bins.length - 1));
-  const stage = chart.closest(".chart-stage");
-  const cursor = stage.querySelector(".chart-cursor");
-  const tooltip = stage.querySelector(".chart-tooltip");
-  const left = localX / model.width * 100;
-  cursor.style.left = `${left}%`;
-  cursor.hidden = false;
-  tooltip.style.left = `${Math.max(20, Math.min(80, left))}%`;
-  tooltip.textContent = `P${percentile.toFixed(0)} · ${value.toFixed(2)}${model.unit ? ` ${model.unit}` : ""} · 本区间${bin?.count || 0}人`;
-  tooltip.hidden = false;
-}
-
-function bindChartGesture(chart) {
-  let gesture = null;
-
-  const finishGesture = (event, allowTap = false) => {
-    if (!gesture || event.pointerId !== gesture.pointerId) return;
-    if (allowTap && !gesture.direction) updateChartCursor(chart, event.clientX);
-    if (chart.hasPointerCapture?.(event.pointerId)) chart.releasePointerCapture(event.pointerId);
-    chart.classList.remove("is-scrubbing");
-    gesture = null;
-  };
-
-  chart.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse") {
-      updateChartCursor(chart, event.clientX);
-      return;
-    }
-    if (event.isPrimary === false) return;
-    gesture = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      direction: null
-    };
-  });
-
-  chart.addEventListener("pointermove", (event) => {
-    if (event.pointerType === "mouse") {
-      updateChartCursor(chart, event.clientX);
-      return;
-    }
-    if (!gesture || event.pointerId !== gesture.pointerId) return;
-    const deltaX = event.clientX - gesture.startX;
-    const deltaY = event.clientY - gesture.startY;
-    if (!gesture.direction) {
-      if (Math.hypot(deltaX, deltaY) < CHART_GESTURE_THRESHOLD) return;
-      gesture.direction = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical";
-      if (gesture.direction === "horizontal") {
-        chart.classList.add("is-scrubbing");
-        try { chart.setPointerCapture(event.pointerId); } catch { /* Safari may already own the pointer. */ }
-      }
-    }
-    if (gesture.direction !== "horizontal") return;
-    event.preventDefault();
-    updateChartCursor(chart, event.clientX);
-  }, { passive: false });
-
-  chart.addEventListener("pointerup", (event) => finishGesture(event, true));
-  chart.addEventListener("pointercancel", (event) => finishGesture(event));
-  chart.addEventListener("pointerleave", (event) => {
-    if (event.pointerType !== "mouse") return;
-    const stage = chart.closest(".chart-stage");
-    stage.querySelector(".chart-cursor").hidden = true;
-    stage.querySelector(".chart-tooltip").hidden = true;
-  });
-}
-
 function initializeAnalysisCharts(config) {
   const redrawers = [];
   app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
@@ -899,10 +822,9 @@ function initializeAnalysisCharts(config) {
     const theme = ANALYSIS_THEMES[item.theme] || ANALYSIS_THEMES.blue;
     const redraw = () => {
       if (!chart.isConnected || !values.length) return;
-      chart._distributionModel = drawDistributionChart(chart, values, config, field, theme);
+      drawDistributionChart(chart, values, config, field, theme);
     };
     redrawers.push(redraw);
-    bindChartGesture(chart);
     redraw();
   });
   state.analysisResizeObserver = new ResizeObserver(() => redrawers.forEach((redraw) => redraw()));
@@ -932,7 +854,6 @@ function renderAnalysis() {
         <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span>' : ""}</div>
         <div class="chart-stage">
           <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}" preserveAspectRatio="none"></svg>
-          <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
         <p class="percentile-summary">${escapeHtml(percentileText)}</p>
       </section>`;
@@ -941,7 +862,7 @@ function renderAnalysis() {
     <section class="screen analysis-screen">
       ${pageHeader("简易分析")}
       <div class="page-content analysis-content">
-        <p class="analysis-help">横向滑动图表可查看对应耳厚、P值和所在区间人数。横屏时图表会自动放大。</p>
+        <p class="analysis-help">图表显示实际人数、KDE 分布曲线及 P20、P50、P80。横屏时图表会自动放大。</p>
         ${charts}
       </div>
     </section>`;
