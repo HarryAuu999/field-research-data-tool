@@ -198,7 +198,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.1.3", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.1.4", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -272,9 +272,17 @@ await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor()
 assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
 assert(await page.locator("svg[data-analysis-chart]").count() === 2, "已保存记录的简易分析没有使用SVG图表");
 const firstChart = page.locator('[data-analysis-chart="0"]');
-assert(await firstChart.evaluate((element) => getComputedStyle(element).touchAction) === "auto", "静态图表没有恢复浏览器默认触摸滚动");
-assert(await page.locator(".chart-cursor").count() === 0, "已放弃的P值拖动指示线仍然存在");
-assert(await page.locator(".chart-tooltip").count() === 0, "已放弃的P值拖动提示仍然存在");
+assert(await firstChart.evaluate((element) => getComputedStyle(element).touchAction) === "pan-y", "图表没有保留系统纵向滚动能力");
+const pointerResult = await firstChart.evaluate((element) => {
+  const event = new PointerEvent("pointermove", { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: 210, clientY: 180, bubbles: true, cancelable: true });
+  element.dispatchEvent(event);
+  return { defaultPrevented: event.defaultPrevented, captured: element.hasPointerCapture?.(1) || false };
+});
+assert(!pointerResult.defaultPrevented, "P值查看错误地阻止了系统页面滚动");
+assert(!pointerResult.captured, "P值查看错误地锁定了触摸指针");
+assert(await page.locator(".chart-cursor").first().isVisible(), "移动图表后没有显示P值指示线");
+assert(await page.locator(".chart-tooltip").first().isVisible(), "移动图表后没有显示P值提示");
+assert((await page.locator(".chart-tooltip").first().textContent()).includes("P"), "P值提示内容无效");
 assert((await firstChart.getAttribute("aria-label")).includes("P20"), "静态图表缺少P20参考值");
 assert((await firstChart.getAttribute("aria-label")).includes("P50"), "静态图表缺少P50参考值");
 assert((await firstChart.getAttribute("aria-label")).includes("P80"), "静态图表缺少P80参考值");
