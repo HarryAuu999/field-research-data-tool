@@ -1,4 +1,5 @@
 import {
+  deleteSetting,
   deleteDraft,
   deleteRecord,
   deleteTemplateCascade,
@@ -13,39 +14,47 @@ import {
   putDraft,
   putRecord,
   putTemplate,
+  replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
 } from "./db.js";
 import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
+import {
+  EDITABLE_FIELD_TYPES,
+  SUPPORTED_FIELD_TYPES,
+  changeQuestionType,
+  duplicateTemplate,
+  fieldTypeName,
+  makeQuestion,
+  newOptionId,
+  nextQuestionnaireVersion,
+  questionUsesAnalysis,
+  reorderFields
+} from "./questionnaire-editor.js";
+import { bindLongPressReorder } from "./question-reorder.js";
 
-const APP_VERSION = "1.1.4";
+const APP_VERSION = "1.2.0";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
 const ICON_CHEVRON_RIGHT = "./assets/chevron-right.svg";
 const ICON_TRASH = "./assets/trash.svg";
+const ICON_COPY = "./assets/copy.svg";
+const ICON_PLUS = "./assets/plus.svg";
 const ANALYSIS_THEMES = {
   blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
-const SUPPORTED_FIELD_TYPES = new Set([
-  "shortText",
-  "longText",
-  "number",
-  "repeatedNumber",
-  "singleChoice",
-  "multiChoice",
-  "rating",
-  "section"
-]);
-
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 const templateFileInput = document.querySelector("#template-file-input");
 const backupFileInput = document.querySelector("#backup-file-input");
-const updateBanner = document.querySelector("#update-banner");
-const updateMessage = document.querySelector("#update-message");
+const updateDialog = document.querySelector("#update-dialog");
+const updateTitle = document.querySelector("#update-title");
+const updateSummary = document.querySelector("#update-summary");
 const updateButton = document.querySelector("#update-button");
+const updateSkip = document.querySelector("#update-skip");
+const updateLater = document.querySelector("#update-later");
 const confirmOverlay = document.querySelector("#confirm-overlay");
 const confirmTitle = document.querySelector("#confirm-title");
 const confirmMessage = document.querySelector("#confirm-message");
@@ -63,10 +72,23 @@ const state = {
   selectedRecord: null,
   selectedTemplate: null,
   selectedTemplateDraft: null,
+  editorTemplate: null,
+  editorSourceKey: null,
+  editorQuestionIndex: null,
+  editorQuestionOriginal: null,
+  editorQuestionWasNew: false,
+  editorDirtyBeforeQuestion: false,
+  editorDirty: false,
+  questionTypePickerOpen: false,
+  questionTypePickerMode: null,
+  editorReorderCleanup: null,
   formIndex: 0,
   templateCounts: {},
   waitingWorker: null,
   serviceWorkerRegistration: null,
+  waitingWorkerInfo: null,
+  dismissedUpdateVersion: null,
+  deferredUpdate: null,
   toastTimer: null,
   actionBusy: false,
   analysisResizeObserver: null
@@ -129,10 +151,11 @@ function closeConfirm(result) {
   resolve(result);
 }
 
-function showConfirm({ title, message, confirmLabel = "确认" }) {
+function showConfirm({ title, message, confirmLabel = "确认", cancelLabel = "取消" }) {
   if (confirmResolver) closeConfirm(false);
   confirmTitle.textContent = title;
   confirmMessage.textContent = message;
+  confirmCancel.textContent = cancelLabel;
   confirmSubmit.textContent = confirmLabel;
   confirmOverlay.hidden = false;
   document.body.classList.add("dialog-open");
@@ -215,7 +238,9 @@ function validateAnalysisConfig(config, fields) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
   if (config.type !== "distribution") throw new Error("目前只支持 distribution 分布分析");
   if (config.aggregation !== "participantMean") throw new Error("分布分析必须按参与者平均值汇总");
-  if (!Number.isFinite(config.binWidth) || config.binWidth <= 0) throw new Error("分布分析的区间宽度必须大于0");
+  if (config.binWidth !== undefined && (!Number.isFinite(config.binWidth) || config.binWidth <= 0)) {
+    throw new Error("分布分析的固定区间宽度必须大于0；不填写时将自动分箱");
+  }
   if (!Array.isArray(config.percentiles) || !config.percentiles.length || config.percentiles.some((value) => !Number.isFinite(value) || value <= 0 || value >= 100)) {
     throw new Error("分布分析的百分位设置无效");
   }
@@ -247,7 +272,7 @@ async function seedDefaultTemplate() {
     const latest = validateTemplate(DEFAULT_TEMPLATE);
     const currentKey = await getSetting("currentTemplateKey", null);
     const current = currentKey ? await getTemplate(currentKey) : null;
-    const legacyKey = templateKey(BUILT_IN_TEMPLATES[0]);
+    const legacyKey = `${DEFAULT_TEMPLATE.id}@1.0`;
     const legacyDraft = currentKey === legacyKey ? await getDraft(legacyKey) : null;
     if (!current || (currentKey === legacyKey && !legacyDraft)) {
       await setSetting("currentTemplateKey", latest.key);
@@ -330,9 +355,13 @@ function pageHeader(title, backAction = "home") {
 function render() {
   state.analysisResizeObserver?.disconnect();
   state.analysisResizeObserver = null;
+  state.editorReorderCleanup?.();
+  state.editorReorderCleanup = null;
   switch (state.view) {
     case "templates": renderTemplates(); break;
     case "templateOverview": renderTemplateOverview(); break;
+    case "templateMetaEditor": renderTemplateMetaEditor(); break;
+    case "questionEditor": renderQuestionEditor(); break;
     case "records": renderRecords(); break;
     case "recordDetail": renderRecordDetail(); break;
     case "analysis": renderAnalysis(); break;
@@ -378,8 +407,8 @@ function renderHome() {
     ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿 / DRAFT</span>'
     : '<span class="eyebrow">当前问卷 / CURRENT</span>';
   const heroDetail = state.draft
-    ? `<span class="hero-version">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
-    : `<span class="hero-version">问卷版本 V${escapeHtml(state.currentTemplate.version)}</span>`;
+    ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
+    : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
   const currentAnalysis = analysisConfig(state.currentTemplate);
 
   app.innerHTML = `
@@ -412,6 +441,7 @@ function renderHome() {
         <button class="text-button" data-action="check-update" type="button">检查更新</button>
       </footer>
     </section>`;
+  if (state.deferredUpdate) queueMicrotask(() => showUpdate(state.deferredUpdate.worker, { info: state.deferredUpdate.info }));
 }
 
 function renderTemplates() {
@@ -420,7 +450,10 @@ function renderTemplates() {
     const count = state.templateCounts[template.key] ?? 0;
     return `
       <div class="swipe-row" data-template-row="${escapeHtml(template.key)}">
-        <button class="swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}" aria-label="删除${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
+        <div class="swipe-actions" aria-label="问卷操作">
+          <button class="swipe-action swipe-copy" type="button" data-action="duplicate-template" data-key="${escapeHtml(template.key)}" aria-label="复制${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_COPY}" alt="" width="20" height="20" /></button>
+          <button class="swipe-action swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}" aria-label="删除${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
+        </div>
         <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}">
           <span class="template-copy">
             <span class="template-name">${escapeHtml(template.title)} <small>V${escapeHtml(template.version)}</small></span>
@@ -436,7 +469,7 @@ function renderTemplates() {
       ${pageHeader("问卷管理")}
       <div class="page-content template-content">
         <div class="template-list">${items || '<div class="empty-state card">还没有问卷模板</div>'}</div>
-        ${items ? '<p class="swipe-hint">提示：向左滑动问卷条目可呼出删除操作</p>' : ""}
+        ${items ? '<p class="swipe-hint">提示：向左滑动问卷条目可复制或删除</p>' : ""}
       </div>
       <footer class="template-footer">
         <button class="secondary-button" type="button" data-action="import-template">导入问卷 JSON</button>
@@ -446,34 +479,27 @@ function renderTemplates() {
   bindSwipeRows();
 }
 
-function fieldTypeLabel(field) {
-  const labels = {
-    shortText: "短文字",
-    longText: "长文字",
-    number: "数字",
-    repeatedNumber: "重复测量",
-    singleChoice: "单选",
-    multiChoice: "多选",
-    rating: "评分",
-    section: "说明"
-  };
-  return labels[field.type] || field.type;
+function questionTypePickerHtml(mode) {
+  const action = mode === "change" ? "change-editor-question-type" : "create-editor-question";
+  return EDITABLE_FIELD_TYPES.map((item) => `<button type="button" data-action="${action}" data-type="${item.value}"><strong>${escapeHtml(item.label)}</strong><span>${item.value === "section" ? "只显示标题或说明，不采集答案" : "按这种格式填写和保存答案"}</span></button>`).join("");
 }
 
 function renderTemplateOverview() {
-  const template = state.selectedTemplate;
-  if (!template) {
+  const sourceTemplate = state.selectedTemplate;
+  if (!sourceTemplate) {
     state.view = "templates";
     renderTemplates();
     return;
   }
-  const isCurrent = template.key === state.currentTemplate?.key;
-  const count = state.templateCounts[template.key] ?? 0;
+  const editing = state.editorSourceKey === sourceTemplate.key && state.editorTemplate;
+  const template = editing ? state.editorTemplate : sourceTemplate;
+  const isCurrent = sourceTemplate.key === state.currentTemplate?.key;
+  const count = state.templateCounts[sourceTemplate.key] ?? 0;
   const config = analysisConfig(template);
   let questionNumber = 0;
-  const questions = template.fields.map((field) => {
+  const questions = template.fields.map((field, fieldIndex) => {
     if (field.type === "section") {
-      return `<section class="overview-section"><h3>${escapeHtml(field.label)}</h3>${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}</section>`;
+      return `<button class="overview-section overview-edit-target" type="button" data-action="${editing ? "open-editor-question" : "edit-template-question"}" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" data-editor-field-id="${escapeHtml(field.id)}" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序"><h3>${escapeHtml(field.label)}</h3>${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}</button>`;
     }
     questionNumber += 1;
     const options = ["singleChoice", "multiChoice"].includes(field.type)
@@ -481,29 +507,528 @@ function renderTemplateOverview() {
       : "";
     const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
     return `
-      <article class="overview-question">
+      <button class="overview-question overview-edit-target" type="button" data-action="${editing ? "open-editor-question" : "edit-template-question"}" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" data-editor-field-id="${escapeHtml(field.id)}" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
         <div class="overview-question-heading"><span>Q${questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
-        <p class="overview-question-type">${escapeHtml(fieldTypeLabel(field))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
+        <p class="overview-question-type">${escapeHtml(fieldTypeName(field.type))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
         ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
         ${options}
-      </article>`;
+      </button>`;
   }).join("");
-  const startLabel = state.selectedTemplateDraft ? (state.selectedTemplateDraft.mode === "edit" ? "继续修改" : "继续填写") : "开始填写";
+  const typePicker = state.questionTypePickerOpen && state.questionTypePickerMode === "add" ? `
+    <div class="question-type-overlay" role="presentation">
+      <section class="question-type-dialog" role="dialog" aria-modal="true" aria-labelledby="question-type-title">
+        <div class="question-type-dialog-heading">
+          <h2 id="question-type-title">选择问题类型</h2>
+          <button type="button" data-action="close-question-type-picker" aria-label="关闭">取消</button>
+        </div>
+        <div class="question-type-list">
+          ${questionTypePickerHtml("add")}
+        </div>
+      </section>
+    </div>` : "";
 
   app.innerHTML = `
     <section class="screen template-overview-screen">
-      ${pageHeader("问卷概览", "templates")}
+      ${pageHeader("问卷概览", "leave-template-overview")}
       <div class="page-content template-overview-content">
         <div class="overview-summary">
-          <div class="overview-title-row"><h2>${escapeHtml(template.title)}</h2><span>V${escapeHtml(template.version)}</span></div>
-          <p>${escapeHtml(template.description || "暂无问卷说明")}</p>
+          <button class="overview-summary-edit overview-edit-target" type="button" data-action="${editing ? "open-editor-meta" : "edit-template-meta"}" data-key="${escapeHtml(sourceTemplate.key)}" aria-label="打开问卷标题和背景信息进行编辑">
+            <div class="overview-title-row"><h2>${escapeHtml(template.title)}</h2><span>V${escapeHtml(template.version)}</span></div>
+            <p>${escapeHtml(template.description || "暂无背景信息")}</p>
+          </button>
           <div class="overview-meta"><span>${count}份记录</span>${isCurrent ? '<span class="current-chip">当前问卷</span>' : ""}${config ? '<span class="analysis-chip">支持简易分析</span>' : ""}</div>
         </div>
         <div class="overview-question-list">${questions}</div>
-        <button class="overview-delete-link" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}">删除此问卷</button>
+        <button class="overview-add-question" type="button" data-action="open-question-type-picker" data-key="${escapeHtml(sourceTemplate.key)}" aria-label="增加问题"><img src="${ICON_PLUS}" alt="" width="22" height="22" /></button>
+        ${state.editorDirty ? '<button class="editor-discard-link" type="button" data-action="discard-template-editor">放弃本次修改</button>' : ""}
+        <button class="overview-delete-link" type="button" data-action="delete-template" data-key="${escapeHtml(sourceTemplate.key)}">删除此问卷</button>
       </div>
-      <footer class="overview-footer"><button class="primary-button" type="button" data-action="start-template" data-key="${escapeHtml(template.key)}">${startLabel}</button></footer>
+      <footer class="overview-footer"><button class="primary-button" type="button" data-action="${state.editorDirty ? "save-template-editor" : "select-template"}" data-key="${escapeHtml(sourceTemplate.key)}">${state.editorDirty ? "保存问卷" : "选择此问卷"}</button></footer>
+    </section>
+    ${typePicker}`;
+  const list = app.querySelector(".overview-question-list");
+  if (editing && list) {
+    state.editorReorderCleanup = bindLongPressReorder(list, {
+      onReorder: async (orderedIds) => {
+        state.editorTemplate.fields = reorderFields(state.editorTemplate.fields, orderedIds);
+        state.editorDirty = true;
+        await persistTemplateEditorDraft();
+        showToast("问题顺序已调整");
+      }
+    });
+  }
+}
+
+function editorDraftSettingKey(key) {
+  return `templateEditorDraft:${key}`;
+}
+
+async function persistTemplateEditorDraft() {
+  if (!state.editorTemplate || !state.editorSourceKey) return;
+  await setSetting(editorDraftSettingKey(state.editorSourceKey), {
+    sourceKey: state.editorSourceKey,
+    template: deepClone(state.editorTemplate),
+    updatedAt: nowIso()
+  });
+}
+
+function clearTemplateEditorState() {
+  state.editorTemplate = null;
+  state.editorSourceKey = null;
+  state.editorQuestionIndex = null;
+  state.editorQuestionOriginal = null;
+  state.editorQuestionWasNew = false;
+  state.editorDirtyBeforeQuestion = false;
+  state.editorDirty = false;
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+}
+
+async function beginTemplateEditor(key, destination = "templateOverview", questionIndex = null) {
+  const template = await getTemplate(key);
+  if (!template) return;
+  const formDraft = await getDraft(key);
+  if (formDraft) {
+    showToast("这份问卷还有未完成草稿，请先完成或废弃草稿");
+    return;
+  }
+  const saved = await getSetting(editorDraftSettingKey(key), null);
+  const working = saved?.sourceKey === key && saved?.template ? deepClone(saved.template) : deepClone(template);
+  const effectiveAnalysis = analysisConfig(template);
+  if (!working.analysis && effectiveAnalysis) working.analysis = deepClone(effectiveAnalysis);
+  state.editorTemplate = working;
+  state.editorSourceKey = key;
+  state.editorQuestionIndex = questionIndex;
+  state.editorDirty = Boolean(saved);
+  state.view = destination;
+  render();
+}
+
+async function duplicateQuestionnaire(key) {
+  const source = await getTemplate(key);
+  if (!source) return;
+  const copy = validateTemplate(duplicateTemplate(source, analysisConfig(source)));
+  await putTemplate(copy);
+  await refreshContext();
+  await loadTemplateCounts();
+  state.view = "templates";
+  renderTemplates();
+  showToast("已建立问卷副本，不包含记录和填写草稿");
+}
+
+function renderTemplateMetaEditor() {
+  const template = state.editorTemplate;
+  if (!template) return beginTemplateEditor(state.editorSourceKey || "");
+  app.innerHTML = `
+    <section class="screen editor-form-screen">
+      ${pageHeader("问卷信息", "editor-overview")}
+      <div class="page-content editor-form-content" data-editor-meta-form>
+        <label class="editor-field"><span>问卷标题</span><input type="text" data-editor-template-title value="${escapeHtml(template.title)}" autocomplete="off" /></label>
+        <label class="editor-field"><span>背景信息</span><textarea data-editor-template-description rows="7" placeholder="说明研究背景、对象或测试产品">${escapeHtml(template.description || "")}</textarea></label>
+        <p class="editor-help">背景信息会显示在首页，内容过长时首页只显示前几行，问卷概览会显示完整内容。</p>
+      </div>
+      <footer class="editor-form-footer"><button class="primary-button" type="button" data-action="editor-overview">完成</button></footer>
     </section>`;
+}
+
+function optionEditorHtml(field) {
+  return (field.options || []).map((option, index) => `
+    <div class="editor-option-card" data-editor-option="${index}">
+      <div class="editor-option-heading">
+        <label class="editor-field compact"><span>选项${index + 1}</span><input type="text" data-option-label value="${escapeHtml(option.label)}" /></label>
+        <button type="button" class="editor-remove-option" data-action="remove-editor-option" data-index="${index}" aria-label="删除选项${index + 1}">删除</button>
+      </div>
+      <label class="editor-check"><input type="checkbox" data-option-text-input ${option.textInput ? "checked" : ""} />选择后允许补充文字</label>
+      <div class="editor-option-text-config ${option.textInput ? "" : "is-disabled"}">
+        <label class="editor-field compact"><span>补充文字标题</span><input type="text" data-option-text-label value="${escapeHtml(option.textInput?.label || "请说明")}" ${option.textInput ? "" : "disabled"} /></label>
+        <label class="editor-field compact"><span>输入提示</span><input type="text" data-option-text-placeholder value="${escapeHtml(option.textInput?.placeholder || "请输入具体情况")}" ${option.textInput ? "" : "disabled"} /></label>
+        <label class="editor-check"><input type="checkbox" data-option-text-required ${option.textInput?.required !== false ? "checked" : ""} ${option.textInput ? "" : "disabled"} />选择后必须填写补充文字</label>
+      </div>
+      ${field.type === "multiChoice" ? `<label class="editor-check"><input type="checkbox" data-option-exclusive ${option.exclusive ? "checked" : ""} />与其他选项互斥</label>` : ""}
+    </div>`).join("");
+}
+
+function ratingLabelsHtml(field) {
+  const min = Number.isInteger(field.min) ? field.min : 1;
+  const max = Number.isInteger(field.max) ? field.max : 5;
+  return Array.from({ length: Math.max(0, Math.min(10, max - min + 1)) }, (_, offset) => {
+    const value = min + offset;
+    const item = field.labels?.[String(value)] || {};
+    return `<div class="editor-rating-row"><strong>${value}分</strong><input type="text" data-rating-short="${value}" value="${escapeHtml(item.short || "")}" placeholder="简短名称" /><textarea rows="2" data-rating-help="${value}" placeholder="帮助理解的说明">${escapeHtml(item.help || "")}</textarea></div>`;
+  }).join("");
+}
+
+function questionSpecificEditorHtml(field) {
+  if (["shortText", "longText"].includes(field.type)) {
+    return `
+      <label class="editor-field"><span>输入提示</span><input type="text" data-field-placeholder value="${escapeHtml(field.placeholder || "")}" /></label>
+      ${field.type === "shortText" ? `<label class="editor-check"><input type="checkbox" data-field-anonymous ${field.allowAnonymous ? "checked" : ""} />允许匿名记录</label>` : ""}`;
+  }
+  if (field.type === "number") {
+    return `
+      <div class="editor-two-columns">
+        <label class="editor-field"><span>单位</span><input type="text" data-field-unit value="${escapeHtml(field.unit || "")}" /></label>
+        <label class="editor-field"><span>输入提示</span><input type="text" data-field-placeholder value="${escapeHtml(field.placeholder || "")}" /></label>
+      </div>
+      <label class="editor-check"><input type="checkbox" data-field-integer ${field.integer ? "checked" : ""} />只允许整数</label>`;
+  }
+  if (field.type === "repeatedNumber") {
+    return `
+      <div class="editor-two-columns">
+        <label class="editor-field"><span>最多填写次数</span><input type="number" min="2" max="10" inputmode="numeric" data-field-repeat-count value="${field.repeatCount || 3}" /></label>
+        <label class="editor-field"><span>最少填写数量</span><input type="number" min="0" max="10" inputmode="numeric" data-field-min-entries value="${field.minEntries ?? 1}" /></label>
+      </div>
+      <div class="editor-two-columns">
+        <label class="editor-field"><span>单位</span><input type="text" data-field-unit value="${escapeHtml(field.unit || "")}" /></label>
+        <label class="editor-field"><span>输入提示</span><input type="text" data-field-placeholder value="${escapeHtml(field.placeholder || "")}" /></label>
+      </div>`;
+  }
+  if (["singleChoice", "multiChoice"].includes(field.type)) {
+    return `<div class="editor-options"><h3>选项</h3>${optionEditorHtml(field)}<button class="secondary-button editor-add-option" type="button" data-action="add-editor-option">增加选项</button></div>`;
+  }
+  if (field.type === "rating") {
+    return `
+      <div class="editor-two-columns">
+        <label class="editor-field"><span>最低分</span><input type="number" min="0" max="9" inputmode="numeric" data-field-rating-min value="${field.min ?? 1}" /></label>
+        <label class="editor-field"><span>最高分</span><input type="number" min="1" max="10" inputmode="numeric" data-field-rating-max value="${field.max ?? 5}" /></label>
+      </div>
+      <label class="editor-check"><input type="checkbox" data-field-rating-unknown ${field.unknownOption ? "checked" : ""} />提供“无法判断”选项</label>
+      <label class="editor-field"><span>无法判断选项名称</span><input type="text" data-field-rating-unknown-label value="${escapeHtml(field.unknownOption?.label || "无法判断")}" /></label>
+      <div class="editor-rating-labels"><h3>每档说明</h3>${ratingLabelsHtml(field)}</div>`;
+  }
+  if (field.type === "section") return "";
+  return '<p class="editor-locked-notice">这是专用交互题。可以随整份问卷复制或调整顺序，但不能用通用编辑器修改内部内容。</p>';
+}
+
+function renderQuestionEditor() {
+  const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
+  if (!field) {
+    state.view = "templateOverview";
+    render();
+    return;
+  }
+  const editable = EDITABLE_FIELD_TYPES.some((item) => item.value === field.type);
+  const typePicker = state.questionTypePickerOpen && state.questionTypePickerMode === "change" ? `
+    <div class="editor-type-popover" role="dialog" aria-label="选择问题类型">
+      <div class="editor-type-popover-heading"><strong>选择问题类型</strong><button type="button" data-action="close-question-type-picker">取消</button></div>
+      <div class="question-type-list">${questionTypePickerHtml("change")}</div>
+    </div>` : "";
+  app.innerHTML = `
+    <section class="screen editor-form-screen">
+      ${pageHeader("编辑问题", "leave-question-editor")}
+      <div class="page-content editor-form-content" data-editor-question-form>
+        <div class="editor-type-anchor">
+          <button class="editor-type-label" type="button" data-action="open-question-type-picker" data-mode="change" ${editable ? "" : "disabled"}>
+            <span>题型</span><strong>${escapeHtml(fieldTypeName(field.type))}<small aria-hidden="true">›</small></strong>
+          </button>
+          ${typePicker}
+        </div>
+        ${editable ? `
+          <label class="editor-field"><span>${field.type === "section" ? "标题" : "问题"}</span><input type="text" data-field-label value="${escapeHtml(field.label)}" /></label>
+          <label class="editor-field"><span>${field.type === "section" ? "备注" : "补充说明"}</span><textarea rows="4" data-field-description>${escapeHtml(field.description || "")}</textarea></label>
+          ${field.type === "section" ? "" : `<label class="editor-check"><input type="checkbox" data-field-required ${field.required ? "checked" : ""} />必填问题</label>`}
+          ${questionSpecificEditorHtml(field)}
+          ${field.image?.src ? '<p class="editor-help">这道题包含现有图片。图片会被保留，当前编辑器暂不支持替换图片。</p>' : ""}
+        ` : questionSpecificEditorHtml(field)}
+        <button class="editor-delete-question" type="button" data-action="delete-editor-question">删除该问题</button>
+      </div>
+      <footer class="editor-form-footer"><button class="primary-button" type="button" data-action="editor-overview">完成</button></footer>
+    </section>`;
+}
+
+function captureTemplateMetaEditor() {
+  if (!state.editorTemplate || state.view !== "templateMetaEditor") return;
+  state.editorTemplate.title = app.querySelector("[data-editor-template-title]")?.value || "";
+  state.editorTemplate.description = app.querySelector("[data-editor-template-description]")?.value || "";
+  state.editorDirty = true;
+}
+
+function captureQuestionEditor() {
+  const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
+  if (!field || state.view !== "questionEditor") return;
+  const value = (selector) => app.querySelector(selector)?.value ?? "";
+  const checked = (selector) => Boolean(app.querySelector(selector)?.checked);
+  if (app.querySelector("[data-field-label]")) field.label = value("[data-field-label]");
+  if (app.querySelector("[data-field-description]")) field.description = value("[data-field-description]");
+  if (field.type !== "section" && app.querySelector("[data-field-required]")) field.required = checked("[data-field-required]");
+  if (app.querySelector("[data-field-placeholder]")) field.placeholder = value("[data-field-placeholder]");
+  if (app.querySelector("[data-field-unit]")) field.unit = value("[data-field-unit]");
+  if (field.type === "shortText") field.allowAnonymous = checked("[data-field-anonymous]");
+  if (field.type === "number") field.integer = checked("[data-field-integer]");
+  if (field.type === "repeatedNumber") {
+    field.repeatCount = Number(value("[data-field-repeat-count]"));
+    field.minEntries = Number(value("[data-field-min-entries]"));
+  }
+  if (["singleChoice", "multiChoice"].includes(field.type)) {
+    field.options = [...app.querySelectorAll("[data-editor-option]")].map((element, index) => {
+      const previous = field.options[index] || { id: newOptionId(field) };
+      const option = { ...previous, label: element.querySelector("[data-option-label]")?.value || "" };
+      if (element.querySelector("[data-option-text-input]")?.checked) {
+        option.textInput = {
+          ...(option.textInput || {}),
+          label: element.querySelector("[data-option-text-label]")?.value || "请说明",
+          placeholder: element.querySelector("[data-option-text-placeholder]")?.value || "请输入具体情况",
+          required: Boolean(element.querySelector("[data-option-text-required]")?.checked)
+        };
+      } else delete option.textInput;
+      if (field.type === "multiChoice" && element.querySelector("[data-option-exclusive]")?.checked) option.exclusive = true;
+      else delete option.exclusive;
+      return option;
+    });
+  }
+  if (field.type === "rating") {
+    field.min = Number(value("[data-field-rating-min]"));
+    field.max = Number(value("[data-field-rating-max]"));
+    if (checked("[data-field-rating-unknown]")) {
+      field.unknownOption = field.unknownOption || { id: "unknown", label: "无法判断" };
+      field.unknownOption.label = value("[data-field-rating-unknown-label]") || "无法判断";
+    } else delete field.unknownOption;
+    field.labels = field.labels || {};
+    app.querySelectorAll("[data-rating-short]").forEach((input) => {
+      const score = input.dataset.ratingShort;
+      field.labels[score] = field.labels[score] || {};
+      field.labels[score].short = input.value;
+    });
+    app.querySelectorAll("[data-rating-help]").forEach((input) => {
+      const score = input.dataset.ratingHelp;
+      field.labels[score] = field.labels[score] || {};
+      field.labels[score].help = input.value;
+    });
+  }
+  state.editorDirty = true;
+}
+
+async function editorOverview() {
+  if (state.view === "questionEditor") {
+    captureQuestionEditor();
+    const changed = state.editorQuestionWasNew || JSON.stringify(state.editorTemplate.fields[state.editorQuestionIndex]) !== JSON.stringify(state.editorQuestionOriginal);
+    state.editorDirty = state.editorDirtyBeforeQuestion || changed;
+    if (changed) await persistTemplateEditorDraft();
+    resetQuestionEditSession();
+  } else {
+    captureTemplateMetaEditor();
+    await persistTemplateEditorDraft();
+  }
+  state.view = "templateOverview";
+  render();
+}
+
+function resetQuestionEditSession() {
+  state.editorQuestionIndex = null;
+  state.editorQuestionOriginal = null;
+  state.editorQuestionWasNew = false;
+  state.editorDirtyBeforeQuestion = false;
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+}
+
+async function saveTemplateEditor() {
+  if (!state.editorTemplate || !state.editorSourceKey) return;
+  const source = await getTemplate(state.editorSourceKey);
+  if (!source) throw new Error("原问卷已经不存在");
+  const formDraft = await getDraft(source.key);
+  if (formDraft) throw new Error("问卷出现了未完成草稿，请先处理草稿后再保存修改");
+  const existing = await getTemplates();
+  let version = nextQuestionnaireVersion(source.version);
+  const usedKeys = new Set(existing.map((template) => template.key));
+  while (usedKeys.has(`${source.id}@${version}`)) version = nextQuestionnaireVersion(version);
+  const candidate = validateTemplate({
+    ...deepClone(state.editorTemplate),
+    id: source.id,
+    version,
+    importedAt: nowIso()
+  });
+  const records = await getRecords(source.key);
+  if (!records.length) {
+    try {
+      await replaceEmptyTemplateVersion(source.key, candidate);
+    } catch (error) {
+      if (!String(error?.message || "").includes("编辑期间新增")) throw error;
+      await putTemplate(candidate);
+      await setSetting("currentTemplateKey", candidate.key);
+    }
+  } else {
+    await putTemplate(candidate);
+    await setSetting("currentTemplateKey", candidate.key);
+  }
+  await deleteSetting(editorDraftSettingKey(source.key));
+  clearTemplateEditorState();
+  await refreshContext();
+  await loadTemplateCounts();
+  await openTemplateOverview(candidate.key);
+  showToast(`问卷已保存为 V${candidate.version}，并设为当前问卷`);
+}
+
+async function discardTemplateEditor() {
+  if (!state.editorSourceKey) return;
+  const confirmed = await showConfirm({ title: "放弃问卷修改？", message: "尚未保存为正式版本的问卷修改将被删除。", confirmLabel: "放弃修改" });
+  if (!confirmed) return;
+  const sourceKey = state.editorSourceKey;
+  await deleteSetting(editorDraftSettingKey(sourceKey));
+  clearTemplateEditorState();
+  await openTemplateOverview(sourceKey);
+}
+
+async function leaveTemplateEditor() {
+  captureTemplateMetaEditor();
+  captureQuestionEditor();
+  await persistTemplateEditorDraft();
+  const sourceKey = state.editorSourceKey;
+  clearTemplateEditorState();
+  await openTemplateOverview(sourceKey);
+  showToast("问卷修改草稿已保存");
+}
+
+async function leaveTemplateOverview() {
+  if (!state.editorDirty) {
+    clearTemplateEditorState();
+    state.view = "templates";
+    renderTemplates();
+    return;
+  }
+  const confirmed = await showConfirm({
+    title: "问卷修改尚未保存",
+    message: "返回问卷管理将放弃这次对问卷的全部修改。",
+    confirmLabel: "放弃更改",
+    cancelLabel: "继续编辑"
+  });
+  if (!confirmed) return;
+  await deleteSetting(editorDraftSettingKey(state.editorSourceKey));
+  clearTemplateEditorState();
+  state.view = "templates";
+  renderTemplates();
+}
+
+async function leaveQuestionEditor() {
+  const index = state.editorQuestionIndex;
+  if (!state.editorTemplate?.fields?.[index]) return;
+  captureQuestionEditor();
+  const changed = state.editorQuestionWasNew || JSON.stringify(state.editorTemplate.fields[index]) !== JSON.stringify(state.editorQuestionOriginal);
+  if (changed) {
+    const confirmed = await showConfirm({
+      title: "问题编辑尚未保存",
+      message: "返回问卷概览将放弃这次对该问题的修改。",
+      confirmLabel: "放弃更改",
+      cancelLabel: "继续编辑"
+    });
+    if (!confirmed) return;
+    if (state.editorQuestionWasNew) state.editorTemplate.fields.splice(index, 1);
+    else state.editorTemplate.fields[index] = deepClone(state.editorQuestionOriginal);
+    state.editorDirty = state.editorDirtyBeforeQuestion;
+    if (state.editorDirty) await persistTemplateEditorDraft();
+    else await deleteSetting(editorDraftSettingKey(state.editorSourceKey));
+  } else {
+    state.editorDirty = state.editorDirtyBeforeQuestion;
+  }
+  resetQuestionEditSession();
+  state.view = "templateOverview";
+  render();
+}
+
+async function openEditorQuestion(index, isNew = false) {
+  const numericIndex = Number(index);
+  if (!state.editorTemplate?.fields?.[numericIndex]) return;
+  state.editorQuestionIndex = numericIndex;
+  state.editorQuestionOriginal = isNew ? null : deepClone(state.editorTemplate.fields[numericIndex]);
+  state.editorQuestionWasNew = isNew;
+  state.editorDirtyBeforeQuestion = state.editorDirty;
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+  state.view = "questionEditor";
+  render();
+  requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+}
+
+async function openQuestionTypePicker(key = null, mode = "add") {
+  if (!state.editorTemplate && key) await beginTemplateEditor(key);
+  if (!state.editorTemplate) return;
+  state.questionTypePickerOpen = true;
+  state.questionTypePickerMode = mode;
+  state.view = mode === "change" ? "questionEditor" : "templateOverview";
+  render();
+}
+
+async function createEditorQuestion(type) {
+  if (!state.editorTemplate || !EDITABLE_FIELD_TYPES.some((item) => item.value === type)) return;
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+  const field = makeQuestion(type, state.editorTemplate.fields);
+  state.editorTemplate.fields.push(field);
+  await openEditorQuestion(state.editorTemplate.fields.length - 1, true);
+}
+
+async function changeEditorQuestionType(type) {
+  const index = state.editorQuestionIndex;
+  const field = state.editorTemplate?.fields?.[index];
+  if (!field || !EDITABLE_FIELD_TYPES.some((item) => item.value === type)) return;
+  if (field.type === type) {
+    state.questionTypePickerOpen = false;
+    state.questionTypePickerMode = null;
+    renderQuestionEditor();
+    return;
+  }
+  if (questionUsesAnalysis(state.editorTemplate, field.id)) {
+    showToast("这个问题用于简易分析，不能更换题型");
+    return;
+  }
+  const confirmed = await showConfirm({
+    title: "更换问题类型？",
+    message: `将“${fieldTypeName(field.type)}”改为“${fieldTypeName(type)}”后，原题型的选项、单位或评分设置会被重置。问题名称和说明会保留。`,
+    confirmLabel: "更换题型"
+  });
+  if (!confirmed) return;
+  captureQuestionEditor();
+  state.editorTemplate.fields[index] = changeQuestionType(field, type, state.editorTemplate.fields);
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+  render();
+  showToast(`已改为${fieldTypeName(type)}`);
+}
+
+async function addEditorOption() {
+  captureQuestionEditor();
+  const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
+  if (!field || !["singleChoice", "multiChoice"].includes(field.type)) return;
+  field.options.push({ id: newOptionId(field), label: `选项${field.options.length + 1}` });
+  renderQuestionEditor();
+}
+
+async function removeEditorOption(index) {
+  captureQuestionEditor();
+  const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
+  if (!field || !Array.isArray(field.options)) return;
+  if (field.options.length <= 1) {
+    showToast("选择题至少需要保留一个选项");
+    return;
+  }
+  field.options.splice(Number(index), 1);
+  renderQuestionEditor();
+}
+
+async function deleteEditorQuestion() {
+  const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
+  if (!field) return;
+  if (state.editorTemplate.fields.length <= 1) {
+    showToast("问卷至少需要保留一个问题或说明");
+    return;
+  }
+  if (questionUsesAnalysis(state.editorTemplate, field.id)) {
+    showToast("这个问题用于简易分析，当前版本不能删除");
+    return;
+  }
+  const confirmed = await showConfirm({
+    title: "删除该问题？",
+    message: `“${field.label}”将不会出现在修改后的问卷中。已有记录所属的旧版本不会改变。`,
+    confirmLabel: "删除问题"
+  });
+  if (!confirmed) return;
+  state.editorTemplate.fields.splice(state.editorQuestionIndex, 1);
+  state.editorDirty = true;
+  await persistTemplateEditorDraft();
+  resetQuestionEditSession();
+  state.view = "templateOverview";
+  render();
+  showToast("问题已从修改稿中删除");
 }
 
 function recordName(record) {
@@ -696,6 +1221,29 @@ function sampleStandardDeviation(values) {
   return Math.sqrt(values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (values.length - 1));
 }
 
+function nearestUsefulStep(value) {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const candidates = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+  const nearest = candidates.reduce((best, candidate) => (
+    Math.abs(candidate - normalized) < Math.abs(best - normalized) ? candidate : best
+  ), candidates[0]);
+  return nearest * magnitude;
+}
+
+function automaticBinWidth(values) {
+  const minimum = values[0];
+  const maximum = values[values.length - 1];
+  const range = maximum - minimum;
+  if (!Number.isFinite(range) || range <= 0) return nearestUsefulStep(Math.max(Math.abs(minimum) * 0.1, 1));
+
+  const iqr = quantile(values, 75) - quantile(values, 25);
+  const fdWidth = iqr > 0 ? 2 * iqr / Math.cbrt(values.length) : 0;
+  const fallbackBins = Math.ceil(Math.log2(values.length) + 1);
+  return nearestUsefulStep(fdWidth > 0 ? fdWidth : range / Math.max(1, fallbackBins));
+}
+
 function kdeBandwidth(values, binWidth) {
   if (values.length < 2) return binWidth;
   const standardDeviation = sampleStandardDeviation(values);
@@ -712,14 +1260,18 @@ function niceCeiling(value) {
   return step * 4;
 }
 
-function distributionModel(values, binWidth) {
+function distributionModel(values, configuredBinWidth) {
   const minimum = values[0];
   const maximum = values[values.length - 1];
+  const automatic = !Number.isFinite(configuredBinWidth);
+  const binWidth = automatic ? automaticBinWidth(values) : configuredBinWidth;
   let start = Math.floor(minimum / binWidth) * binWidth;
   let end = Math.ceil(maximum / binWidth) * binWidth;
   if (end <= start) end = start + binWidth;
-  start -= binWidth * 0.5;
-  end += binWidth * 0.5;
+  if (!automatic) {
+    start -= binWidth * 0.5;
+    end += binWidth * 0.5;
+  }
   const binCount = Math.max(1, Math.ceil((end - start) / binWidth));
   end = start + binCount * binWidth;
   const bins = Array.from({ length: binCount }, (_, index) => ({
@@ -741,7 +1293,15 @@ function distributionModel(values, binWidth) {
     }, 0) / (values.length * bandwidth);
     return { x, y: density * values.length * binWidth };
   }) : [];
-  return { values, start, end, bins, curve, bandwidth };
+  const standardDeviation = sampleStandardDeviation(values);
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const normalCurve = values.length > 1 && standardDeviation > 0 ? Array.from({ length: 181 }, (_, index) => {
+    const x = start + (end - start) * (index / 180);
+    const z = (x - mean) / standardDeviation;
+    const density = Math.exp(-0.5 * z * z) / (standardDeviation * Math.sqrt(2 * Math.PI));
+    return { x, y: density * values.length * binWidth };
+  }) : [];
+  return { values, start, end, bins, curve, normalCurve, bandwidth, binWidth, automatic };
 }
 
 function drawDistributionChart(svg, values, config, field, theme) {
@@ -751,7 +1311,7 @@ function drawDistributionChart(svg, values, config, field, theme) {
   const margin = { top: 42, right: 18, bottom: 42, left: 42 };
   const plot = { left: margin.left, top: margin.top, right: width - margin.right, bottom: height - margin.bottom };
   const model = distributionModel(values, config.binWidth);
-  const peak = Math.max(...model.bins.map((bin) => bin.count), ...model.curve.map((point) => point.y), 1);
+  const peak = Math.max(...model.bins.map((bin) => bin.count), ...model.curve.map((point) => point.y), ...model.normalCurve.map((point) => point.y), 1);
   const yMax = niceCeiling(peak * 1.12);
   const xScale = (value) => plot.left + ((value - model.start) / (model.end - model.start)) * (plot.right - plot.left);
   const yScale = (value) => plot.bottom - (value / yMax) * (plot.bottom - plot.top);
@@ -775,9 +1335,14 @@ function drawDistributionChart(svg, values, config, field, theme) {
     }
   });
 
+  if (model.normalCurve.length) {
+    const path = model.normalCurve.map((point, index) => `${index ? "L" : "M"}${xScale(point.x).toFixed(2)} ${yScale(point.y).toFixed(2)}`).join(" ");
+    elements.push(`<path data-chart-series="normal-reference" d="${path}" fill="none" stroke="#4b5563" stroke-width="2" stroke-dasharray="7 5" stroke-linecap="round" stroke-linejoin="round" />`);
+  }
+
   if (model.curve.length) {
     const path = model.curve.map((point, index) => `${index ? "L" : "M"}${xScale(point.x).toFixed(2)} ${yScale(point.y).toFixed(2)}`).join(" ");
-    elements.push(`<path d="${path}" fill="none" stroke="${theme.base}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`);
+    elements.push(`<path data-chart-series="kde" d="${path}" fill="none" stroke="${theme.base}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`);
   }
 
   const percentileGroups = config.percentiles.map((percentile) => {
@@ -808,6 +1373,8 @@ function drawDistributionChart(svg, values, config, field, theme) {
   elements.push(`<text x="${(plot.left + plot.right) / 2}" y="${height - 9}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">耳厚（${escapeHtml(field.unit || "数值")}）</text>`);
 
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.dataset.binWidth = String(model.binWidth);
+  svg.dataset.binMode = model.automatic ? "automatic" : "fixed";
   svg.innerHTML = `<title>${escapeHtml(field.label)}分布图</title>${elements.join("")}`;
 
   return { ...model, plot, width, height, xScale, unit: field.unit || "" };
@@ -858,6 +1425,11 @@ function initializeAnalysisCharts(config) {
     const redraw = () => {
       if (!chart.isConnected || !values.length) return;
       chart._distributionModel = drawDistributionChart(chart, values, config, field, theme);
+      const note = chart.closest(".analysis-chart-card")?.querySelector("[data-bin-width-note]");
+      if (note) {
+        const model = chart._distributionModel;
+        note.textContent = `${model.automatic ? "自动" : "固定"}分箱：每格 ${model.binWidth.toLocaleString("zh-CN", { maximumFractionDigits: 4 })} ${field.unit || ""}`;
+      }
     };
     redrawers.push(redraw);
     bindChartCursor(chart);
@@ -886,10 +1458,10 @@ function renderAnalysis() {
     const percentileText = config.percentiles.map((percentile) => `P${percentile} ${quantile(values, percentile).toFixed(2)} ${field.unit || ""}`).join(" · ");
     return `
       <section class="analysis-chart-card" data-chart-theme="${themeName}" style="--chart-color:${theme.base};--chart-fill:${theme.fill}">
-        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>每名参与者先取测量平均值，再只计入一次；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。</p></div>
-        <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span>' : ""}</div>
+        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>每名参与者先取测量平均值，再只计入一次；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。<span data-bin-width-note></span></p></div>
+        <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span><span class="legend-normal">正态分布参考</span>' : ""}</div>
         <div class="chart-stage">
-          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}" preserveAspectRatio="none"></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}，含KDE和正态分布参考" preserveAspectRatio="none"></svg>
           <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
         <p class="percentile-summary">${escapeHtml(percentileText)}</p>
@@ -1407,6 +1979,7 @@ async function restoreBackupFile(file) {
 
 async function selectTemplate(key) {
   await setSetting("currentTemplateKey", key);
+  clearTemplateEditorState();
   await refreshContext();
   state.view = "home";
   render();
@@ -1417,20 +1990,13 @@ async function openTemplateOverview(key) {
   if (!template) return;
   state.selectedTemplate = template;
   state.selectedTemplateDraft = await getDraft(key);
-  state.view = "templateOverview";
-  render();
-}
-
-async function startSelectedTemplate(key) {
-  await setSetting("currentTemplateKey", key);
-  await refreshContext();
-  if (state.draft) {
-    state.formIndex = state.draft.currentIndex || 0;
-    state.view = "form";
-    render();
+  if (!state.selectedTemplateDraft) {
+    await beginTemplateEditor(key, "templateOverview");
     return;
   }
-  await startNewForm();
+  if (state.editorSourceKey === key) clearTemplateEditorState();
+  state.view = "templateOverview";
+  render();
 }
 
 async function removeTemplate(key) {
@@ -1445,6 +2011,7 @@ async function removeTemplate(key) {
   });
   if (!confirmed) return;
 
+  await deleteSetting(editorDraftSettingKey(key));
   await deleteTemplateCascade(key);
   const remaining = await getTemplates();
   if (state.currentTemplate?.key === key) await setSetting("currentTemplateKey", remaining[0]?.key || null);
@@ -1505,6 +2072,7 @@ async function removeSelectedRecord() {
 
 function bindSwipeRows() {
   const rows = Array.from(app.querySelectorAll("[data-template-row]"));
+  const openOffset = -116;
   const closeOthers = (current = null) => rows.forEach((row) => {
     if (row !== current) {
       row.classList.remove("revealed", "dragging");
@@ -1526,7 +2094,7 @@ function bindSwipeRows() {
       row.classList.remove("dragging");
       row.classList.toggle("revealed", open);
       content.style.removeProperty("transform");
-      currentOffset = open ? -76 : 0;
+      currentOffset = open ? openOffset : 0;
     };
 
     content.addEventListener("pointerdown", (event) => {
@@ -1536,7 +2104,7 @@ function bindSwipeRows() {
       startX = event.clientX;
       startY = event.clientY;
       startTime = performance.now();
-      baseOffset = row.classList.contains("revealed") ? -76 : 0;
+      baseOffset = row.classList.contains("revealed") ? openOffset : 0;
       currentOffset = baseOffset;
       axis = null;
       try {
@@ -1554,7 +2122,7 @@ function bindSwipeRows() {
       if (axis !== "x") return;
       event.preventDefault();
       row.classList.add("dragging");
-      currentOffset = Math.max(-76, Math.min(0, baseOffset + deltaX));
+      currentOffset = Math.max(openOffset, Math.min(0, baseOffset + deltaX));
       content.style.transform = `translateX(${currentOffset}px)`;
       if (Math.abs(deltaX) > 8) row.dataset.suppressClick = "true";
     });
@@ -1563,7 +2131,7 @@ function bindSwipeRows() {
       if (pointerId !== event.pointerId) return;
       const elapsed = Math.max(1, performance.now() - startTime);
       const velocity = (event.clientX - startX) / elapsed;
-      const open = axis === "x" ? (velocity < -0.45 || (velocity <= 0.45 && currentOffset < -38)) : row.classList.contains("revealed");
+      const open = axis === "x" ? (velocity < -0.45 || (velocity <= 0.45 && currentOffset < openOffset / 2)) : row.classList.contains("revealed");
       settle(open);
       pointerId = null;
       setTimeout(() => { delete row.dataset.suppressClick; }, 0);
@@ -1586,8 +2154,25 @@ async function handleAction(action, element) {
       await refreshContext(); state.view = "home"; render(); break;
     case "templates":
       await loadTemplateCounts(); state.view = "templates"; render(); break;
+    case "leave-template-overview": await leaveTemplateOverview(); break;
     case "open-template": await openTemplateOverview(element.dataset.key); break;
-    case "start-template": await startSelectedTemplate(element.dataset.key); break;
+    case "duplicate-template": await duplicateQuestionnaire(element.dataset.key); break;
+    case "edit-template-meta": await beginTemplateEditor(element.dataset.key, "templateMetaEditor"); break;
+    case "edit-template-question": await beginTemplateEditor(element.dataset.key, "questionEditor", Number(element.dataset.index)); break;
+    case "open-editor-meta": state.view = "templateMetaEditor"; render(); break;
+    case "open-editor-question": await openEditorQuestion(element.dataset.index); break;
+    case "editor-overview": await editorOverview(); break;
+    case "leave-question-editor": await leaveQuestionEditor(); break;
+    case "open-question-type-picker": await openQuestionTypePicker(element.dataset.key || null, element.dataset.mode || "add"); break;
+    case "close-question-type-picker": state.questionTypePickerOpen = false; state.questionTypePickerMode = null; render(); break;
+    case "create-editor-question": await createEditorQuestion(element.dataset.type); break;
+    case "change-editor-question-type": await changeEditorQuestionType(element.dataset.type); break;
+    case "add-editor-option": await addEditorOption(); break;
+    case "remove-editor-option": await removeEditorOption(element.dataset.index); break;
+    case "delete-editor-question": await deleteEditorQuestion(); break;
+    case "save-template-editor": await saveTemplateEditor(); break;
+    case "discard-template-editor": await discardTemplateEditor(); break;
+    case "leave-template-editor": await leaveTemplateEditor(); break;
     case "records":
       await refreshContext(); state.view = "records"; render(); break;
     case "analysis": await refreshContext(); state.view = "analysis"; render(); break;
@@ -1676,6 +2261,10 @@ app.addEventListener("click", async (event) => {
     event.preventDefault();
     return;
   }
+  if (element.closest("[data-editor-field-id]")?.dataset.suppressClick === "true") {
+    event.preventDefault();
+    return;
+  }
   state.actionBusy = true;
   try {
     await handleAction(element.dataset.action, element);
@@ -1688,6 +2277,15 @@ app.addEventListener("click", async (event) => {
 });
 
 app.addEventListener("input", () => {
+  if (state.view === "templateMetaEditor") {
+    captureTemplateMetaEditor();
+    persistTemplateEditorDraft().catch(console.error);
+    return;
+  }
+  if (state.view === "questionEditor") {
+    captureQuestionEditor();
+    return;
+  }
   if (state.view !== "form") return;
   captureCurrentField();
   const field = state.currentTemplate.fields[state.formIndex];
@@ -1703,6 +2301,11 @@ app.addEventListener("input", () => {
 });
 
 app.addEventListener("change", async (event) => {
+  if (state.view === "questionEditor" && event.target.matches("[data-option-text-input], [data-field-rating-min], [data-field-rating-max]")) {
+    captureQuestionEditor();
+    renderQuestionEditor();
+    return;
+  }
   if (state.view !== "form" || !event.target.matches("[data-anonymous]")) return;
   captureCurrentField();
   const field = state.currentTemplate.fields[state.formIndex];
@@ -1735,23 +2338,41 @@ backupFileInput.addEventListener("change", async () => {
   }
 });
 
-function askWorkerVersion(worker) {
+function askWorkerInfo(worker) {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
-    const timer = setTimeout(() => resolve("新版"), 1000);
+    const timer = setTimeout(() => resolve({ version: "新版", summary: "本次更新包含功能改进和问题修复。" }), 1000);
     channel.port1.onmessage = (event) => {
       clearTimeout(timer);
-      resolve(event.data?.version || "新版");
+      resolve({
+        version: event.data?.version || "新版",
+        summary: event.data?.summary || "本次更新包含功能改进和问题修复。"
+      });
     };
-    worker.postMessage({ type: "GET_VERSION" }, [channel.port2]);
+    worker.postMessage({ type: "GET_VERSION_INFO" }, [channel.port2]);
   });
 }
 
-async function showUpdate(worker) {
+function closeUpdateDialog() {
+  updateDialog.hidden = true;
+  document.body.classList.remove("dialog-open");
+}
+
+async function showUpdate(worker, { manual = false, info = null } = {}) {
+  const workerInfo = info || await askWorkerInfo(worker);
+  const skippedVersion = await getSetting("skippedAppVersion", null);
+  if (!manual && (skippedVersion === workerInfo.version || state.dismissedUpdateVersion === workerInfo.version)) return;
+  if (state.view === "form") {
+    state.deferredUpdate = { worker, info: workerInfo };
+    return;
+  }
+  state.deferredUpdate = null;
   state.waitingWorker = worker;
-  const version = await askWorkerVersion(worker);
-  updateMessage.textContent = `发现新版本 V${version}`;
-  updateBanner.hidden = false;
+  state.waitingWorkerInfo = workerInfo;
+  updateTitle.textContent = `发现新版本 V${workerInfo.version}`;
+  updateSummary.textContent = workerInfo.summary;
+  updateDialog.hidden = false;
+  document.body.classList.add("dialog-open");
 }
 
 async function checkForUpdates() {
@@ -1769,7 +2390,7 @@ async function checkForUpdates() {
     await registration.update();
 
     if (registration.waiting) {
-      await showUpdate(registration.waiting);
+      await showUpdate(registration.waiting, { manual: true });
       return;
     }
     if (registration.installing) {
@@ -1802,11 +2423,24 @@ async function registerServiceWorker() {
   });
 }
 
+updateLater.addEventListener("click", () => {
+  state.dismissedUpdateVersion = state.waitingWorkerInfo?.version || null;
+  closeUpdateDialog();
+});
+
+updateSkip.addEventListener("click", async () => {
+  const version = state.waitingWorkerInfo?.version;
+  if (version) await setSetting("skippedAppVersion", version);
+  closeUpdateDialog();
+  showToast(version ? `已跳过 V${version}` : "已跳过这个版本");
+});
+
 updateButton.addEventListener("click", () => {
   if (state.view === "form") {
     showToast("请先返回首页，草稿保存后再更新");
     return;
   }
+  closeUpdateDialog();
   state.waitingWorker?.postMessage({ type: "SKIP_WAITING" });
 });
 

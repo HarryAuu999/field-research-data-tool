@@ -83,7 +83,8 @@ async function deleteOne(storeName, key) {
 
 export async function getTemplates() {
   const templates = await readAll(STORES.templates);
-  return templates.sort((a, b) => a.title.localeCompare(b.title, "zh-CN") || a.version.localeCompare(b.version));
+  const collator = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
+  return templates.sort((a, b) => collator.compare(a.title, b.title) || collator.compare(a.version, b.version));
 }
 
 export const getTemplate = (key) => getOne(STORES.templates, key);
@@ -95,6 +96,26 @@ export async function getSetting(key, fallback = null) {
 }
 
 export const setSetting = (key, value) => putOne(STORES.settings, { key, value });
+export const deleteSetting = (key) => deleteOne(STORES.settings, key);
+
+export async function replaceEmptyTemplateVersion(oldKey, template) {
+  const db = await openDatabase();
+  const transaction = db.transaction([STORES.templates, STORES.records, STORES.drafts, STORES.settings], "readwrite");
+  const recordStore = transaction.objectStore(STORES.records);
+  const draftStore = transaction.objectStore(STORES.drafts);
+  const recordRequest = recordStore.index("templateKey").count(oldKey);
+  const draftRequest = draftStore.get(oldKey);
+  const [records, draft] = await Promise.all([requestToPromise(recordRequest), requestToPromise(draftRequest)]);
+  if (records || draft) {
+    transaction.abort();
+    throw new Error("问卷在编辑期间新增了记录或草稿，将改为保留旧版本");
+  }
+  transaction.objectStore(STORES.templates).put(template);
+  transaction.objectStore(STORES.templates).delete(oldKey);
+  transaction.objectStore(STORES.settings).put({ key: "currentTemplateKey", value: template.key });
+  await transactionDone(transaction);
+  return template;
+}
 
 export async function getRecords(templateKey) {
   const db = await openDatabase();

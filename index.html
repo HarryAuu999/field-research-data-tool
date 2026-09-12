@@ -15,9 +15,18 @@
     <title>AuNote</title>
   </head>
   <body>
-    <div id="update-banner" class="update-banner" hidden>
-      <span id="update-message">发现新版本</span>
-      <button id="update-button" type="button">立即更新</button>
+    <div id="update-dialog" class="dialog-overlay update-dialog" hidden>
+      <section class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="update-title" aria-describedby="update-summary">
+        <div class="dialog-copy">
+          <h2 id="update-title">发现新版本</h2>
+          <p id="update-summary">本次更新包含功能改进和问题修复。</p>
+        </div>
+        <div class="update-actions">
+          <button id="update-skip" class="dialog-quiet" type="button">跳过此版本</button>
+          <button id="update-later" class="dialog-cancel" type="button">此次不更新</button>
+          <button id="update-button" class="dialog-primary" type="button">立即更新</button>
+        </div>
+      </section>
     </div>
     <main id="app" aria-live="polite">
       <div class="loading-screen">

@@ -69,9 +69,13 @@ const migrationContext = await browser.newContext({ locale: "zh-CN" });
 const migrationPage = await migrationContext.newPage();
 await migrationPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await migrationPage.evaluate(async () => {
-  const { BUILT_IN_TEMPLATES } = await import("./js/default-template.js");
-  const legacy = structuredClone(BUILT_IN_TEMPLATES[0]);
-  const latest = structuredClone(BUILT_IN_TEMPLATES[1]);
+  const { DEFAULT_TEMPLATE } = await import("./js/default-template.js");
+  const latest = structuredClone(DEFAULT_TEMPLATE);
+  const legacy = structuredClone(DEFAULT_TEMPLATE);
+  legacy.version = "1.0";
+  legacy.fields = legacy.fields.map((field) => ["horizontalThickness", "tiltedThickness"].includes(field.id)
+    ? { ...field, type: "number", repeatCount: undefined, minEntries: undefined }
+    : field);
   latest.fields.find((field) => field.id === "openEarPreference").options = latest.fields
     .find((field) => field.id === "openEarPreference")
     .options.filter((option) => option.id !== "noPreference");
@@ -110,9 +114,9 @@ await migrationPage.evaluate(async () => {
 });
 await migrationPage.reload({ waitUntil: "networkidle" });
 await migrationPage.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
-await migrationPage.getByText("问卷版本 V1.1", { exact: true }).waitFor();
+await migrationPage.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 await migrationPage.locator('[data-action="templates"]').click();
-assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').getByText("佩戴耳厚数据采集", { exact: false }).isVisible(), "升级后V1.0名称没有更新");
+assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').count() === 1, "升级后已有V1.0问卷被删除");
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
 const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
@@ -175,8 +179,16 @@ assert(homeSecondaryBackgrounds.every((color) => color === "rgb(255, 255, 255)")
 await analysisPage.getByRole("button", { name: "简易分析", exact: true }).click();
 await analysisPage.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await analysisPage.getByText("KDE 分布曲线", { exact: true }).count() === 2, "29份模拟记录没有绘制KDE分布曲线");
+assert(await analysisPage.getByText("正态分布参考", { exact: true }).count() === 2, "29份模拟记录没有绘制正态分布参考");
 assert(await analysisPage.locator("svg[data-analysis-chart]").count() === 2, "简易分析没有使用SVG图表");
 assert(await analysisPage.locator("canvas[data-analysis-chart]").count() === 0, "简易分析仍然包含Canvas位图");
+assert(await analysisPage.locator('[data-chart-series="normal-reference"]').count() === 2, "简易分析SVG缺少正态分布参考曲线");
+const automaticBins = await analysisPage.locator("svg[data-analysis-chart]").evaluateAll((charts) => charts.map((chart) => ({
+  mode: chart.dataset.binMode,
+  width: Number(chart.dataset.binWidth)
+})));
+assert(automaticBins.every((item) => item.mode === "automatic"), "内置问卷的简易分析没有使用自动分箱");
+assert(automaticBins[0].width === 0.5 && automaticBins[1].width === 1, `自动分箱没有仅按数据分别计算：${JSON.stringify(automaticBins)}`);
 const chartThemes = await analysisPage.locator("[data-chart-theme]").evaluateAll((cards) => cards.map((card) => ({
   name: card.dataset.chartTheme,
   color: getComputedStyle(card).getPropertyValue("--chart-color").trim()
@@ -192,13 +204,13 @@ await analysisContext.close();
 
 await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await page.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
-await page.getByText("问卷版本 V1.1", { exact: true }).waitFor();
+await page.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 assert(await page.getByText("0 份", { exact: true }).isVisible(), "首页初始记录数不是0");
 assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true }).isVisible(), "主页缺少数据备份/恢复入口");
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.1.4", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.2.0", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -207,6 +219,7 @@ await nextTo("性别");
 await choose('[data-action="select-single"][data-option="male"]');
 await nextTo("年龄");
 
+assert(await page.locator("[data-field-input]").getAttribute("inputmode") === "numeric", "整数题没有调用数字键盘");
 await page.locator("[data-field-input]").fill("29");
 await nextTo("左耳水平佩戴位置厚度");
 await page.locator('[data-repeat-input="0"]').fill("5.2345");
@@ -397,10 +410,12 @@ assert(await importedTemplate.getByText("0份记录", { exact: false }).isVisibl
 await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.1"]').click();
 await page.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 assert(await page.getByText("支持简易分析", { exact: true }).isVisible(), "问卷概览没有显示简易分析能力");
-assert(await page.getByRole("button", { name: "开始填写", exact: true }).isVisible(), "问卷概览底部缺少开始填写按钮");
+assert(await page.getByRole("button", { name: "选择此问卷", exact: true }).isVisible(), "问卷概览底部缺少选择此问卷按钮");
 await page.waitForTimeout(2700);
 await page.screenshot({ path: path.join(outputDir, "mobile-template-overview.png") });
-await clickAction("start-template");
+await clickAction("select-template");
+await page.locator(".hero-title", { hasText: "佩戴耳厚数据采集" }).waitFor();
+await clickAction("start-form");
 await page.getByRole("heading", { name: "填写问卷", exact: true }).waitFor();
 await clickAction("leave-form");
 await page.locator(".hero-title", { hasText: "佩戴耳厚数据采集" }).waitFor();
@@ -413,7 +428,7 @@ const backupPath = path.join(outputDir, "complete-backup.json");
 await backupDownload.saveAs(backupPath);
 const backup = JSON.parse(await fs.readFile(backupPath, "utf8"));
 assert(backup.format === "research-notebook-backup", "完整备份格式标识不正确");
-assert(backup.data.templates.length === 3, "完整备份没有包含V1.0、V1.1和导入问卷模板");
+assert(backup.data.templates.length === 2, "完整备份没有包含V1.1和导入问卷模板");
 assert(backup.data.records.length === 1, "完整备份没有包含已保存记录");
 
 await clickAction("home");
