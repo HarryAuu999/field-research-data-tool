@@ -1,5 +1,5 @@
-const APP_VERSION = "1.3.0";
-const UPDATE_SUMMARY = "本次更新：启用新版应用图标；完善问卷JSON规范与通用描述性统计；优化手机问卷编辑与长按排序，卡片可跟手移动、其他问题平滑让位，并支持点外部关闭题型选择和返回原位置。已有问卷、记录和草稿不会被覆盖。";
+const APP_VERSION = "1.3.1";
+const UPDATE_SUMMARY = "本次更新：修复iPhone长按浮起后拖动仍带动页面滚动的问题；首页“已记录问卷”改为“已记录样本”。已有问卷、记录和草稿不会被覆盖。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",

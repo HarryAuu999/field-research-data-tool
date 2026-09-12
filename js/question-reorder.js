@@ -25,7 +25,7 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     cancelAnimationFrame(current.scrollFrame);
     cancelAnimationFrame(current.moveFrame);
     try {
-      if (current.card?.hasPointerCapture?.(current.pointerId)) current.card.releasePointerCapture(current.pointerId);
+      if (current.pointerId !== null && current.card?.hasPointerCapture?.(current.pointerId)) current.card.releasePointerCapture(current.pointerId);
     } catch {
       // Synthetic pointer events used by automated tests do not own a real pointer.
     }
@@ -106,7 +106,7 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     session.card.setAttribute("aria-grabbed", "true");
     document.body.classList.add("question-reordering");
     try {
-      session.card.setPointerCapture?.(session.pointerId);
+      if (session.pointerId !== null) session.card.setPointerCapture?.(session.pointerId);
     } catch {
       // Synthetic pointer events used by automated tests do not own a real pointer.
     }
@@ -115,17 +115,17 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     session.scrollFrame = requestAnimationFrame(autoScroll);
   };
 
-  const pointerDown = (event) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    const card = event.target.closest("[data-editor-field-id]");
-    if (!card || event.target.closest("input, textarea, select, label, [data-no-reorder]")) return;
+  const startSession = ({ target, clientX, clientY, pointerId = null, touchIdentifier = null }) => {
+    const card = target.closest("[data-editor-field-id]");
+    if (!card || target.closest("input, textarea, select, label, [data-no-reorder]")) return;
     clearSession();
     session = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      clientX: event.clientX,
-      clientY: event.clientY,
+      pointerId,
+      touchIdentifier,
+      startX: clientX,
+      startY: clientY,
+      clientX,
+      clientY,
       card,
       active: false,
       moved: false,
@@ -135,11 +135,11 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     };
   };
 
-  const pointerMove = (event) => {
-    if (!session || event.pointerId !== session.pointerId) return;
-    session.clientX = event.clientX;
-    session.clientY = event.clientY;
-    const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
+  const updateSession = (clientX, clientY, event) => {
+    if (!session) return;
+    session.clientX = clientX;
+    session.clientY = clientY;
+    const distance = Math.hypot(clientX - session.startX, clientY - session.startY);
     if (!session.active && distance > MOVE_TOLERANCE) {
       clearSession();
       return;
@@ -151,8 +151,8 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     setTargetIndex();
   };
 
-  const finish = (event) => {
-    if (!session || event.pointerId !== session.pointerId) return;
+  const finishSession = () => {
+    if (!session) return;
     if (!session.active) {
       clearSession();
       return;
@@ -197,23 +197,65 @@ export function bindLongPressReorder(container, { onReorder, onStatus } = {}) {
     }).finished.then(complete, complete);
   };
 
-  const pointerCancel = () => clearSession("cancelled");
+  const pointerDown = (event) => {
+    if (event.pointerType === "touch" || (event.pointerType === "mouse" && event.button !== 0)) return;
+    startSession({ target: event.target, clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId });
+  };
+  const pointerMove = (event) => {
+    if (!session || event.pointerId !== session.pointerId) return;
+    updateSession(event.clientX, event.clientY, event);
+  };
+  const pointerUp = (event) => {
+    if (!session || event.pointerId !== session.pointerId) return;
+    finishSession();
+  };
+  const pointerCancel = (event) => {
+    if (!session || event.pointerId !== session.pointerId) return;
+    clearSession("cancelled");
+  };
+  const touchStart = (event) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    startSession({ target: event.target, clientX: touch.clientX, clientY: touch.clientY, touchIdentifier: touch.identifier });
+  };
+  const touchMove = (event) => {
+    if (!session || session.touchIdentifier === null) return;
+    const touch = [...event.touches].find((item) => item.identifier === session.touchIdentifier);
+    if (!touch) return;
+    updateSession(touch.clientX, touch.clientY, event);
+  };
+  const touchEnd = (event) => {
+    if (!session || session.touchIdentifier === null) return;
+    if (![...event.changedTouches].some((item) => item.identifier === session.touchIdentifier)) return;
+    finishSession();
+  };
+  const touchCancel = () => {
+    if (session && session.touchIdentifier !== null) clearSession("cancelled");
+  };
   const contextMenu = (event) => {
     if (event.target.closest("[data-editor-field-id]")) event.preventDefault();
   };
 
   container.addEventListener("pointerdown", pointerDown);
   container.addEventListener("pointermove", pointerMove, { passive: false });
-  container.addEventListener("pointerup", finish);
+  container.addEventListener("pointerup", pointerUp);
   container.addEventListener("pointercancel", pointerCancel);
+  container.addEventListener("touchstart", touchStart, { passive: true });
+  container.addEventListener("touchmove", touchMove, { passive: false });
+  container.addEventListener("touchend", touchEnd);
+  container.addEventListener("touchcancel", touchCancel);
   container.addEventListener("contextmenu", contextMenu);
 
   return () => {
     clearSession();
     container.removeEventListener("pointerdown", pointerDown);
     container.removeEventListener("pointermove", pointerMove);
-    container.removeEventListener("pointerup", finish);
+    container.removeEventListener("pointerup", pointerUp);
     container.removeEventListener("pointercancel", pointerCancel);
+    container.removeEventListener("touchstart", touchStart);
+    container.removeEventListener("touchmove", touchMove);
+    container.removeEventListener("touchend", touchEnd);
+    container.removeEventListener("touchcancel", touchCancel);
     container.removeEventListener("contextmenu", contextMenu);
   };
 }

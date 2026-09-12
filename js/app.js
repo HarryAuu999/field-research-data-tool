@@ -41,7 +41,7 @@ import {
   sampleStandardDeviation
 } from "./statistics.js";
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -446,7 +446,7 @@ function renderHome() {
         </button>
         <div class="home-list">
           <button class="count-link" type="button" data-action="records">
-            <span>已记录问卷</span>
+            <span>已记录样本</span>
             <span class="count-value">${state.records.length} 份</span>
             <img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
           </button>

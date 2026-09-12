@@ -48,16 +48,23 @@ async function longPressReorder(page, fromIndex = 0, toIndex = 2) {
   const targetCard = page.locator("[data-editor-field-id]").nth(toIndex);
   const sourceBox = await sourceCard.evaluate((element) => element.getBoundingClientRect().toJSON());
   const targetBox = await targetCard.evaluate((element) => element.getBoundingClientRect().toJSON());
-  await sourceCard.dispatchEvent("pointerdown", { pointerId: 31, pointerType: "touch", clientX: sourceBox.x + 70, clientY: sourceBox.y + 30 });
+  const client = await page.context().newCDPSession(page);
+  const startPoint = { x: sourceBox.x + 70, y: sourceBox.y + 30, id: 1, radiusX: 6, radiusY: 6, force: 1 };
+  const targetPoint = { x: targetBox.x + 70, y: targetBox.bottom - 4, id: 1, radiusX: 6, radiusY: 6, force: 1 };
+  const scrollBeforeDrag = await page.evaluate(() => window.scrollY);
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [startPoint] });
   await page.waitForTimeout(470);
   assert(await page.locator(".reorder-drag-ghost").count() === 1, "长按后没有创建跟手浮动卡片");
   assert(await sourceCard.evaluate((element) => element.classList.contains("reorder-placeholder")), "长按后原位置没有保留占位");
-  await sourceCard.dispatchEvent("pointermove", { pointerId: 31, pointerType: "touch", clientX: targetBox.x + 70, clientY: targetBox.bottom - 4 });
+  await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [targetPoint] });
   await page.waitForTimeout(30);
   const ghostTransform = await page.locator(".reorder-drag-ghost").evaluate((element) => element.style.transform);
   assert(ghostTransform.includes("translate3d") && !ghostTransform.includes("translate3d(0, 0px"), "浮动卡片没有跟随手指移动");
   assert(await page.locator("[data-editor-field-id]").nth(1).evaluate((element) => element.style.transform.includes("translate3d")), "其他问题没有为拖动卡片平滑让位");
-  await sourceCard.dispatchEvent("pointerup", { pointerId: 31, pointerType: "touch", clientX: targetBox.x + 70, clientY: targetBox.bottom - 4 });
+  const scrollAfterDrag = await page.evaluate(() => window.scrollY);
+  assert(Math.abs(scrollAfterDrag - scrollBeforeDrag) <= 1, `长按浮起后页面仍被手势滚动：${scrollBeforeDrag} -> ${scrollAfterDrag}`);
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await client.detach();
 }
 
 const noRecordContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "zh-CN" });
@@ -65,7 +72,7 @@ const noRecordPage = await noRecordContext.newPage();
 await noRecordPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 assert(await noRecordPage.locator("#update-skip").count() === 1 && await noRecordPage.locator("#update-later").count() === 1, "更新提示缺少跳过或此次不更新操作");
 await noRecordPage.evaluate(() => {
-  document.querySelector("#update-title").textContent = "发现新版本 V1.3.0";
+  document.querySelector("#update-title").textContent = "发现新版本 V1.3.1";
   document.querySelector("#update-summary").textContent = "本次更新：改进问卷编辑体验，并修复已知问题。";
   document.querySelector("#update-dialog").hidden = false;
   document.body.classList.add("dialog-open");
