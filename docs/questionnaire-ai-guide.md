@@ -1,0 +1,118 @@
+# AuNote 问卷 AI 转换指南
+
+本文件面向 ChatGPT、Claude、Gemini、Codex 等 AI。目标是把 Word、PDF、Markdown 或自然语言问卷可靠转换为 AuNote 可导入的 `schemaVersion: 1` JSON，而不是重新设计格式。
+
+生成前同时读取 [`questionnaire.schema.json`](questionnaire.schema.json)；生成后用该 Schema 校验，并由用户人工确认题目、选项、必填状态、单位和分析方法。
+
+## 1. 最小结构
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "study-id",
+  "version": "1.0",
+  "title": "问卷名称",
+  "description": "问卷背景",
+  "fields": []
+}
+```
+
+- 保持 `schemaVersion: 1`，不要发明新字段来模拟未支持能力。
+- `id + version`标识独立版本。同一研究修订问卷时保持`id`并更改`version`；不同研究使用不同`id`。
+- `fields`严格保持原问卷顺序。
+
+## 2. 原始题目映射
+
+| 原始问卷形式 | AuNote `type` |
+| --- | --- |
+| 姓名、编号、短答 | `shortText` |
+| 访谈记录、原因、备注、开放回答 | `longText` |
+| 单个可含小数的数值 | `number`，`integer: false`或省略 |
+| 单个只能为整数的数值 | `number`，`integer: true` |
+| 同一指标重复测量2～10次 | `repeatedNumber` |
+| 只能选一项 | `singleChoice` |
+| 可以选多项 | `multiChoice` |
+| 有限、连续整数档位评分 | `rating` |
+| 章节标题、指导语、过渡说明 | `section` |
+
+无法无损映射的交互（矩阵题、排序、日期、文件上传、签名、跳题逻辑等）不得伪装成另一种题型。应列出无法映射项并向用户确认拆题、改写或暂不导入。
+
+## 3. ID 命名
+
+- 推荐小写英文 `lowerCamelCase`，如 `participantAge`、`leftEarThickness`；选项如 `noPreference`。
+- ID在当前问卷内必须唯一，语义稳定，不包含姓名或参与者数据。
+- 不用题号作为唯一语义，例如优先`wearDuration`而非`q7`。
+- 版本更新时，同一含义的题保持原ID；含义实质变化时使用新ID，避免旧答案被误解。
+
+## 4. required、description 与 placeholder
+
+- 只有原文明确写明“必填”、星号且图例明确表示必填，或用户明确确认时，才设置`required: true`。
+- 原问卷没有说明是否必填时，使用`required: false`；不得静默猜测为必填。
+- `label`保存真正的问题文字。
+- `description`保存作答口径、测量方法、访员提示或必要背景，不把关键条件塞进`placeholder`。
+- `placeholder`只提供短输入示例，如“例如：28”或“输入读数”；它会在输入后消失，不能承载必须阅读的规则。
+- `shortText`和`longText`均可通过`allowAnonymous`提供匿名记录；只有原问卷或用户明确需要时才开启。手机内通用编辑器当前只为短文字显示该开关。
+
+## 5. 单选、多选与“其他”
+
+- 单选使用`singleChoice`，多选使用`multiChoice`；不要根据选项数量猜题型，应依据“单选/可多选”等原文。
+- 每个选项包含稳定、唯一的`id`和原始`label`，不得擅自合并、删改或补充选项。
+- “无／以上皆无／不适用”若与其他多选项互斥，在该选项设置`exclusive: true`。
+- “其他，请说明”使用选项的`textInput`。只有原文要求选择“其他”后必须说明时，才设置`textInput.required: true`。
+- CSV导出选项文字而非选项ID；多选以中文分号连接；补充文字导出为“选项：文字”。
+
+## 6. 数字题
+
+- 明确只能整数时设置`integer: true`；测量值、比例或允许小数的评分使用`integer: false`或省略。
+- `unit`只写单位，不写解释，例如`mm`、`岁`。CSV表头会包含单位。
+- AuNote schemaVersion 1当前接受非负十进制数；负数、科学计数法、范围上下限校验尚无对应配置。原问卷需要这些能力时必须告知用户限制。
+- 如果原问卷要求“1–5分评分，但允许3.2、3.5、4.7等小数”，必须使用支持小数的`number`，不能转换为当前整数型`rating`。除非未来 AuNote 已新增连续评分能力。
+
+## 7. 重复测量
+
+- 只有同一个指标对同一参与者重复测量时使用`repeatedNumber`，不要把多个不同问题合并成重复测量。
+- `repeatCount`为输入框总数，必须是2～10的整数。
+- `minEntries`来自原文允许的最少有效次数；未说明时不要猜。应询问用户；无法询问时，非必填题使用0，必填题使用1，并明确标注该保守处理。
+- 可设置`integer`、`unit`和`placeholder`。填写必须从第1次开始连续，不可跳格。
+- CSV会输出每次原值、参与者内平均值和最大差值。
+
+## 8. rating
+
+- `rating`只适用于从整数`min`到整数`max`的连续按钮，例如1～5或0～10；`min`必须小于`max`。
+- `labels`按分值字符串配置`short`和`help`，只转录原问卷已有锚点，不自行创造心理含义。
+- 原文有“不知道／无法判断／不适用”等独立答案时，可用`unknownOption`；不要把它强行编码成某个数字。
+- 小数评分、滑杆或视觉模拟量表不能用`rating`冒充，按数字题规则处理并说明交互差异。
+
+## 9. section
+
+- 用`section`保留章节标题、访员说明和不需要答案的过渡页。
+- `label`为章节标题，`description`为说明；不设置`required`，也不会导出CSV列。
+- 不要把需要用户确认或作答的内容转换为`section`。
+
+## 10. 图片
+
+- 普通导入JSON使用`data:image/...;base64,...`内嵌图片，保证离线可用；禁止HTTP/HTTPS外链。
+- `alt`应简洁说明图片传达的内容。图片本身包含关键作答信息时，必须提供足以理解的替代文本。
+- `./assets/...`仅供已随AuNote项目发布并由Service Worker缓存的内置资源使用；AI不能假设用户设备已有某个本地文件。
+- 图片不进入CSV。
+
+## 11. analysis
+
+- 只有用户或研究方案明确要求描述性统计/分布分析时才添加`analysis`；统计方法没有明确说明时，不得自行增加研究分析方法。
+- 分析字段只能引用当前问卷中的`number`或`repeatedNumber`。
+- 新配置优先使用`type: "descriptiveDistribution"`；旧`type: "distribution"`继续兼容。
+- 当前`aggregation`只能为`participantMean`：数字题每条记录计一次；重复数字题先算该参与者的有效重复测量平均值，再计一次。
+- `statistics`可从`count`、`mean`、`median`、`mode`、`min`、`max`、`sd`、`q1`、`q3`选择；省略显示全部。
+- `percentiles`仅在研究方案指定时填写，取值严格位于0与100之间。`binWidth`也只在明确要求固定区间时填写，否则让AuNote自动分箱。
+
+## 12. 禁止猜测与无法映射时的输出
+
+AI不得自行猜测：必填状态、单位、评分上下限、匿名含义、互斥关系、重复次数、最少次数、缺失选项、图片内容、跳题逻辑或统计方法。
+
+信息不足时按以下顺序处理：
+
+1. 明确列出缺失或冲突的信息；
+2. 向用户提出最少量、可回答的确认问题；
+3. 在确认前不要输出一个看似可导入但语义可能错误的最终JSON；
+4. 若用户要求先给草案，使用保守值（尤其`required: false`），并在JSON之外列出所有假设；不要把备注或TODO写进未定义的JSON字段；
+5. 生成后按`questionnaire.schema.json`校验，并逐题核对原文顺序、选项、必填、单位、评分和分析配置。

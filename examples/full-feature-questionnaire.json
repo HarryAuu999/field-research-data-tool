@@ -1,0 +1,119 @@
+{
+  "$schema": "../docs/questionnaire.schema.json",
+  "schemaVersion": 1,
+  "id": "full-feature-example",
+  "version": "1.0",
+  "title": "AuNote完整功能示例",
+  "description": "用于展示schemaVersion 1支持的字段，不代表任何真实研究方案。",
+  "fields": [
+    {
+      "id": "participantInfo",
+      "type": "section",
+      "label": "参与者信息",
+      "description": "以下信息由研究人员记录。"
+    },
+    {
+      "id": "participantName",
+      "type": "shortText",
+      "label": "姓名",
+      "description": "也可以选择匿名记录。",
+      "required": true,
+      "placeholder": "请输入姓名",
+      "allowAnonymous": true,
+      "anonymousLabel": "匿名记录"
+    },
+    {
+      "id": "observationNotes",
+      "type": "longText",
+      "label": "观察记录",
+      "required": false,
+      "placeholder": "输入详细记录"
+    },
+    {
+      "id": "age",
+      "type": "number",
+      "label": "年龄",
+      "required": false,
+      "integer": true,
+      "unit": "岁",
+      "placeholder": "例如：28"
+    },
+    {
+      "id": "comfortScore",
+      "type": "number",
+      "label": "连续舒适评分",
+      "description": "允许输入3.2、3.5等小数。",
+      "required": false,
+      "unit": "分",
+      "placeholder": "0至5"
+    },
+    {
+      "id": "thickness",
+      "type": "repeatedNumber",
+      "label": "厚度重复测量",
+      "required": true,
+      "repeatCount": 3,
+      "minEntries": 1,
+      "unit": "mm",
+      "integer": false,
+      "placeholder": "输入读数"
+    },
+    {
+      "id": "wearHabit",
+      "type": "singleChoice",
+      "label": "佩戴习惯",
+      "required": false,
+      "options": [
+        { "id": "horizontal", "label": "水平" },
+        {
+          "id": "other",
+          "label": "其他",
+          "textInput": {
+            "label": "请说明其他佩戴方式",
+            "placeholder": "输入具体方式",
+            "required": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "painLocations",
+      "type": "multiChoice",
+      "label": "不适位置",
+      "required": false,
+      "image": {
+        "src": "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+        "alt": "不适位置示意占位图"
+      },
+      "options": [
+        { "id": "front", "label": "前侧" },
+        { "id": "back", "label": "后侧" },
+        { "id": "none", "label": "无", "exclusive": true }
+      ]
+    },
+    {
+      "id": "satisfaction",
+      "type": "rating",
+      "label": "满意度",
+      "required": false,
+      "min": 1,
+      "max": 5,
+      "unknownOption": { "id": "unknown", "label": "无法判断" },
+      "labels": {
+        "1": { "short": "很不满意", "help": "体验明显低于预期。" },
+        "3": { "short": "一般", "help": "体验基本符合预期。" },
+        "5": { "short": "很满意", "help": "体验明显高于预期。" }
+      }
+    }
+  ],
+  "analysis": {
+    "type": "descriptiveDistribution",
+    "aggregation": "participantMean",
+    "statistics": ["count", "mean", "median", "mode", "min", "max", "sd", "q1", "q3"],
+    "percentiles": [20, 50, 80],
+    "fields": [
+      { "id": "comfortScore", "label": "连续舒适评分分布", "theme": "blue" },
+      { "id": "thickness", "label": "参与者平均厚度分布", "theme": "orange" }
+    ]
+  }
+}

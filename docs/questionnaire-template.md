@@ -21,6 +21,20 @@
 - `description`：问卷背景信息；首页显示前几行，问卷概览显示完整内容；
 - `fields`：按填写顺序排列的问题。
 
+### 最外层字段参考
+
+| 字段 | 必填 | 合法值与默认行为 | CSV行为 |
+| --- | --- | --- | --- |
+| `schemaVersion` | 是 | 固定为整数 `1` | 不导出 |
+| `id` | 是 | 非空字符串；同一研究的不同版本保持相同ID | 不导出 |
+| `version` | 是 | 非空字符串；与`id`共同构成独立版本键 | 不导出 |
+| `title` | 是 | 非空字符串 | 不导出 |
+| `description` | 否 | 字符串，省略时不显示问卷背景 | 不导出 |
+| `fields` | 是 | 至少一项；按数组顺序显示和导出 | 决定答案列顺序 |
+| `analysis` | 否 | 通用描述性统计与分布分析配置 | 不改变CSV |
+
+应用保存问卷后会添加`key`和`importedAt`内部元数据。创建导入JSON时不要自行填写它们。
+
 ## 手机内编辑与版本
 
 - 问卷概览同时是编辑入口：轻点标题或问题进行修改；点击加号后从弹窗选择题型；也可以删除和长按排序问题；
@@ -44,6 +58,45 @@
 
 所有问题均使用唯一的 `id`，并可设置 `required: true` 或 `false`。
 
+## 问题通用字段
+
+| 字段 | 必填 | 适用题型 | 默认行为与合法值 | CSV行为 |
+| --- | --- | --- | --- | --- |
+| `id` | 是 | 全部 | 问卷内唯一的非空字符串；发布后不要复用或随意更名 | 用于对应答案，不直接作为表头 |
+| `type` | 是 | 全部 | 上述8种题型之一 | 决定导出格式 |
+| `label` | 是 | 全部 | 非空字符串；问题文字或分节标题 | 非`section`题型作为列标题 |
+| `description` | 否 | 全部 | 补充说明；省略时不显示 | 不导出 |
+| `required` | 否 | 除`section`外 | 布尔值，省略等同`false` | 不改变格式；只影响保存前校验 |
+| `placeholder` | 否 | `shortText`、`longText`、`number`、`repeatedNumber` | 输入框内的短提示；省略为空 | 不导出 |
+| `unit` | 否 | `number`、`repeatedNumber` | 如`mm`、`岁`；省略时不显示单位 | 进入CSV列标题，不重复写入每个单元格 |
+| `integer` | 否 | `number`、`repeatedNumber` | 布尔值；`true`只接受非负整数，省略/`false`接受非负整数或小数 | 数值原样导出 |
+| `image` | 否 | 全部 | `{src, alt}`；见“图片”章节 | 不导出 |
+
+AuNote当前数字输入接受非负十进制数，不接受负号、指数记法或千位分隔符。
+
+## 各题型字段与CSV
+
+| 题型 | 专用字段 | 默认行为与合法值 | CSV行为 |
+| --- | --- | --- | --- |
+| `shortText` | `allowAnonymous`、`anonymousLabel` | `allowAnonymous`省略为`false`；开启后可勾选匿名，`anonymousLabel`省略显示“匿名” | 一列；匿名答案导出“匿名” |
+| `longText` | `allowAnonymous`、`anonymousLabel` | 多行文字；导入JSON可开启匿名（手机内编辑器当前只为短文字显示匿名开关） | 一列；匿名答案导出“匿名”，否则保留文本内容 |
+| `number` | `unit`、`integer`、`placeholder` | 单个数字 | 一列；表头可含单位，答案保留原输入 |
+| `repeatedNumber` | `repeatCount`、`minEntries`、`unit`、`integer`、`placeholder` | `repeatCount`必填且为2～10；`minEntries`省略时，必填题为1、非必填题为0 | 每次测量各一列，另加平均值和最大差值列 |
+| `singleChoice` | `options` | 至少一个选项 | 一列，导出选项`label`；补充文字格式为“选项：文字” |
+| `multiChoice` | `options` | 至少一个选项 | 一列；多个选项用中文分号`；`连接 |
+| `rating` | `min`、`max`、`unknownOption`、`labels` | `min`与`max`必须为整数且`min < max`；只能选择整数档位 | 一列，导出整数分值或未知选项文字 |
+| `section` | 无 | 仅组织标题与说明，忽略`required` | 不生成CSV列 |
+
+### 选项对象
+
+`singleChoice`和`multiChoice`的每个`options`成员都必须包含问卷内该题唯一的`id`和非空`label`。
+
+- `exclusive`：仅用于`multiChoice`，布尔值，省略为`false`；选中`true`的选项会取消其他选择，选择其他项也会取消它；
+- `textInput`：单选或多选均可用，选择该项后出现补充文字输入框；
+- `textInput.label`：可选，补充输入的可访问名称/校验提示；
+- `textInput.placeholder`：可选，补充输入框提示；
+- `textInput.required`：可选布尔值，省略为`false`；只在该选项被选中时生效。
+
 ## 重复数字
 
 ```json
@@ -61,6 +114,7 @@
 
 - `repeatCount`：页面显示的输入框数量，目前允许2至10个；
 - `minEntries`：至少需要填写几个，本例允许只填1次、2次或完整填写3次；
+- `integer`：可选；`true`时每次只接受整数，省略时允许小数；
 - 必须从第1次开始按顺序填写，不能跳过中间一次；
 - CSV会分别导出每次原始值、平均值和最大差值；只有1个数据时，最大差值留空。
 
@@ -127,9 +181,13 @@ CSV中会导出为一个答案，例如：`其他：接近垂直佩戴`。
 
 CSV的同一列中保存 `1`～`5` 或文字“无法判断”。
 
+- `unknownOption`可选，必须包含唯一`id`和非空`label`；
+- `labels`可选，以分值字符串为键；每档可包含`short`（按钮短标签）和`help`（选中后的解释）；
+- `rating`只生成从`min`到`max`的整数按钮，不支持3.2、3.5等连续小数评分。此类题应使用`number`。
+
 ## 图片
 
-为了保证离线使用，导入问卷中的图片必须直接嵌入JSON，使用 `data:image/...;base64,...`：
+为了保证离线使用，普通导入问卷中的图片必须直接嵌入JSON，使用 `data:image/...;base64,...`：
 
 ```json
 {
@@ -140,11 +198,11 @@ CSV的同一列中保存 `1`～`5` 或文字“无法判断”。
 }
 ```
 
-外部网页图片地址会被拒绝，避免现场离线后无法显示。
+`image.src`必填；`image.alt`建议填写，无障碍文本省略时回退为题目标题。项目内置问卷还可引用随应用缓存的`./assets/...`文件。外部网页图片地址会被拒绝，避免现场离线后无法显示。图片只在题目页显示，不进入CSV。
 
 ## 可选的简易分析
 
-简易分析是某一份问卷的可选能力，并不是所有问卷都会显示。当前只支持对数字题或重复数字题进行分布分析：
+简易分析是某一份问卷的可选能力，并不是所有问卷都会显示。只支持引用`number`或`repeatedNumber`题。旧版`distribution`配置继续有效：
 
 ```json
 {
@@ -165,6 +223,32 @@ CSV的同一列中保存 `1`～`5` 或文字“无法判断”。
 - `percentiles`：需要显示的百分位，数值必须在0至100之间；
 - `fields`：只能引用当前问卷内的`number`或`repeatedNumber`字段；
 - `theme`：目前可使用`blue`或`orange`。
+
+新问卷建议使用更明确的`descriptiveDistribution`，可按需指定统计项：
+
+```json
+{
+  "analysis": {
+    "type": "descriptiveDistribution",
+    "aggregation": "participantMean",
+    "statistics": ["count", "mean", "median", "mode", "min", "max", "sd", "q1", "q3"],
+    "percentiles": [20, 50, 80],
+    "binWidth": 0.5,
+    "fields": [
+      { "id": "exampleScore", "label": "示例评分", "theme": "blue" }
+    ]
+  }
+}
+```
+
+- `type`：必填；合法值为旧版`distribution`或新版`descriptiveDistribution`；
+- `aggregation`：必填；当前唯一合法值为`participantMean`。`repeatedNumber`会先计算每名参与者的有效重复值平均数，`number`每条有效记录直接计为一个样本；
+- `statistics`：`descriptiveDistribution`可选；省略时显示全部9项。合法值为`count`、`mean`、`median`、`mode`、`min`、`max`、`sd`、`q1`、`q3`，不得重复；旧配置省略它也会显示全部描述性统计；
+- `percentiles`：`distribution`必填，`descriptiveDistribution`可选；每项必须大于0且小于100；
+- `binWidth`：可选正数；省略时按字段数据自动分箱；
+- `fields`：必填非空数组。每项必须有`id`；`label`可覆盖题目标题；`theme`可为`blue`或`orange`；
+- 样本标准差在只有一个有效样本时显示为“—”；所有值都只出现一次时显示“无明显众数”，并列众数会全部显示。
+- `SD`使用样本标准差（分母为`N - 1`）；Q1、Q3及其他百分位采用基于排序位置`(N - 1) × p`的线性插值。
 
 分布图会同时显示实际人数柱形、KDE数据平滑曲线和深灰虚线正态分布参考。自动分箱只根据该字段的数据计算，不会因为手机屏幕大小而减少柱子数量。
 

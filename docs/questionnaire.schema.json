@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harryauu999.github.io/field-research-data-tool/docs/questionnaire.schema.json",
+  "title": "AuNote questionnaire schemaVersion 1",
+  "description": "AuNote可导入问卷。JSON Schema用于导入前预检，运行时仍由validateTemplate()验证。",
+  "type": "object",
+  "required": ["schemaVersion", "id", "version", "title", "fields"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/nonEmptyString" },
+    "version": { "$ref": "#/$defs/nonEmptyString" },
+    "title": { "$ref": "#/$defs/nonEmptyString" },
+    "description": { "type": "string" },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/field" }
+    },
+    "analysis": { "$ref": "#/$defs/analysis" },
+    "key": { "type": "string", "readOnly": true },
+    "importedAt": { "type": "string", "format": "date-time", "readOnly": true }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "image": {
+      "type": "object",
+      "required": ["src"],
+      "properties": {
+        "src": {
+          "type": "string",
+          "pattern": "^(data:image/|\\./assets/)"
+        },
+        "alt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "textInput": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "required": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "exclusive": { "type": "boolean", "default": false },
+        "textInput": { "$ref": "#/$defs/textInput" }
+      },
+      "additionalProperties": false
+    },
+    "ratingLabel": {
+      "type": "object",
+      "properties": {
+        "short": { "type": "string" },
+        "help": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "commonField": {
+      "type": "object",
+      "required": ["id", "type", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "type": { "type": "string" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "image": { "$ref": "#/$defs/image" }
+      }
+    },
+    "field": {
+      "oneOf": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "properties": {
+                "type": { "const": "shortText" },
+                "placeholder": { "type": "string" },
+                "allowAnonymous": { "type": "boolean", "default": false },
+                "anonymousLabel": { "type": "string", "default": "匿名" }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "properties": {
+                "type": { "const": "longText" },
+                "placeholder": { "type": "string" },
+                "allowAnonymous": { "type": "boolean", "default": false },
+                "anonymousLabel": { "type": "string", "default": "匿名" }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "properties": {
+                "type": { "const": "number" },
+                "placeholder": { "type": "string" },
+                "unit": { "type": "string" },
+                "integer": { "type": "boolean", "default": false }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "required": ["repeatCount"],
+              "properties": {
+                "type": { "const": "repeatedNumber" },
+                "repeatCount": { "type": "integer", "minimum": 2, "maximum": 10 },
+                "minEntries": { "type": "integer", "minimum": 0, "maximum": 10 },
+                "placeholder": { "type": "string" },
+                "unit": { "type": "string" },
+                "integer": { "type": "boolean", "default": false }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "required": ["options"],
+              "properties": {
+                "type": { "const": "singleChoice" },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/option" }
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "required": ["options"],
+              "properties": {
+                "type": { "const": "multiChoice" },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "$ref": "#/$defs/option" }
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            {
+              "required": ["min", "max"],
+              "properties": {
+                "type": { "const": "rating" },
+                "min": { "type": "integer", "description": "必须小于max；该跨字段关系继续由validateTemplate()检查。" },
+                "max": { "type": "integer", "description": "必须大于min；该跨字段关系继续由validateTemplate()检查。" },
+                "unknownOption": {
+                  "type": "object",
+                  "required": ["id", "label"],
+                  "properties": {
+                    "id": { "$ref": "#/$defs/nonEmptyString" },
+                    "label": { "$ref": "#/$defs/nonEmptyString" }
+                  },
+                  "additionalProperties": false
+                },
+                "labels": {
+                  "type": "object",
+                  "propertyNames": { "pattern": "^-?\\d+$" },
+                  "additionalProperties": { "$ref": "#/$defs/ratingLabel" }
+                }
+              }
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/commonField" },
+            { "properties": { "type": { "const": "section" } } }
+          ],
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+    "analysisField": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "theme": { "enum": ["blue", "orange"] }
+      },
+      "additionalProperties": false
+    },
+    "analysisProperties": {
+      "aggregation": { "const": "participantMean" },
+      "binWidth": { "type": "number", "exclusiveMinimum": 0 },
+      "percentiles": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 100 }
+      },
+      "statistics": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+          "enum": ["count", "mean", "median", "mode", "min", "max", "sd", "q1", "q3"]
+        }
+      },
+      "fields": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/analysisField" }
+      }
+    },
+    "analysis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "aggregation", "percentiles", "fields"],
+          "properties": {
+            "type": { "const": "distribution" },
+            "aggregation": { "$ref": "#/$defs/analysisProperties/aggregation" },
+            "binWidth": { "$ref": "#/$defs/analysisProperties/binWidth" },
+            "percentiles": { "$ref": "#/$defs/analysisProperties/percentiles" },
+            "statistics": { "$ref": "#/$defs/analysisProperties/statistics" },
+            "fields": { "$ref": "#/$defs/analysisProperties/fields" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "aggregation", "fields"],
+          "properties": {
+            "type": { "const": "descriptiveDistribution" },
+            "aggregation": { "$ref": "#/$defs/analysisProperties/aggregation" },
+            "binWidth": { "$ref": "#/$defs/analysisProperties/binWidth" },
+            "percentiles": { "$ref": "#/$defs/analysisProperties/percentiles" },
+            "statistics": { "$ref": "#/$defs/analysisProperties/statistics" },
+            "fields": { "$ref": "#/$defs/analysisProperties/fields" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

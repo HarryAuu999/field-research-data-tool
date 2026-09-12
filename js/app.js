@@ -32,8 +32,16 @@ import {
   reorderFields
 } from "./questionnaire-editor.js";
 import { bindLongPressReorder } from "./question-reorder.js";
+import {
+  DESCRIPTIVE_STATISTICS,
+  descriptiveStatistics,
+  fieldDistribution,
+  formatStatistic,
+  quantile,
+  sampleStandardDeviation
+} from "./statistics.js";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -45,6 +53,7 @@ const ANALYSIS_THEMES = {
   blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
+const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution"]);
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 const templateFileInput = document.querySelector("#template-file-input");
@@ -79,6 +88,7 @@ const state = {
   editorQuestionWasNew: false,
   editorDirtyBeforeQuestion: false,
   editorDirty: false,
+  editorOverviewScrollY: null,
   questionTypePickerOpen: false,
   questionTypePickerMode: null,
   editorReorderCleanup: null,
@@ -236,13 +246,19 @@ function validateTemplate(input) {
 
 function validateAnalysisConfig(config, fields) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
-  if (config.type !== "distribution") throw new Error("目前只支持 distribution 分布分析");
+  if (!ANALYSIS_TYPES.has(config.type)) throw new Error("目前只支持 distribution 或 descriptiveDistribution 分析");
   if (config.aggregation !== "participantMean") throw new Error("分布分析必须按参与者平均值汇总");
   if (config.binWidth !== undefined && (!Number.isFinite(config.binWidth) || config.binWidth <= 0)) {
     throw new Error("分布分析的固定区间宽度必须大于0；不填写时将自动分箱");
   }
-  if (!Array.isArray(config.percentiles) || !config.percentiles.length || config.percentiles.some((value) => !Number.isFinite(value) || value <= 0 || value >= 100)) {
+  if (config.type === "distribution" && (!Array.isArray(config.percentiles) || !config.percentiles.length)) {
+    throw new Error("distribution 分布分析至少需要一个百分位");
+  }
+  if (config.percentiles !== undefined && (!Array.isArray(config.percentiles) || !config.percentiles.length || config.percentiles.some((value) => !Number.isFinite(value) || value <= 0 || value >= 100))) {
     throw new Error("分布分析的百分位设置无效");
+  }
+  if (config.statistics !== undefined && (!Array.isArray(config.statistics) || !config.statistics.length || new Set(config.statistics).size !== config.statistics.length || config.statistics.some((value) => !DESCRIPTIVE_STATISTICS.includes(value)))) {
+    throw new Error("描述性统计项目设置无效");
   }
   if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("分布分析至少需要一个数字题");
   const fieldMap = new Map(fields.map((field) => [field.id, field]));
@@ -369,6 +385,11 @@ function render() {
     case "backup": renderBackup(); break;
     default: renderHome();
   }
+}
+
+function restoreWindowScroll(top) {
+  if (!Number.isFinite(top)) return;
+  requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: "auto" }));
 }
 
 function renderHome() {
@@ -519,7 +540,6 @@ function renderTemplateOverview() {
       <section class="question-type-dialog" role="dialog" aria-modal="true" aria-labelledby="question-type-title">
         <div class="question-type-dialog-heading">
           <h2 id="question-type-title">选择问题类型</h2>
-          <button type="button" data-action="close-question-type-picker" aria-label="关闭">取消</button>
         </div>
         <div class="question-type-list">
           ${questionTypePickerHtml("add")}
@@ -550,8 +570,11 @@ function renderTemplateOverview() {
   if (editing && list) {
     state.editorReorderCleanup = bindLongPressReorder(list, {
       onReorder: async (orderedIds) => {
+        const scrollTop = window.scrollY;
         state.editorTemplate.fields = reorderFields(state.editorTemplate.fields, orderedIds);
         state.editorDirty = true;
+        render();
+        restoreWindowScroll(scrollTop);
         await persistTemplateEditorDraft();
         showToast("问题顺序已调整");
       }
@@ -580,6 +603,7 @@ function clearTemplateEditorState() {
   state.editorQuestionWasNew = false;
   state.editorDirtyBeforeQuestion = false;
   state.editorDirty = false;
+  state.editorOverviewScrollY = null;
   state.questionTypePickerOpen = false;
   state.questionTypePickerMode = null;
 }
@@ -710,7 +734,7 @@ function renderQuestionEditor() {
   const editable = EDITABLE_FIELD_TYPES.some((item) => item.value === field.type);
   const typePicker = state.questionTypePickerOpen && state.questionTypePickerMode === "change" ? `
     <div class="editor-type-popover" role="dialog" aria-label="选择问题类型">
-      <div class="editor-type-popover-heading"><strong>选择问题类型</strong><button type="button" data-action="close-question-type-picker">取消</button></div>
+      <div class="editor-type-popover-heading"><strong>选择问题类型</strong></div>
       <div class="question-type-list">${questionTypePickerHtml("change")}</div>
     </div>` : "";
   app.innerHTML = `
@@ -799,7 +823,9 @@ function captureQuestionEditor() {
 }
 
 async function editorOverview() {
+  let overviewScrollY = null;
   if (state.view === "questionEditor") {
+    overviewScrollY = state.editorOverviewScrollY;
     captureQuestionEditor();
     const changed = state.editorQuestionWasNew || JSON.stringify(state.editorTemplate.fields[state.editorQuestionIndex]) !== JSON.stringify(state.editorQuestionOriginal);
     state.editorDirty = state.editorDirtyBeforeQuestion || changed;
@@ -811,6 +837,8 @@ async function editorOverview() {
   }
   state.view = "templateOverview";
   render();
+  state.editorOverviewScrollY = null;
+  restoreWindowScroll(overviewScrollY);
 }
 
 function resetQuestionEditSession() {
@@ -920,14 +948,18 @@ async function leaveQuestionEditor() {
   } else {
     state.editorDirty = state.editorDirtyBeforeQuestion;
   }
+  const overviewScrollY = state.editorOverviewScrollY;
   resetQuestionEditSession();
   state.view = "templateOverview";
   render();
+  state.editorOverviewScrollY = null;
+  restoreWindowScroll(overviewScrollY);
 }
 
 async function openEditorQuestion(index, isNew = false) {
   const numericIndex = Number(index);
   if (!state.editorTemplate?.fields?.[numericIndex]) return;
+  if (state.view === "templateOverview") state.editorOverviewScrollY = window.scrollY;
   state.editorQuestionIndex = numericIndex;
   state.editorQuestionOriginal = isNew ? null : deepClone(state.editorTemplate.fields[numericIndex]);
   state.editorQuestionWasNew = isNew;
@@ -946,6 +978,12 @@ async function openQuestionTypePicker(key = null, mode = "add") {
   state.questionTypePickerMode = mode;
   state.view = mode === "change" ? "questionEditor" : "templateOverview";
   render();
+}
+
+function closeQuestionTypePicker() {
+  state.questionTypePickerOpen = false;
+  state.questionTypePickerMode = null;
+  app.querySelector(".question-type-overlay, .editor-type-popover")?.remove();
 }
 
 async function createEditorQuestion(type) {
@@ -1188,39 +1226,6 @@ function repeatedSummaryHtml(field, answer) {
   return parts.map((part) => `<span>${part}</span>`).join("");
 }
 
-function quantile(sortedValues, percentile) {
-  if (!sortedValues.length) return null;
-  if (sortedValues.length === 1) return sortedValues[0];
-  const position = (sortedValues.length - 1) * (percentile / 100);
-  const lower = Math.floor(position);
-  const fraction = position - lower;
-  return sortedValues[lower] + (sortedValues[Math.min(lower + 1, sortedValues.length - 1)] - sortedValues[lower]) * fraction;
-}
-
-function analysisValue(field, answer) {
-  if (field.type === "number") {
-    const value = Number(answer);
-    return Number.isFinite(value) ? value : null;
-  }
-  if (field.type === "repeatedNumber") {
-    const values = validRepeatedValues(answer).map(Number).filter(Number.isFinite);
-    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-  }
-  return null;
-}
-
-function fieldDistribution(template, records, fieldId) {
-  const field = template.fields.find((item) => item.id === fieldId);
-  if (!field) return [];
-  return records.map((record) => analysisValue(field, record.answers?.[fieldId])).filter(Number.isFinite).sort((a, b) => a - b);
-}
-
-function sampleStandardDeviation(values) {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return Math.sqrt(values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / (values.length - 1));
-}
-
 function nearestUsefulStep(value) {
   if (!Number.isFinite(value) || value <= 0) return 1;
   const magnitude = 10 ** Math.floor(Math.log10(value));
@@ -1331,7 +1336,12 @@ function drawDistributionChart(svg, values, config, field, theme) {
     const y = yScale(bin.count);
     elements.push(`<rect x="${x}" y="${y}" width="${barWidth}" height="${plot.bottom - y}" fill="${theme.fill}" stroke="${theme.base}" stroke-width="1" />`);
     if (bin.count) {
-      elements.push(`<text x="${x + barWidth / 2}" y="${Math.max(plot.top + 8, y - 9)}" fill="#1f2937" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${bin.count}人</text>`);
+      const labelY = Math.max(plot.top + 8, y - 9);
+      elements.push(`<text x="${x + barWidth / 2}" y="${labelY}" fill="#1f2937" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${bin.count}人</text>`);
+      if (barWidth >= 44) {
+        const percentage = bin.count / values.length * 100;
+        elements.push(`<text x="${x + barWidth / 2}" y="${labelY + 12}" fill="#6b7280" font-size="9" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${percentage.toFixed(percentage >= 10 ? 0 : 1)}%</text>`);
+      }
     }
   });
 
@@ -1345,7 +1355,8 @@ function drawDistributionChart(svg, values, config, field, theme) {
     elements.push(`<path data-chart-series="kde" d="${path}" fill="none" stroke="${theme.base}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`);
   }
 
-  const percentileGroups = config.percentiles.map((percentile) => {
+  const chartPercentiles = [...new Set([...(config.percentiles || []), 50])].sort((a, b) => a - b);
+  const percentileGroups = chartPercentiles.map((percentile) => {
     const value = quantile(values, percentile);
     return { percentiles: [percentile], value, x: xScale(value) };
   }).reduce((groups, point) => {
@@ -1362,7 +1373,8 @@ function drawDistributionChart(svg, values, config, field, theme) {
   percentileGroups.forEach((group, index) => {
     const x = group.x;
     elements.push(`<line x1="${x}" y1="${plot.top}" x2="${x}" y2="${plot.bottom}" stroke="${theme.base}" stroke-width="1" stroke-dasharray="4 4" />`);
-    elements.push(`<text x="${x}" y="${13 + (index % 2) * 14}" fill="${theme.base}" font-size="10" font-weight="600" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${group.percentiles.map((value) => `P${value}`).join("/")} ${group.value.toFixed(2)}</text>`);
+    const labels = group.percentiles.map((value) => value === 50 ? "P50/中位数" : `P${value}`);
+    elements.push(`<text x="${x}" y="${13 + (index % 2) * 14}" fill="${theme.base}" font-size="10" font-weight="600" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${labels.join("/")} ${formatStatistic(group.value, values)}</text>`);
   });
 
   for (let index = 0; index <= 4; index += 1) {
@@ -1370,7 +1382,8 @@ function drawDistributionChart(svg, values, config, field, theme) {
     elements.push(`<text x="${xScale(value)}" y="${plot.bottom + 18}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${value.toFixed(1)}</text>`);
   }
   elements.push(`<text x="12" y="${(plot.top + plot.bottom) / 2}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" transform="rotate(-90 12 ${(plot.top + plot.bottom) / 2})" style="${textStyle}">人数</text>`);
-  elements.push(`<text x="${(plot.left + plot.right) / 2}" y="${height - 9}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">耳厚（${escapeHtml(field.unit || "数值")}）</text>`);
+  const axisLabel = field.unit ? `${field.label}（${field.unit}）` : field.label;
+  elements.push(`<text x="${(plot.left + plot.right) / 2}" y="${height - 9}" fill="#6b7280" font-size="11" text-anchor="middle" dominant-baseline="middle" style="${textStyle}">${escapeHtml(axisLabel)}</text>`);
 
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.dataset.binWidth = String(model.binWidth);
@@ -1420,7 +1433,7 @@ function initializeAnalysisCharts(config) {
   app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
     const item = config.fields[Number(chart.dataset.analysisChart)];
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
-    const values = fieldDistribution(state.currentTemplate, state.records, item.id);
+    const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
     const theme = ANALYSIS_THEMES[item.theme] || ANALYSIS_THEMES.blue;
     const redraw = () => {
       if (!chart.isConnected || !values.length) return;
@@ -1439,6 +1452,44 @@ function initializeAnalysisCharts(config) {
   app.querySelectorAll(".chart-stage").forEach((stage) => state.analysisResizeObserver.observe(stage));
 }
 
+const STATISTIC_LABELS = {
+  count: "样本数",
+  mean: "平均数",
+  median: "中位数",
+  mode: "众数",
+  min: "最小值",
+  max: "最大值",
+  sd: "标准差",
+  q1: "Q1",
+  q3: "Q3"
+};
+
+function statisticValueHtml(key, stats, values, unit) {
+  if (key === "count") return String(stats.count);
+  if (key === "mode") {
+    if (!stats.mode.length) return "无明显众数";
+    return `${stats.mode.map((value) => formatStatistic(value, values)).join(" / ")}${unit}`;
+  }
+  return `${formatStatistic(stats[key], values)}${stats[key] === null ? "" : unit}`;
+}
+
+function statisticGridHtml(keys, stats, values, field, className) {
+  if (!keys.length) return "";
+  const unit = field.unit ? ` ${escapeHtml(field.unit)}` : "";
+  return `<div class="${className}">${keys.map((key) => `
+    <div class="analysis-stat"><span>${STATISTIC_LABELS[key]}</span><strong>${statisticValueHtml(key, stats, values, unit)}</strong></div>`).join("")}</div>`;
+}
+
+function analysisStatisticsHtml(config, values, field) {
+  const requested = config.statistics || DESCRIPTIVE_STATISTICS;
+  const stats = descriptiveStatistics(values);
+  const primaryKeys = ["count", "mean", "median", "mode"].filter((key) => requested.includes(key));
+  const detailKeys = ["sd", "min", "max", "q1", "q3"].filter((key) => requested.includes(key));
+  return `
+    ${statisticGridHtml(primaryKeys, stats, values, field, "analysis-primary-stats")}
+    ${detailKeys.length ? `<details class="analysis-more"><summary>更多统计</summary>${statisticGridHtml(detailKeys, stats, values, field, "analysis-detail-stats")}</details>` : ""}`;
+}
+
 function renderAnalysis() {
   const config = analysisConfig(state.currentTemplate);
   if (!config) {
@@ -1449,29 +1500,33 @@ function renderAnalysis() {
   }
   const charts = config.fields.map((item, index) => {
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
-    const values = fieldDistribution(state.currentTemplate, state.records, item.id);
+    const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
     const themeName = ANALYSIS_THEMES[item.theme] ? item.theme : "blue";
     const theme = ANALYSIS_THEMES[themeName];
     if (!field || !values.length) {
       return `<section class="analysis-chart-card"><h2>${escapeHtml(item.label || field?.label || item.id)}</h2><div class="analysis-empty">还没有可用于分析的数据</div></section>`;
     }
-    const percentileText = config.percentiles.map((percentile) => `P${percentile} ${quantile(values, percentile).toFixed(2)} ${field.unit || ""}`).join(" · ");
+    const percentileText = (config.percentiles || []).map((percentile) => `P${percentile} ${formatStatistic(quantile(values, percentile), values)} ${field.unit || ""}`.trim()).join(" · ");
+    const aggregationText = field.type === "repeatedNumber"
+      ? "每名参与者先取有效重复测量的平均值，再只计入一次"
+      : "每份记录中的有效数值计为一个样本";
     return `
       <section class="analysis-chart-card" data-chart-theme="${themeName}" style="--chart-color:${theme.base};--chart-fill:${theme.fill}">
-        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>每名参与者先取测量平均值，再只计入一次；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。<span data-bin-width-note></span></p></div>
+        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2><p>${aggregationText}；柱形为实际人数${values.length > 1 ? "，曲线用于观察分布形状" : "；记录较少时暂不绘制分布曲线"}。<span data-bin-width-note></span></p></div>
+        ${analysisStatisticsHtml(config, values, field)}
         <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span><span class="legend-normal">正态分布参考</span>' : ""}</div>
         <div class="chart-stage">
-          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，${escapeHtml(percentileText)}，含KDE和正态分布参考" preserveAspectRatio="none"></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，样本数${values.length}${percentileText ? `，${escapeHtml(percentileText)}` : ""}，含人数直方图${values.length > 1 ? "、KDE和正态分布参考" : ""}" preserveAspectRatio="none"></svg>
           <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
-        <p class="percentile-summary">${escapeHtml(percentileText)}</p>
+        ${percentileText ? `<p class="percentile-summary">${escapeHtml(percentileText)}</p>` : ""}
       </section>`;
   }).join("");
   app.innerHTML = `
     <section class="screen analysis-screen">
       ${pageHeader("简易分析")}
       <div class="page-content analysis-content">
-        <p class="analysis-help">在图表上左右移动可查看对应耳厚、P值和区间人数；页面上下滚动仍由系统处理。横屏时图表会自动放大。</p>
+        <p class="analysis-help">在图表上左右移动可查看对应数值、P值和区间人数；中位数以竖向虚线标出。页面上下滚动仍由系统处理，横屏时图表会自动放大。</p>
         ${charts}
       </div>
     </section>`;
@@ -2164,7 +2219,7 @@ async function handleAction(action, element) {
     case "editor-overview": await editorOverview(); break;
     case "leave-question-editor": await leaveQuestionEditor(); break;
     case "open-question-type-picker": await openQuestionTypePicker(element.dataset.key || null, element.dataset.mode || "add"); break;
-    case "close-question-type-picker": state.questionTypePickerOpen = false; state.questionTypePickerMode = null; render(); break;
+    case "close-question-type-picker": closeQuestionTypePicker(); break;
     case "create-editor-question": await createEditorQuestion(element.dataset.type); break;
     case "change-editor-question-type": await changeEditorQuestionType(element.dataset.type); break;
     case "add-editor-option": await addEditorOption(); break;
@@ -2251,10 +2306,17 @@ confirmOverlay.addEventListener("click", (event) => {
   if (event.target === confirmOverlay) closeConfirm(false);
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !confirmOverlay.hidden) closeConfirm(false);
+  if (event.key !== "Escape") return;
+  if (!confirmOverlay.hidden) closeConfirm(false);
+  else if (state.questionTypePickerOpen) closeQuestionTypePicker();
 });
 
 app.addEventListener("click", async (event) => {
+  if (state.questionTypePickerOpen && !event.target.closest(".question-type-dialog, .editor-type-popover")) {
+    event.preventDefault();
+    closeQuestionTypePicker();
+    return;
+  }
   const element = event.target.closest("[data-action]");
   if (!element || element.disabled || state.actionBusy) return;
   if (element.closest("[data-template-row]")?.dataset.suppressClick === "true") {

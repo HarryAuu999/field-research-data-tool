@@ -1,0 +1,66 @@
+{
+  "$schema": "../docs/questionnaire.schema.json",
+  "schemaVersion": 1,
+  "id": "basic-product-feedback",
+  "version": "1.0",
+  "title": "基础产品反馈",
+  "description": "展示AuNote最常用题型的示例问卷。",
+  "fields": [
+    {
+      "id": "participantCode",
+      "type": "shortText",
+      "label": "参与者编号",
+      "required": true,
+      "placeholder": "例如：P001"
+    },
+    {
+      "id": "age",
+      "type": "number",
+      "label": "年龄",
+      "required": false,
+      "integer": true,
+      "unit": "岁"
+    },
+    {
+      "id": "usageFrequency",
+      "type": "singleChoice",
+      "label": "使用频率",
+      "required": false,
+      "options": [
+        { "id": "daily", "label": "每天" },
+        { "id": "weekly", "label": "每周" },
+        { "id": "rarely", "label": "很少" }
+      ]
+    },
+    {
+      "id": "likedFeatures",
+      "type": "multiChoice",
+      "label": "喜欢的功能",
+      "required": false,
+      "options": [
+        { "id": "comfort", "label": "舒适" },
+        { "id": "appearance", "label": "外观" },
+        { "id": "none", "label": "没有", "exclusive": true }
+      ]
+    },
+    {
+      "id": "overallScore",
+      "type": "rating",
+      "label": "总体评分",
+      "required": false,
+      "min": 1,
+      "max": 5,
+      "labels": {
+        "1": { "short": "很差" },
+        "5": { "short": "很好" }
+      }
+    },
+    {
+      "id": "comments",
+      "type": "longText",
+      "label": "其他反馈",
+      "required": false,
+      "placeholder": "记录参与者的原话"
+    }
+  ]
+}

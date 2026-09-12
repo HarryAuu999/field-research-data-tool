@@ -1,12 +1,12 @@
-const APP_VERSION = "1.2.0";
-const UPDATE_SUMMARY = "本次更新：新增问卷复制和手机内编辑；支持增加、删除及长按拖动问题；首页显示问卷背景；新安装仅提供一份V1.1示例问卷。已有问卷、记录和草稿不会被覆盖。";
+const APP_VERSION = "1.3.0";
+const UPDATE_SUMMARY = "本次更新：启用新版应用图标；完善问卷JSON规范与通用描述性统计；优化手机问卷编辑与长按排序，卡片可跟手移动、其他问题平滑让位，并支持点外部关闭题型选择和返回原位置。已有问卷、记录和草稿不会被覆盖。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./manifest.webmanifest",
-  "./assets/icon.svg",
+  "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
@@ -21,7 +21,8 @@ const APP_ASSETS = [
   "./js/db.js",
   "./js/default-template.js",
   "./js/questionnaire-editor.js",
-  "./js/question-reorder.js"
+  "./js/question-reorder.js",
+  "./js/statistics.js"
 ];
 
 self.addEventListener("install", (event) => {

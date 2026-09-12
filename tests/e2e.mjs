@@ -152,8 +152,24 @@ await analysisPage.evaluate(async () => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+  const template = await new Promise((resolve, reject) => {
+    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.1");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  template.analysis = {
+    type: "descriptiveDistribution",
+    aggregation: "participantMean",
+    statistics: ["count", "mean", "median", "mode", "min", "max", "sd", "q1", "q3"],
+    percentiles: [20, 50, 80],
+    fields: [
+      { id: "horizontalThickness", label: "水平位置耳厚分布", theme: "blue" },
+      { id: "tiltedThickness", label: "倾斜位置耳厚分布", theme: "orange" }
+    ]
+  };
   await new Promise((resolve, reject) => {
-    const transaction = db.transaction("records", "readwrite");
+    const transaction = db.transaction(["templates", "records"], "readwrite");
+    transaction.objectStore("templates").put(template);
     horizontal.forEach((value, index) => transaction.objectStore("records").put({
       id: `analysis-${index}`,
       recordNumber: `A-${index + 1}`,
@@ -180,6 +196,12 @@ await analysisPage.getByRole("button", { name: "简易分析", exact: true }).cl
 await analysisPage.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await analysisPage.getByText("KDE 分布曲线", { exact: true }).count() === 2, "29份模拟记录没有绘制KDE分布曲线");
 assert(await analysisPage.getByText("正态分布参考", { exact: true }).count() === 2, "29份模拟记录没有绘制正态分布参考");
+assert(await analysisPage.getByText("样本数", { exact: true }).count() === 2, "描述性统计缺少样本数");
+assert(await analysisPage.getByText("平均数", { exact: true }).count() === 2, "描述性统计缺少平均数");
+assert(await analysisPage.getByText("中位数", { exact: true }).count() === 2, "描述性统计缺少中位数");
+assert(await analysisPage.getByText("众数", { exact: true }).count() === 2, "描述性统计缺少众数");
+assert(await analysisPage.getByText("无明显众数", { exact: true }).count() === 2, "无明显众数规则没有反映在分析页");
+assert(await analysisPage.getByText("更多统计", { exact: true }).count() === 2, "手机分析页缺少可展开统计");
 assert(await analysisPage.locator("svg[data-analysis-chart]").count() === 2, "简易分析没有使用SVG图表");
 assert(await analysisPage.locator("canvas[data-analysis-chart]").count() === 0, "简易分析仍然包含Canvas位图");
 assert(await analysisPage.locator('[data-chart-series="normal-reference"]').count() === 2, "简易分析SVG缺少正态分布参考曲线");
@@ -210,7 +232,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.2.0", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.3.0", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -283,6 +305,7 @@ const beforeAnalysisDatabase = await page.evaluate(async () => {
 await clickAction("analysis");
 await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
+assert(await page.getByText("样本数", { exact: true }).count() === 2, "旧distribution配置没有获得描述性统计摘要");
 assert(await page.locator("svg[data-analysis-chart]").count() === 2, "已保存记录的简易分析没有使用SVG图表");
 const firstChart = page.locator('[data-analysis-chart="0"]');
 assert(await firstChart.evaluate((element) => getComputedStyle(element).touchAction) === "pan-y", "图表没有保留系统纵向滚动能力");
@@ -470,6 +493,23 @@ await safetyDownload.saveAs(path.join(outputDir, "pre-restore-safety-backup.json
 await page.getByText("1 份", { exact: true }).waitFor();
 await clickAction("templates");
 await page.locator('[data-action="open-template"][data-key="fixture-template@1.0"]').waitFor();
+
+for (const example of [
+  { file: "examples/basic-questionnaire.json", key: "basic-product-feedback@1.0" },
+  { file: "examples/full-feature-questionnaire.json", key: "full-feature-example@1.0" }
+]) {
+  let message = "";
+  const handler = async (dialog) => {
+    message = dialog.message();
+    await dialog.accept();
+  };
+  page.once("dialog", handler);
+  await page.locator("#template-file-input").setInputFiles(path.resolve(example.file));
+  await page.waitForTimeout(400);
+  page.off("dialog", handler);
+  if (message) throw new Error(`示例问卷导入失败：${message}`);
+  await page.locator(`[data-action="open-template"][data-key="${example.key}"]`).waitFor();
+}
 
 if (errors.length) throw new Error(`浏览器错误：\n${errors.join("\n")}`);
 console.log(JSON.stringify({ passed: true, csvPath, backupPath, screenshots: ["mobile-repeated-measurement.png", "mobile-record-detail.png", "mobile-template-management.png", "mobile-pain-question.png", "mobile-home-offline.png"] }, null, 2));

@@ -43,12 +43,29 @@ async function confirm(page, label) {
   await dialog.getByRole("button", { name: label, exact: true }).click();
 }
 
+async function longPressReorder(page, fromIndex = 0, toIndex = 2) {
+  const sourceCard = page.locator("[data-editor-field-id]").nth(fromIndex);
+  const targetCard = page.locator("[data-editor-field-id]").nth(toIndex);
+  const sourceBox = await sourceCard.evaluate((element) => element.getBoundingClientRect().toJSON());
+  const targetBox = await targetCard.evaluate((element) => element.getBoundingClientRect().toJSON());
+  await sourceCard.dispatchEvent("pointerdown", { pointerId: 31, pointerType: "touch", clientX: sourceBox.x + 70, clientY: sourceBox.y + 30 });
+  await page.waitForTimeout(470);
+  assert(await page.locator(".reorder-drag-ghost").count() === 1, "长按后没有创建跟手浮动卡片");
+  assert(await sourceCard.evaluate((element) => element.classList.contains("reorder-placeholder")), "长按后原位置没有保留占位");
+  await sourceCard.dispatchEvent("pointermove", { pointerId: 31, pointerType: "touch", clientX: targetBox.x + 70, clientY: targetBox.bottom - 4 });
+  await page.waitForTimeout(30);
+  const ghostTransform = await page.locator(".reorder-drag-ghost").evaluate((element) => element.style.transform);
+  assert(ghostTransform.includes("translate3d") && !ghostTransform.includes("translate3d(0, 0px"), "浮动卡片没有跟随手指移动");
+  assert(await page.locator("[data-editor-field-id]").nth(1).evaluate((element) => element.style.transform.includes("translate3d")), "其他问题没有为拖动卡片平滑让位");
+  await sourceCard.dispatchEvent("pointerup", { pointerId: 31, pointerType: "touch", clientX: targetBox.x + 70, clientY: targetBox.bottom - 4 });
+}
+
 const noRecordContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "zh-CN" });
 const noRecordPage = await noRecordContext.newPage();
 await noRecordPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 assert(await noRecordPage.locator("#update-skip").count() === 1 && await noRecordPage.locator("#update-later").count() === 1, "更新提示缺少跳过或此次不更新操作");
 await noRecordPage.evaluate(() => {
-  document.querySelector("#update-title").textContent = "发现新版本 V1.2.1";
+  document.querySelector("#update-title").textContent = "发现新版本 V1.3.0";
   document.querySelector("#update-summary").textContent = "本次更新：改进问卷编辑体验，并修复已知问题。";
   document.querySelector("#update-dialog").hidden = false;
   document.body.classList.add("dialog-open");
@@ -74,29 +91,58 @@ await noRecordPage.getByText("当前问卷 / CURRENT", { exact: true }).waitFor(
 assert(await noRecordPage.locator(".form-screen").count() === 0, "选择问卷后错误地进入了填写页面");
 await noRecordPage.locator('[data-action="templates"]').first().click();
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
+await noRecordPage.getByRole("button", { name: "选择此问卷", exact: true }).waitFor();
+const reorderSelectionStyles = await noRecordPage.locator("[data-editor-field-id]").first().evaluate((element) => ({
+  userSelect: getComputedStyle(element).userSelect,
+  webkitUserSelect: getComputedStyle(element).webkitUserSelect,
+  webkitTouchCallout: getComputedStyle(element).webkitTouchCallout
+}));
+assert(reorderSelectionStyles.userSelect === "none" || reorderSelectionStyles.webkitUserSelect === "none", "可拖动问题仍允许iOS长按选择文字");
+const initialOrder = await noRecordPage.locator("[data-editor-field-id]").evaluateAll((items) => items.map((item) => item.dataset.editorFieldId));
+await longPressReorder(noRecordPage);
+const reorderedInitialOrder = await noRecordPage.locator("[data-editor-field-id]").evaluateAll((items) => items.map((item) => item.dataset.editorFieldId));
+assert(JSON.stringify(initialOrder) !== JSON.stringify(reorderedInitialOrder), "长按拖动没有改变问题顺序");
+await noRecordPage.getByRole("button", { name: "保存问卷", exact: true }).waitFor();
 await noRecordPage.screenshot({ path: "test-results/mobile-questionnaire-editor.png", fullPage: true });
 await noRecordPage.locator('[data-action="open-editor-meta"]').click();
 await noRecordPage.locator("[data-editor-template-title]").fill("无记录问卷修改测试");
 await noRecordPage.locator("[data-editor-template-description]").fill("这是新的背景信息，会显示在首页。");
 await noRecordPage.getByRole("button", { name: "完成", exact: true }).click();
 await noRecordPage.locator('[data-action="open-question-type-picker"]').click();
-await noRecordPage.getByRole("dialog", { name: "选择问题类型" }).waitFor();
+const addTypeDialog = noRecordPage.getByRole("dialog", { name: "选择问题类型" });
+await addTypeDialog.waitFor();
+assert(await addTypeDialog.getByRole("button", { name: "关闭", exact: true }).count() === 0, "新增题型选择器仍显示取消按钮");
+await noRecordPage.locator(".question-type-overlay").click({ position: { x: 4, y: 4 } });
+await addTypeDialog.waitFor({ state: "detached" });
+await noRecordPage.locator('[data-action="open-question-type-picker"]').click();
+await addTypeDialog.waitFor();
 await noRecordPage.screenshot({ path: "test-results/mobile-question-type-picker.png", fullPage: true });
 await noRecordPage.getByRole("button", { name: /数字/ }).first().click();
+const editorTextControlSizes = await noRecordPage.locator('.editor-form-content input:not([type="checkbox"]), .editor-form-content textarea').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).fontSize));
+assert(editorTextControlSizes.length > 0 && editorTextControlSizes.every((size) => Number.parseFloat(size) >= 16), `问题编辑输入框字号小于16px，可能触发iOS自动缩放：${JSON.stringify(editorTextControlSizes)}`);
 await noRecordPage.locator("[data-field-label]").fill("新增数字题");
 await noRecordPage.locator("[data-field-unit]").fill("mm");
 await noRecordPage.screenshot({ path: "test-results/mobile-question-editor.png", fullPage: true });
 await noRecordPage.getByRole("button", { name: "完成", exact: true }).click();
 await noRecordPage.locator('[data-editor-field-id="name"]').click();
 await noRecordPage.locator('[data-action="open-question-type-picker"][data-mode="change"]').click();
-await noRecordPage.getByRole("dialog", { name: "选择问题类型" }).waitFor();
+const changeTypeDialog = noRecordPage.getByRole("dialog", { name: "选择问题类型" });
+await changeTypeDialog.waitFor();
+assert(await changeTypeDialog.getByRole("button", { name: "关闭", exact: true }).count() === 0, "修改题型选择器仍显示取消按钮");
+await noRecordPage.getByRole("heading", { name: "编辑问题", exact: true }).click();
+await changeTypeDialog.waitFor({ state: "detached" });
+await noRecordPage.locator('[data-action="open-question-type-picker"][data-mode="change"]').click();
+await changeTypeDialog.waitFor();
 await noRecordPage.getByRole("button", { name: /长文字/ }).click();
 await confirm(noRecordPage, "更换题型");
 await noRecordPage.locator(".editor-type-label strong", { hasText: "长文字" }).waitFor();
 await noRecordPage.getByRole("button", { name: "完成", exact: true }).click();
 
-await noRecordPage.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-await noRecordPage.locator('[data-editor-field-id="gender"]').click();
+const lowerQuestionCard = noRecordPage.locator('[data-editor-field-id="sensitivity"]');
+await lowerQuestionCard.evaluate((element) => window.scrollTo(0, Math.max(0, element.getBoundingClientRect().top + window.scrollY - 220)));
+const overviewScrollBeforeQuestion = await noRecordPage.evaluate(() => window.scrollY);
+assert(overviewScrollBeforeQuestion > 0, "滚动位置恢复测试没有进入概览页下方");
+await lowerQuestionCard.evaluate((element) => element.click());
 await noRecordPage.waitForFunction(() => window.scrollY === 0);
 assert(await noRecordPage.getByRole("dialog", { name: "选择问题类型" }).count() === 0, "重新进入问题时仍残留上次的题型弹窗");
 await noRecordPage.locator("[data-field-label]").fill("临时性别题");
@@ -107,19 +153,16 @@ assert(await noRecordPage.locator("[data-field-label]").inputValue() === "临时
 await noRecordPage.getByRole("button", { name: "返回", exact: true }).click();
 await confirm(noRecordPage, "放弃更改");
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
+await noRecordPage.waitForFunction((expected) => Math.abs(window.scrollY - expected) <= 2, overviewScrollBeforeQuestion);
 assert(await noRecordPage.getByText("临时性别题", { exact: true }).count() === 0, "放弃问题编辑后修改仍然生效");
 
-const beforeOrder = await noRecordPage.locator("[data-editor-field-id]").evaluateAll((items) => items.map((item) => item.dataset.editorFieldId));
-const firstCard = noRecordPage.locator("[data-editor-field-id]").first();
-const thirdCard = noRecordPage.locator("[data-editor-field-id]").nth(2);
-const firstBox = await firstCard.evaluate((element) => element.getBoundingClientRect().toJSON());
-const thirdBox = await thirdCard.evaluate((element) => element.getBoundingClientRect().toJSON());
-await firstCard.dispatchEvent("pointerdown", { pointerId: 31, pointerType: "touch", clientX: firstBox.x + 70, clientY: firstBox.y + 30 });
-await noRecordPage.waitForTimeout(470);
-await firstCard.dispatchEvent("pointermove", { pointerId: 31, pointerType: "touch", clientX: thirdBox.x + 70, clientY: thirdBox.bottom - 4 });
-await firstCard.dispatchEvent("pointerup", { pointerId: 31, pointerType: "touch", clientX: thirdBox.x + 70, clientY: thirdBox.bottom - 4 });
-const afterOrder = await noRecordPage.locator("[data-editor-field-id]").evaluateAll((items) => items.map((item) => item.dataset.editorFieldId));
-assert(JSON.stringify(beforeOrder) !== JSON.stringify(afterOrder), "长按拖动没有改变问题顺序");
+await lowerQuestionCard.evaluate((element) => window.scrollTo(0, Math.max(0, element.getBoundingClientRect().top + window.scrollY - 220)));
+const overviewScrollBeforeComplete = await noRecordPage.evaluate(() => window.scrollY);
+await lowerQuestionCard.evaluate((element) => element.click());
+await noRecordPage.locator("[data-field-description]").fill("用于验证完成编辑后的概览位置恢复");
+await noRecordPage.getByRole("button", { name: "完成", exact: true }).click();
+await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
+await noRecordPage.waitForFunction((expected) => Math.abs(window.scrollY - expected) <= 2, overviewScrollBeforeComplete);
 
 await noRecordPage.getByRole("button", { name: "返回", exact: true }).click();
 const overviewLeaveDialog = noRecordPage.getByRole("alertdialog");
