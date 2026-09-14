@@ -247,7 +247,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.3.2", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.3.3", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -365,11 +365,36 @@ await page.getByText("测试参与者A", { exact: true }).click();
 await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
 await page.screenshot({ path: path.join(outputDir, "mobile-record-detail.png"), fullPage: true });
 assert(await page.getByText(/第1次：5\.2345 mm；平均值：5\.2345 mm/).isVisible(), "单次测量原始值未按输入保留");
-assert(await page.getByRole("button", { name: "编辑记录", exact: true }).isVisible(), "原有编辑记录按钮消失");
+assert(await page.getByRole("button", { name: "编辑记录", exact: true }).count() === 0, "记录详情仍显示多余的编辑记录按钮");
 
 await page.getByRole("button", { name: "编辑左耳水平佩戴位置厚度", exact: true }).click();
 await waitQuestion("左耳水平佩戴位置厚度");
 assert(await page.getByRole("heading", { name: "修改记录", exact: true }).isVisible(), "点击详情项没有进入修改记录");
+await page.locator("[data-repeat-input]").first().fill("5.3345");
+await clickAction("leave-form");
+await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
+assert(await page.getByText(/第1次：5\.3345 mm；平均值：5\.3345 mm/).isVisible(), "返回记录详情时没有保存当前问题的修改");
+const editReturnState = await page.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const drafts = await new Promise((resolve, reject) => {
+    const request = db.transaction("drafts").objectStore("drafts").getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return drafts;
+});
+assert(editReturnState.length === 0, "修改已有样本被错误保存为问卷草稿");
+await clickAction("records");
+await page.getByRole("heading", { name: "已记录样本", exact: true }).waitFor();
+await page.getByText("测试参与者A", { exact: true }).click();
+await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
+await page.getByRole("button", { name: "编辑左耳水平佩戴位置厚度", exact: true }).click();
+await waitQuestion("左耳水平佩戴位置厚度");
 await clickAction("previous-question");
 await waitQuestion("年龄");
 await clickAction("previous-question");
@@ -390,6 +415,10 @@ for (const title of [
   "一般疼痛位置"
 ]) await nextTo(title);
 await clickAction("next-question");
+await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
+await clickAction("records");
+await page.getByRole("heading", { name: "已记录样本", exact: true }).waitFor();
+await clickAction("home");
 await page.getByText("1 份", { exact: true }).waitFor();
 
 const downloadPromise = page.waitForEvent("download");
@@ -405,7 +434,7 @@ assert(csv.includes("点位1；点位2背面"), "CSV多选答案没有合并在�
 assert(csv.includes("左耳水平佩戴位置厚度－第1次（mm）"), "CSV缺少重复测量原始值列");
 assert(csv.includes("左耳水平佩戴位置厚度－平均值（mm）"), "CSV缺少重复测量平均值列");
 assert(csv.includes("左耳水平佩戴位置厚度－最大差值（mm）"), "CSV缺少重复测量最大差值列");
-assert(csv.includes("5.2345") && csv.includes("6.12345") && csv.includes("6.22345"), "CSV没有保留厚度原始值");
+assert(csv.includes("5.3345") && csv.includes("6.12345") && csv.includes("6.22345"), "CSV没有保留修改后的厚度原始值");
 assert(csv.includes("6.17345") && csv.includes("0.1"), "CSV没有正确导出平均值或最大差值");
 
 await clickAction("start-form");
@@ -487,15 +516,21 @@ await page.getByRole("heading", { name: "问卷管理", exact: true }).waitFor()
 
 await clickAction("home");
 await clickAction("records");
-await page.getByRole("heading", { name: "已保存记录", exact: true }).waitFor();
+await page.getByRole("heading", { name: "已记录样本", exact: true }).waitFor();
 if (!(await page.getByText("测试参与者A-修改", { exact: true }).count())) {
   throw new Error(`删除测试问卷后找不到原记录，当前页面：\n${await page.locator("body").innerText()}`);
 }
-await page.getByText("测试参与者A-修改", { exact: true }).click();
-await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
-await clickAction("delete-record");
-await confirmCustomDialog("删除记录");
-await page.getByText("还没有已完成记录", { exact: true }).waitFor();
+const recordSwipeContent = page.locator('[data-record-row] .swipe-content');
+await recordSwipeContent.dispatchEvent("pointerdown", { pointerId: 9, pointerType: "touch", clientX: 300, clientY: 100 });
+await recordSwipeContent.dispatchEvent("pointermove", { pointerId: 9, pointerType: "touch", clientX: 220, clientY: 101 });
+await recordSwipeContent.dispatchEvent("pointerup", { pointerId: 9, pointerType: "touch", clientX: 220, clientY: 101 });
+const recordDeleteButton = page.locator('[data-action="delete-record-by-id"]');
+await recordDeleteButton.waitFor();
+assert(await page.locator('[data-record-row]').getAttribute("class").then((value) => value.includes("revealed")), "样本左滑后没有显示删除操作");
+assert(await page.locator('[data-record-row] [data-action="duplicate-template"]').count() === 0, "样本左滑错误显示复制操作");
+await recordDeleteButton.click();
+await confirmCustomDialog("删除样本");
+await page.getByText("还没有已记录样本", { exact: true }).waitFor();
 
 await clickAction("home");
 await clickAction("backup");

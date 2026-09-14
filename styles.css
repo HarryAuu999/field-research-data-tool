@@ -766,6 +766,8 @@ button:disabled { opacity: 0.38; }
 .records-content { padding-top: 12px; }
 .section-title { margin: 0 0 10px; color: var(--quiet); font-size: 12px; }
 .record-list { display: block; }
+.record-swipe-row { border-radius: 0; }
+.record-swipe-row.revealed .swipe-content { transform: translateX(-64px); }
 .record-card {
   width: 100%;
   min-height: 85px;

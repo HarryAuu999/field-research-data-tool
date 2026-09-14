@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.3.2";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.2";
+} from "./db.js?v=1.3.3";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.3";
 import {
   EDITABLE_FIELD_TYPES,
   SUPPORTED_FIELD_TYPES,
@@ -30,8 +30,8 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.3.2";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.3.2";
+} from "./questionnaire-editor.js?v=1.3.3";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.3.3";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -39,9 +39,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.3.2";
+} from "./statistics.js?v=1.3.3";
 
-const APP_VERSION = "1.3.2";
+const APP_VERSION = "1.3.3";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -1082,28 +1082,35 @@ function simpleAnswer(record, fieldId) {
 
 function renderRecords() {
   const records = state.records.map((record) => `
-    <button class="record-card" type="button" data-action="open-record" data-id="${escapeHtml(record.id)}">
-      <span class="record-copy">
-        <span class="record-card-main">
-          <span class="record-name">${escapeHtml(recordName(record))}</span>
-          <span class="record-demographics">${escapeHtml([simpleAnswer(record, "gender"), simpleAnswer(record, "age") ? `${simpleAnswer(record, "age")}岁` : ""].filter(Boolean).join(" / "))}</span>
+    <div class="swipe-row record-swipe-row" data-swipe-row data-record-row="${escapeHtml(record.id)}" data-swipe-offset="64">
+      <div class="swipe-actions" aria-label="样本操作">
+        <button class="swipe-action swipe-delete" type="button" data-action="delete-record-by-id" data-id="${escapeHtml(record.id)}" aria-label="删除${escapeHtml(recordName(record))}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
+      </div>
+      <button class="swipe-content record-card" type="button" data-action="open-record" data-id="${escapeHtml(record.id)}">
+        <span class="record-copy">
+          <span class="record-card-main">
+            <span class="record-name">${escapeHtml(recordName(record))}</span>
+            <span class="record-demographics">${escapeHtml([simpleAnswer(record, "gender"), simpleAnswer(record, "age") ? `${simpleAnswer(record, "age")}岁` : ""].filter(Boolean).join(" / "))}</span>
+          </span>
+          <span class="record-times">
+            <span>首次保存 ${escapeHtml(formatDateTime(record.createdAt))}</span>
+            <span class="record-updated">最后修改 ${escapeHtml(formatDateTime(record.updatedAt))}</span>
+          </span>
         </span>
-        <span class="record-times">
-          <span>首次保存 ${escapeHtml(formatDateTime(record.createdAt))}</span>
-          <span class="record-updated">最后修改 ${escapeHtml(formatDateTime(record.updatedAt))}</span>
-        </span>
-      </span>
-      <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
-    </button>`).join("");
+        <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+      </button>
+    </div>`).join("");
 
   app.innerHTML = `
     <section class="screen">
-      ${pageHeader("已保存记录")}
+      ${pageHeader("已记录样本")}
       <div class="page-content records-content">
         <p class="section-title">${escapeHtml(state.currentTemplate?.title || "")} · 最早记录在上</p>
-        <div class="record-list">${records || '<div class="empty-state card">还没有已完成记录</div>'}</div>
+        <div class="record-list">${records || '<div class="empty-state card">还没有已记录样本</div>'}</div>
+        ${records ? '<p class="swipe-hint">提示：向左滑动样本可删除</p>' : ""}
       </div>
     </section>`;
+  bindSwipeRows();
 }
 
 function renderRecordDetail() {
@@ -1140,7 +1147,6 @@ function renderRecordDetail() {
         <div class="card detail-grid">${rows}</div>
       </div>
       <div class="detail-actions">
-        <button class="primary-button" type="button" data-action="edit-record">编辑记录</button>
         <button class="danger-button" type="button" data-action="delete-record">删除记录</button>
       </div>
     </section>`;
@@ -1614,7 +1620,7 @@ function renderForm() {
   app.innerHTML = `
     <section class="screen form-screen">
       <header class="nav-top-bar form-top-bar">
-        <button class="back-button" type="button" data-action="leave-form" aria-label="返回首页"><img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" /></button>
+        <button class="back-button" type="button" data-action="leave-form" aria-label="${state.draft.mode === "edit" ? "返回记录详情" : "返回首页"}"><img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" /></button>
         <h1>${state.draft.mode === "edit" ? "修改记录" : "填写问卷"}</h1>
         <span class="form-counter">${state.formIndex + 1}/${fields.length}</span>
       </header>
@@ -1683,7 +1689,33 @@ async function persistDraft() {
   if (!state.draft) return;
   state.draft.currentIndex = state.formIndex;
   state.draft.updatedAt = nowIso();
-  await putDraft(state.draft);
+  if (state.draft.mode !== "edit") await putDraft(state.draft);
+}
+
+async function saveEditedRecord({ validateAll = false } = {}) {
+  if (state.draft?.mode !== "edit") return false;
+  captureCurrentField();
+  const fields = validateAll ? state.currentTemplate.fields : [state.currentTemplate.fields[state.formIndex]];
+  for (const field of fields) {
+    const message = fieldValidation(field, state.draft.answers[field.id]);
+    if (message) {
+      if (validateAll) state.formIndex = state.currentTemplate.fields.indexOf(field);
+      render();
+      showValidation(message);
+      return false;
+    }
+  }
+  const existing = await getRecord(state.draft.recordId);
+  if (!existing) throw new Error("需要修改的原记录不存在");
+  const updated = { ...existing, answers: deepClone(state.draft.answers), updatedAt: nowIso() };
+  await putRecord(updated);
+  state.selectedRecord = updated;
+  state.draft = null;
+  await refreshContext();
+  state.view = "recordDetail";
+  render();
+  showToast("修改已保存");
+  return true;
 }
 
 function captureCurrentField() {
@@ -1817,6 +1849,10 @@ async function moveQuestion(direction) {
 }
 
 async function completeRecord() {
+  if (state.draft?.mode === "edit") {
+    await saveEditedRecord({ validateAll: true });
+    return;
+  }
   captureCurrentField();
   const fields = state.currentTemplate.fields;
   for (let index = 0; index < fields.length; index += 1) {
@@ -1832,23 +1868,16 @@ async function completeRecord() {
   }
 
   const timestamp = nowIso();
-  if (state.draft.mode === "edit") {
-    const existing = await getRecord(state.draft.recordId);
-    if (!existing) throw new Error("需要修改的原记录不存在");
-    await putRecord({ ...existing, answers: deepClone(state.draft.answers), updatedAt: timestamp });
-    showToast("修改已保存");
-  } else {
-    const id = crypto.randomUUID();
-    await putRecord({
-      id,
-      recordNumber: makeRecordNumber(id),
-      templateKey: state.currentTemplate.key,
-      answers: deepClone(state.draft.answers),
-      createdAt: timestamp,
-      updatedAt: timestamp
-    });
-    showToast("记录已保存");
-  }
+  const id = crypto.randomUUID();
+  await putRecord({
+    id,
+    recordNumber: makeRecordNumber(id),
+    templateKey: state.currentTemplate.key,
+    answers: deepClone(state.draft.answers),
+    createdAt: timestamp,
+    updatedAt: timestamp
+  });
+  showToast("记录已保存");
 
   await deleteDraft(state.currentTemplate.key);
   state.draft = null;
@@ -2102,32 +2131,36 @@ async function editSelectedRecord(startIndex = 0) {
     createdAt: timestamp,
     updatedAt: timestamp
   };
-  await putDraft(state.draft);
   state.formIndex = startIndex;
   state.view = "form";
   render();
 }
 
-async function removeSelectedRecord() {
-  if (!state.selectedRecord) return;
-  const label = recordName(state.selectedRecord);
+async function removeRecord(id) {
+  const record = await getRecord(id);
+  if (!record) return;
+  const label = recordName(record);
   const confirmed = await showConfirm({
-    title: "删除记录？",
-    message: `将永久删除“${label}”的记录数据，此操作不可撤销。`,
-    confirmLabel: "删除记录"
+    title: "删除样本？",
+    message: `将永久删除“${label}”的样本数据，此操作不可撤销。`,
+    confirmLabel: "删除样本"
   });
   if (!confirmed) return;
-  await deleteRecord(state.selectedRecord.id);
-  state.selectedRecord = null;
+  await deleteRecord(record.id);
+  if (state.selectedRecord?.id === record.id) state.selectedRecord = null;
   await refreshContext();
   state.view = "records";
   render();
-  showToast("记录已删除");
+  showToast("样本已删除");
+}
+
+async function removeSelectedRecord() {
+  if (!state.selectedRecord) return;
+  await removeRecord(state.selectedRecord.id);
 }
 
 function bindSwipeRows() {
-  const rows = Array.from(app.querySelectorAll("[data-template-row]"));
-  const openOffset = -116;
+  const rows = Array.from(app.querySelectorAll("[data-swipe-row], [data-template-row]"));
   const closeOthers = (current = null) => rows.forEach((row) => {
     if (row !== current) {
       row.classList.remove("revealed", "dragging");
@@ -2136,6 +2169,7 @@ function bindSwipeRows() {
   });
 
   rows.forEach((row) => {
+    const openOffset = -Math.max(48, Number(row.dataset.swipeOffset) || 116);
     const content = row.querySelector(".swipe-content");
     let pointerId = null;
     let startX = 0;
@@ -2200,7 +2234,7 @@ function bindSwipeRows() {
     });
   });
 
-  app.querySelector(".template-content")?.addEventListener("scroll", () => closeOthers(), { passive: true });
+  app.querySelector(".template-content, .records-content")?.addEventListener("scroll", () => closeOthers(), { passive: true });
 }
 
 async function handleAction(action, element) {
@@ -2244,13 +2278,16 @@ async function handleAction(action, element) {
       }
       break;
     case "leave-form":
-      captureCurrentField(); await persistDraft(); await refreshContext(); state.view = "home"; render(); showToast("草稿已保存"); break;
+      if (state.draft?.mode === "edit") await saveEditedRecord();
+      else { captureCurrentField(); await persistDraft(); await refreshContext(); state.view = "home"; render(); showToast("草稿已保存"); }
+      break;
     case "previous-question": await moveQuestion(-1); break;
     case "next-question": await moveQuestion(1); break;
     case "open-record": await openRecord(element.dataset.id); break;
     case "edit-record": await editSelectedRecord(); break;
     case "edit-record-at": await editSelectedRecord(Number(element.dataset.fieldIndex) || 0); break;
     case "delete-record": await removeSelectedRecord(); break;
+    case "delete-record-by-id": await removeRecord(element.dataset.id); break;
     case "export-csv": await exportCsv(); break;
     case "check-update": await checkForUpdates(); break;
     case "export-backup": await exportBackup(); break;
@@ -2319,7 +2356,7 @@ app.addEventListener("click", async (event) => {
   }
   const element = event.target.closest("[data-action]");
   if (!element || element.disabled || state.actionBusy) return;
-  if (element.closest("[data-template-row]")?.dataset.suppressClick === "true") {
+  if (element.closest("[data-swipe-row], [data-template-row]")?.dataset.suppressClick === "true") {
     event.preventDefault();
     return;
   }

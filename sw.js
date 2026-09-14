@@ -1,10 +1,10 @@
-const APP_VERSION = "1.3.2";
-const UPDATE_SUMMARY = "本次更新：修复旧版Service Worker持续返回V1.0.0静态文件的问题。已有问卷、记录和草稿不会被覆盖。";
+const APP_VERSION = "1.3.3";
+const UPDATE_SUMMARY = "本次更新：修复已有样本修改后的返回层级与草稿误判；样本列表支持左滑删除。已有问卷、记录和草稿不会被覆盖。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.3.2",
+  "./styles.css?v=1.3.3",
   "./manifest.webmanifest",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
@@ -17,12 +17,12 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.3.2",
-  "./js/db.js?v=1.3.2",
-  "./js/default-template.js?v=1.3.2",
-  "./js/questionnaire-editor.js?v=1.3.2",
-  "./js/question-reorder.js?v=1.3.2",
-  "./js/statistics.js?v=1.3.2"
+  "./js/app.js?v=1.3.3",
+  "./js/db.js?v=1.3.3",
+  "./js/default-template.js?v=1.3.3",
+  "./js/questionnaire-editor.js?v=1.3.3",
+  "./js/question-reorder.js?v=1.3.3",
+  "./js/statistics.js?v=1.3.3"
 ];
 
 self.addEventListener("install", (event) => {
