@@ -5,6 +5,21 @@ import { chromium } from "playwright";
 const outputDir = path.resolve("test-results");
 await fs.mkdir(outputDir, { recursive: true });
 
+const [indexSource, appSource, workerSource] = await Promise.all([
+  fs.readFile("index.html", "utf8"),
+  fs.readFile("js/app.js", "utf8"),
+  fs.readFile("sw.js", "utf8")
+]);
+const appVersion = appSource.match(/const APP_VERSION = "([^"]+)";/)?.[1];
+const workerVersion = workerSource.match(/const APP_VERSION = "([^"]+)";/)?.[1];
+assert(appVersion && appVersion === workerVersion, "app.js 与 sw.js 的应用版本不一致");
+assert(indexSource.includes(`./styles.css?v=${appVersion}`), "入口样式缺少当前版本参数");
+assert(indexSource.includes(`./js/app.js?v=${appVersion}`), "入口脚本缺少当前版本参数");
+for (const moduleName of ["db", "default-template", "questionnaire-editor", "question-reorder", "statistics"]) {
+  assert(appSource.includes(`./${moduleName}.js?v=${appVersion}`), `${moduleName}.js 导入缺少当前版本参数`);
+  assert(workerSource.includes(`./js/${moduleName}.js?v=${appVersion}`), `${moduleName}.js 未按当前版本加入离线缓存`);
+}
+
 const browser = await chromium.launch({
   headless: true,
   executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
@@ -232,7 +247,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.3.1", { exact: true }).waitFor();
+await page.getByText("当前已是最新版本 V1.3.2", { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");

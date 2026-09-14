@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js";
+} from "./db.js?v=1.3.2";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.2";
 import {
   EDITABLE_FIELD_TYPES,
   SUPPORTED_FIELD_TYPES,
@@ -30,8 +30,8 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js";
-import { bindLongPressReorder } from "./question-reorder.js";
+} from "./questionnaire-editor.js?v=1.3.2";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.3.2";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -39,9 +39,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js";
+} from "./statistics.js?v=1.3.2";
 
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.3.2";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";

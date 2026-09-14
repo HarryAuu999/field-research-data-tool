@@ -72,7 +72,7 @@ const noRecordPage = await noRecordContext.newPage();
 await noRecordPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 assert(await noRecordPage.locator("#update-skip").count() === 1 && await noRecordPage.locator("#update-later").count() === 1, "更新提示缺少跳过或此次不更新操作");
 await noRecordPage.evaluate(() => {
-  document.querySelector("#update-title").textContent = "发现新版本 V1.3.1";
+  document.querySelector("#update-title").textContent = "发现新版本 V1.3.2";
   document.querySelector("#update-summary").textContent = "本次更新：改进问卷编辑体验，并修复已知问题。";
   document.querySelector("#update-dialog").hidden = false;
   document.body.classList.add("dialog-open");

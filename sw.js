@@ -1,10 +1,10 @@
-const APP_VERSION = "1.3.1";
-const UPDATE_SUMMARY = "本次更新：修复iPhone长按浮起后拖动仍带动页面滚动的问题；首页“已记录问卷”改为“已记录样本”。已有问卷、记录和草稿不会被覆盖。";
+const APP_VERSION = "1.3.2";
+const UPDATE_SUMMARY = "本次更新：修复旧版Service Worker持续返回V1.0.0静态文件的问题。已有问卷、记录和草稿不会被覆盖。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
+  "./styles.css?v=1.3.2",
   "./manifest.webmanifest",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
@@ -17,12 +17,12 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js",
-  "./js/db.js",
-  "./js/default-template.js",
-  "./js/questionnaire-editor.js",
-  "./js/question-reorder.js",
-  "./js/statistics.js"
+  "./js/app.js?v=1.3.2",
+  "./js/db.js?v=1.3.2",
+  "./js/default-template.js?v=1.3.2",
+  "./js/questionnaire-editor.js?v=1.3.2",
+  "./js/question-reorder.js?v=1.3.2",
+  "./js/statistics.js?v=1.3.2"
 ];
 
 self.addEventListener("install", (event) => {
