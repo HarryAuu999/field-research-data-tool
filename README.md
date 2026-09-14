@@ -91,7 +91,9 @@ node tools/validate-questionnaire.mjs "问卷.json"
 
 推荐直接复制这句给AI，避免它扫描整个仓库：
 
-> 只读取上述AI问卷转换指南和我提供的原问卷，不要研究整个GitHub项目；直接生成一个不带代码围栏的AuNote JSON对象。严格保留原题意和顺序，不猜必填或分析方法；用recordLabelField指定样本名称字段，仅在原问卷明确要求多题同页时使用page。输出前自行核对schemaVersion必须是数字1。
+> 只读取上述AI问卷转换指南和我提供的原问卷，不要研究整个GitHub项目。先检查题目之外的布局、交互、校验和分析要求是否被AuNote完全支持；发现部分支持、不支持或信息不足时，必须在JSON之前说明差异、降级处理并必要时询问我，不能静默忽略或发明字段。没有能力差距时只需一句确认，然后生成一个不带代码围栏的AuNote JSON对象。严格保留原题意和顺序，不猜必填或分析方法；用recordLabelField指定样本名称字段，仅在原问卷明确要求多题同页时使用page。输出前核对schemaVersion必须是数字1。
+
+AI必须先执行能力差距检查。JSON Schema通过只表示JSON结构合法，不代表原问卷的布局、交互、输入限制和研究分析要求已全部实现；能力边界以[问卷JSON模板说明](docs/questionnaire-template.md#当前能力边界)为准。
 
 创建或由AI转换AuNote问卷时，请优先阅读：
 
