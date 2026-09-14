@@ -2,7 +2,7 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 CSV。
 
-当前状态：**正式版 V1.3.6**。本地自动化测试已通过，正式版本通过 GitHub Pages 发布。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.3.7**。本地自动化测试已通过，正式版本通过 GitHub Pages 发布。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
 ## 手机测试地址
 
@@ -19,10 +19,12 @@ AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员�
 - 问卷概览底部使用“选择此问卷”，选择后返回主页，不会直接开始填写；
 - 问题修改只有点击“完成”才生效；直接返回可选择放弃更改或继续编辑，离开含未保存修改的问卷概览时也会提醒；
 - 调整问题顺序后概览页会立即切换为“保存问卷”；题型选择器可点击外部关闭；问题编辑完成或放弃后会恢复概览页原来的阅读位置；
+- 问卷概览中的问题支持左滑显示垃圾桶并加入删除修改稿；横向滑动成立后阻止页面上下滚动，点击左滑行之外的空白区域会收起操作；
 - 手机编辑输入框使用不触发iOS自动放大的字号；
 - 无记录且无草稿的问卷修改后替换原空模板；已有记录的问卷修改后保留旧版本，并将新版本设为当前问卷；
 - 长按问题卡片后以浮动卡片跟随手指调整顺序，其他问题平滑让位；浮起后接管当前触摸，避免iOS继续拖动页面，靠近页面上下边缘时由工具自动滚动，并抑制文字选择放大镜；
 - 按题逐项填写，并根据字段调用文字、整数或小数键盘；
+- 问卷JSON可用`recordLabelField`指定样本列表名称字段，并可用相邻题目的相同`page`值按需实现多题同页；这两项配置不由手机问卷编辑器修改；
 - 每份问卷保存一份草稿，可继续填写或废弃；
 - 使用 IndexedDB 在本机保存问卷、草稿和记录；
 - 查看、修改和删除已保存记录；
@@ -61,6 +63,7 @@ node tests/questionnaire-editor.mjs
 node tests/questionnaire-schema.mjs
 node tests/version-consistency.mjs
 node tests/ui-smoke.mjs
+node tests/questionnaire-layout-e2e.mjs
 node tests/android-smoke.mjs
 node tests/e2e.mjs
 node tests/editor-e2e.mjs
@@ -75,6 +78,20 @@ node tests/editor-e2e.mjs
 - 删除问卷会同时删除该问卷的本地记录和草稿。
 
 ## 问卷JSON
+
+### 给AI的最省时转换方式
+
+普通问卷无需研究整个项目或`js/app.js`。让AI只阅读[AI问卷转换指南](docs/questionnaire-ai-guide.md)，生成JSON后运行：
+
+```powershell
+node tools/validate-questionnaire.mjs "问卷.json"
+```
+
+可直接提供给网页版AI的原始指南地址：<https://raw.githubusercontent.com/HarryAuu999/field-research-data-tool/main/docs/questionnaire-ai-guide.md>。
+
+推荐直接复制这句给AI，避免它扫描整个仓库：
+
+> 只读取上述AI问卷转换指南和我提供的原问卷，不要研究整个GitHub项目；直接生成一个不带代码围栏的AuNote JSON对象。严格保留原题意和顺序，不猜必填或分析方法；用recordLabelField指定样本名称字段，仅在原问卷明确要求多题同页时使用page。输出前自行核对schemaVersion必须是数字1。
 
 创建或由AI转换AuNote问卷时，请优先阅读：
 

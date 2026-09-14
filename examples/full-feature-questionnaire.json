@@ -5,12 +5,14 @@
   "version": "1.0",
   "title": "AuNote完整功能示例",
   "description": "用于展示schemaVersion 1支持的字段，不代表任何真实研究方案。",
+  "recordLabelField": "participantName",
   "fields": [
     {
       "id": "participantInfo",
       "type": "section",
       "label": "参与者信息",
-      "description": "以下信息由研究人员记录。"
+      "description": "以下信息由研究人员记录。",
+      "page": "participantInfoPage"
     },
     {
       "id": "participantName",
@@ -19,6 +21,7 @@
       "description": "也可以选择匿名记录。",
       "required": true,
       "placeholder": "请输入姓名",
+      "page": "participantInfoPage",
       "allowAnonymous": true,
       "anonymousLabel": "匿名记录"
     },

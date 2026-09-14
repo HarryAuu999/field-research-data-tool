@@ -2,7 +2,17 @@
 
 本文件面向 ChatGPT、Claude、Gemini、Codex 等 AI。目标是把 Word、PDF、Markdown 或自然语言问卷可靠转换为 AuNote 可导入的 `schemaVersion: 1` JSON，而不是重新设计格式。
 
-生成前同时读取 [`questionnaire.schema.json`](questionnaire.schema.json)；生成后用该 Schema 校验，并由用户人工确认题目、选项、必填状态、单位和分析方法。
+## 0. 最快可靠路径
+
+处理普通问卷时，不要扫描整个仓库，也不要阅读`js/app.js`：
+
+1. 只阅读本指南并转换原问卷；需要不常用字段时再查[`questionnaire-template.md`](questionnaire-template.md)或[完整示例](../examples/full-feature-questionnaire.json)。
+2. `questionnaire.schema.json`是机器校验来源，不要求AI逐行解释或把整份Schema载入回答上下文。
+3. 若可以运行仓库命令，生成后执行：`node tools/validate-questionnaire.mjs "问卷.json"`。
+4. 最终文件必须只有一个JSON对象，不包含Markdown代码围栏、解释文字、注释或尾随逗号，并保存为不带BOM的UTF-8。
+5. 验证通过后，仍由用户确认题目顺序、选项、必填状态、单位和分析方法。
+
+导出前硬检查：`schemaVersion`必须是数字`1`，不是字符串`"1"`；`schemaVersion`、`id`、`version`、`title`和`fields`必须直接位于最外层，不能再包在`questionnaire`、`template`或其他属性中。
 
 ## 1. 最小结构
 
@@ -13,6 +23,7 @@
   "version": "1.0",
   "title": "问卷名称",
   "description": "问卷背景",
+  "recordLabelField": "participantName",
   "fields": []
 }
 ```
@@ -20,6 +31,7 @@
 - 保持 `schemaVersion: 1`，不要发明新字段来模拟未支持能力。
 - `id + version`标识独立版本。同一研究修订问卷时保持`id`并更改`version`；不同研究使用不同`id`。
 - `fields`严格保持原问卷顺序。
+- 问卷包含姓名、参与者编号或样本编号时，用顶层`recordLabelField`明确引用该题ID，避免样本列表无法识别显示名称。优先使用研究中最稳定且适合辨认单个样本的字段。
 
 ## 2. 原始题目映射
 
@@ -96,7 +108,15 @@
 - `./assets/...`仅供已随AuNote项目发布并由Service Worker缓存的内置资源使用；AI不能假设用户设备已有某个本地文件。
 - 图片不进入CSV。
 
-## 11. analysis
+## 11. 多题同页
+
+- 默认每道题独占一页。只有原问卷或用户明确要求同页呈现时，才添加`page`。
+- 需要同页显示的连续相邻题目使用同一个非空字符串，例如都设置`"page": "participantInfo"`。
+- 只有连续相邻且`page`相同的题目会合并显示；不要在不相邻题目上重复同一值，以免让配置难以阅读。
+- `page`只改变填写界面分页，不改变字段顺序、答案结构或CSV。不要为了减少页数自行合并不同问题。
+- 当前PWA问卷编辑器不编辑`page`；AI转换或人工编辑JSON时才配置。
+
+## 12. analysis
 
 - 只有用户或研究方案明确要求描述性统计/分布分析时才添加`analysis`；统计方法没有明确说明时，不得自行增加研究分析方法。
 - 分析字段只能引用当前问卷中的`number`或`repeatedNumber`。
@@ -105,7 +125,7 @@
 - `statistics`可从`count`、`mean`、`median`、`mode`、`min`、`max`、`sd`、`q1`、`q3`选择；省略显示全部。
 - `percentiles`仅在研究方案指定时填写，取值严格位于0与100之间。`binWidth`也只在明确要求固定区间时填写，否则让AuNote自动分箱。
 
-## 12. 禁止猜测与无法映射时的输出
+## 13. 禁止猜测与无法映射时的输出
 
 AI不得自行猜测：必填状态、单位、评分上下限、匿名含义、互斥关系、重复次数、最少次数、缺失选项、图片内容、跳题逻辑或统计方法。
 
@@ -115,4 +135,4 @@ AI不得自行猜测：必填状态、单位、评分上下限、匿名含义、
 2. 向用户提出最少量、可回答的确认问题；
 3. 在确认前不要输出一个看似可导入但语义可能错误的最终JSON；
 4. 若用户要求先给草案，使用保守值（尤其`required: false`），并在JSON之外列出所有假设；不要把备注或TODO写进未定义的JSON字段；
-5. 生成后按`questionnaire.schema.json`校验，并逐题核对原文顺序、选项、必填、单位、评分和分析配置。
+5. 生成后优先运行`node tools/validate-questionnaire.mjs "问卷.json"`（内部使用与AuNote导入相同的校验器）；无法运行命令时再按`questionnaire.schema.json`校验，并逐题核对原文顺序、选项、必填、单位、评分和分析配置。

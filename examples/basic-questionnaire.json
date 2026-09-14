@@ -5,12 +5,14 @@
   "version": "1.0",
   "title": "基础产品反馈",
   "description": "展示AuNote最常用题型的示例问卷。",
+  "recordLabelField": "participantCode",
   "fields": [
     {
       "id": "participantCode",
       "type": "shortText",
       "label": "参与者编号",
       "required": true,
+      "page": "participantInfo",
       "placeholder": "例如：P001"
     },
     {
@@ -19,6 +21,7 @@
       "label": "年龄",
       "required": false,
       "integer": true,
+      "page": "participantInfo",
       "unit": "岁"
     },
     {

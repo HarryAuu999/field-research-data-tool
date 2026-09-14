@@ -225,8 +225,25 @@ await recordedPage.locator('[data-action="templates"]').first().click();
 await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.1"]').click();
 await recordedPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 const reasonCard = recordedPage.locator('[data-editor-field-id="preferenceReason"]');
-await reasonCard.click();
-await recordedPage.getByRole("button", { name: "删除该问题", exact: true }).click();
+const reasonContent = reasonCard.locator(".swipe-content");
+const swipeResult = await reasonContent.evaluate((element) => {
+  const scrollBefore = window.scrollY;
+  element.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 31, pointerType: "touch", clientX: 320, clientY: 300, bubbles: true, cancelable: true }));
+  const move = new PointerEvent("pointermove", { pointerId: 31, pointerType: "touch", clientX: 240, clientY: 303, bubbles: true, cancelable: true });
+  element.dispatchEvent(move);
+  element.dispatchEvent(new PointerEvent("pointerup", { pointerId: 31, pointerType: "touch", clientX: 240, clientY: 303, bubbles: true, cancelable: true }));
+  return { prevented: move.defaultPrevented, scrollBefore, scrollAfter: window.scrollY };
+});
+await reasonCard.waitFor();
+assert(swipeResult.prevented, "问题横向左滑时没有阻止页面纵向滚动");
+assert(swipeResult.scrollAfter === swipeResult.scrollBefore, "问题横向左滑导致页面上下移动");
+assert((await reasonCard.getAttribute("class")).includes("revealed"), "问题左滑后没有显示删除操作");
+await recordedPage.locator(".template-overview-content").click({ position: { x: 2, y: 2 } });
+assert(!(await reasonCard.getAttribute("class")).includes("revealed"), "点击左滑区域外的空白处没有收起删除操作");
+await reasonContent.dispatchEvent("pointerdown", { pointerId: 32, pointerType: "touch", clientX: 320, clientY: 300 });
+await reasonContent.dispatchEvent("pointermove", { pointerId: 32, pointerType: "touch", clientX: 240, clientY: 302 });
+await reasonContent.dispatchEvent("pointerup", { pointerId: 32, pointerType: "touch", clientX: 240, clientY: 302 });
+await reasonCard.locator('[data-action="delete-overview-question"]').click();
 await confirm(recordedPage, "删除问题");
 await recordedPage.getByRole("button", { name: "保存问卷", exact: true }).click();
 await recordedPage.locator("#toast", { hasText: "问卷已保存为" }).waitFor();
@@ -240,6 +257,8 @@ assert(recordedData.records.some((item) => item.id === "existing-record" && item
 assert(!recordedData.records.some((item) => item.templateKey === newVersion.key), "旧记录被错误迁移到了新版本");
 
 await recordedPage.locator('[data-action="leave-template-overview"]').click();
+await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
+await recordedPage.waitForTimeout(100);
 await openHiddenAction(recordedPage, "duplicate-template", "ear-anthropometry-survey@1.2");
 await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 const copyRow = recordedPage.locator('[data-action="open-template"]').filter({ hasText: "副本" }).first();
@@ -267,5 +286,5 @@ assert(!oldCsv.includes("偏好原因（已删除）"), "旧版本CSV错误地�
 
 await recordedContext.close();
 
-console.log(JSON.stringify({ passed: true, scenarios: ["empty-template-replace", "recorded-template-versioning", "copy-without-records", "long-press-reorder"] }, null, 2));
+console.log(JSON.stringify({ passed: true, scenarios: ["empty-template-replace", "recorded-template-versioning", "copy-without-records", "long-press-reorder", "overview-swipe-delete", "swipe-outside-dismiss"] }, null, 2));
 await browser.close();

@@ -1,11 +1,11 @@
-const APP_VERSION = "1.3.6";
-const UPDATE_SUMMARY = "本次更新：问卷保存成功提示移至底部按钮上方，并包含 Android 图标、顶部栏与样本列表修正。已有问卷、记录和草稿不会被覆盖。";
+const APP_VERSION = "1.3.7";
+const UPDATE_SUMMARY = "本次更新：简化AI问卷转换与导入，支持指定样本名称、多题同页及概览左滑删除问题。已有问卷、记录和草稿不会被覆盖。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.3.6",
-  "./manifest.webmanifest?v=1.3.6",
+  "./styles.css?v=1.3.7",
+  "./manifest.webmanifest?v=1.3.7",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -17,13 +17,13 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.3.6",
-  "./js/db.js?v=1.3.6",
-  "./js/default-template.js?v=1.3.6",
-  "./js/questionnaire-editor.js?v=1.3.6",
-  "./js/questionnaire-schema.js?v=1.3.6",
-  "./js/question-reorder.js?v=1.3.6",
-  "./js/statistics.js?v=1.3.6"
+  "./js/app.js?v=1.3.7",
+  "./js/db.js?v=1.3.7",
+  "./js/default-template.js?v=1.3.7",
+  "./js/questionnaire-editor.js?v=1.3.7",
+  "./js/questionnaire-schema.js?v=1.3.7",
+  "./js/question-reorder.js?v=1.3.7",
+  "./js/statistics.js?v=1.3.7"
 ];
 
 self.addEventListener("install", (event) => {

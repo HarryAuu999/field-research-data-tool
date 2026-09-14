@@ -12,6 +12,10 @@
     "version": { "$ref": "#/$defs/nonEmptyString" },
     "title": { "$ref": "#/$defs/nonEmptyString" },
     "description": { "type": "string" },
+    "recordLabelField": {
+      "$ref": "#/$defs/nonEmptyString",
+      "description": "样本列表中用作样本名称的题目ID；省略时AuNote按兼容规则自动选择。"
+    },
     "fields": {
       "type": "array",
       "minItems": 1,
@@ -77,6 +81,10 @@
         "label": { "$ref": "#/$defs/nonEmptyString" },
         "description": { "type": "string" },
         "required": { "type": "boolean", "default": false },
+        "page": {
+          "$ref": "#/$defs/nonEmptyString",
+          "description": "相邻题目使用相同page时显示在同一页；省略时该题独占一页。"
+        },
         "image": { "$ref": "#/$defs/image" }
       }
     },

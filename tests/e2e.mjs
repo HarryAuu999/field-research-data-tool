@@ -554,6 +554,37 @@ for (const example of [
   await page.locator(`[data-action="open-template"][data-key="${example.key}"]`).waitFor();
 }
 
+const wrappedTemplate = {
+  questionnaire: {
+    schemaVersion: "1",
+    id: "wrapped-ai-template",
+    version: "1.0",
+    title: "AI包装格式兼容测试",
+    fields: [{ id: "note", type: "shortText", label: "记录" }]
+  }
+};
+await page.locator("#template-file-input").setInputFiles({
+  name: "wrapped-ai-template.json",
+  mimeType: "application/json",
+  buffer: Buffer.from(JSON.stringify(wrappedTemplate))
+});
+await page.locator('[data-action="open-template"][data-key="wrapped-ai-template@1.0"]').waitFor();
+
+let invalidImportMessage = "";
+page.once("dialog", async (dialog) => {
+  invalidImportMessage = dialog.message();
+  await dialog.accept();
+});
+await page.locator("#template-file-input").setInputFiles({
+  name: "wrong-structure.json",
+  mimeType: "application/json",
+  buffer: Buffer.from(JSON.stringify({ title: "错误结构", fields: [] }))
+});
+await page.waitForTimeout(300);
+assert(invalidImportMessage.includes("实际读取：未找到") && invalidImportMessage.includes("顶层字段：title、fields"), "导入失败没有显示实际文件结构诊断");
+const expectedDiagnosticIndex = errors.findIndex((message) => message.includes("实际读取：未找到") && message.includes("顶层字段：title、fields"));
+if (expectedDiagnosticIndex >= 0) errors.splice(expectedDiagnosticIndex, 1);
+
 if (errors.length) throw new Error(`浏览器错误：\n${errors.join("\n")}`);
 console.log(JSON.stringify({ passed: true, csvPath, backupPath, screenshots: ["mobile-repeated-measurement.png", "mobile-record-detail.png", "mobile-template-management.png", "mobile-pain-question.png", "mobile-home-offline.png"] }, null, 2));
 await browser.close();

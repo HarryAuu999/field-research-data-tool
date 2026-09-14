@@ -2,7 +2,7 @@
 
 更新日期：2026-09-14
 
-当前正式版本：V1.3.6
+当前正式版本：V1.3.7
 
 ## 项目与地址
 
@@ -21,7 +21,7 @@
 - 不要修改或混入独立项目 `earclip-force-curve-tool` 的文件。
 - “已编码、已测试、已提交、已推送、已部署、iPhone实机验证”是不同状态，交接时必须分开说明。
 
-## V1.3.6 已实现
+## V1.3.7 已实现
 
 - 新安装只内置一份“佩戴耳厚数据采集 V1.1”示例问卷；更新旧设备时，不主动删除其已有V1.0或其他问卷。
 - 问卷管理支持复制和删除。复制后留在管理页，用户自行打开副本。
@@ -45,6 +45,12 @@
 - 更新提示包含版本概况，并提供“立即更新”“此次不更新”“跳过此版本”。
 - 入口样式、主模块及其依赖使用随版本变化的URL；即使设备仍由V1.0.0等旧Service Worker控制，也不会继续命中过期的静态资源缓存。
 - 问卷JSON校验已从主应用拆到独立模块；统计、问卷编辑、校验、版本、基础UI和Android均有可单独运行的快速测试，开发时按改动范围选择最小测试集。
+- AI转换普通问卷时只需读取`docs/questionnaire-ai-guide.md`，不必扫描整个仓库或主应用代码；新增`tools/validate-questionnaire.mjs`，可用与PWA一致的校验逻辑快速预检JSON。
+- 问卷导入兼容常见AI输出中的字符串`"1"`和单层`questionnaire`/`template`包装；无效JSON或结构错误会显示文件名、实际schemaVersion类型和顶层字段，标准问卷规范仍要求数字`schemaVersion: 1`。
+- 顶层可选`recordLabelField`用于明确指定样本列表名称字段；旧问卷未配置时兼容识别`name`、`participantName`、姓名类短文字或第一道短文字题，不迁移记录数据。
+- 相邻题目可在JSON中设置相同`page`值实现多题同页；未配置的旧问卷继续一页一题。该配置只影响填写布局，不改变答案、IndexedDB或CSV，手机问卷编辑器不提供配置入口但会保留现有值。
+- 新增多题同页与样本名称的独立浏览器测试；AI指南、完整模板规范、JSON Schema和示例问卷已同步上述规则。
+- 问卷概览的问题和说明支持左滑显示单个删除垃圾桶；删除先进入问卷修改稿，仍需点击“保存问卷”才生成新版本或替换无记录模板。横向手势确认后阻止纵向页面滚动，点击已展开行之外的空白区域会收起操作；问卷和样本列表共用相同的外部收起规则。
 
 ## 代码结构
 
@@ -81,6 +87,7 @@ node tests/questionnaire-editor.mjs
 node tests/questionnaire-schema.mjs
 node tests/version-consistency.mjs
 node tests/ui-smoke.mjs
+node tests/questionnaire-layout-e2e.mjs
 node tests/android-smoke.mjs
 node tests/e2e.mjs
 node tests/editor-e2e.mjs
@@ -104,7 +111,7 @@ node tests/editor-e2e.mjs
 ## 下一任务建议先做什么
 
 1. 读取 `AGENTS.md`、本文件、`README.md` 和当前 `git status`。
-2. 让用户报告V1.3.6在iPhone及Android主屏幕PWA中的更新结果与具体问题。
+2. 让用户报告V1.3.7在iPhone及Android主屏幕PWA中的更新结果与具体问题。
 3. 只修改用户明确提出的部分；未变化模块做针对性而非重复性测试。
 4. 每次正式发布前仍执行两套完整回归测试，并核对GitHub Pages真实访问版本。
 

@@ -11,6 +11,7 @@
   "version": "1.0",
   "title": "问卷名称",
   "description": "问卷说明",
+  "recordLabelField": "participantName",
   "fields": []
 }
 ```
@@ -20,6 +21,7 @@
 - `title`：手机首页显示的中文名称；
 - `description`：问卷背景信息；首页显示前几行，问卷概览显示完整内容；
 - `fields`：按填写顺序排列的问题。
+- `recordLabelField`：可选；指定已记录样本列表中显示的姓名、编号或其他样本标识字段。
 
 ### 最外层字段参考
 
@@ -30,6 +32,7 @@
 | `version` | 是 | 非空字符串；与`id`共同构成独立版本键 | 不导出 |
 | `title` | 是 | 非空字符串 | 不导出 |
 | `description` | 否 | 字符串，省略时不显示问卷背景 | 不导出 |
+| `recordLabelField` | 否 | 必须引用一个非`section`题目的ID；优先用该答案作为样本名称。省略时依次查找ID为`name`、姓名类短文字、第一道短文字题 | 不改变CSV |
 | `fields` | 是 | 至少一项；按数组顺序显示和导出 | 决定答案列顺序 |
 | `analysis` | 否 | 通用描述性统计与分布分析配置 | 不改变CSV |
 
@@ -67,12 +70,38 @@
 | `label` | 是 | 全部 | 非空字符串；问题文字或分节标题 | 非`section`题型作为列标题 |
 | `description` | 否 | 全部 | 补充说明；省略时不显示 | 不导出 |
 | `required` | 否 | 除`section`外 | 布尔值，省略等同`false` | 不改变格式；只影响保存前校验 |
+| `page` | 否 | 全部 | 非空字符串；连续相邻题目使用相同值时显示在同一页，省略时该题独占一页 | 不改变CSV |
 | `placeholder` | 否 | `shortText`、`longText`、`number`、`repeatedNumber` | 输入框内的短提示；省略为空 | 不导出 |
 | `unit` | 否 | `number`、`repeatedNumber` | 如`mm`、`岁`；省略时不显示单位 | 进入CSV列标题，不重复写入每个单元格 |
 | `integer` | 否 | `number`、`repeatedNumber` | 布尔值；`true`只接受非负整数，省略/`false`接受非负整数或小数 | 数值原样导出 |
 | `image` | 否 | 全部 | `{src, alt}`；见“图片”章节 | 不导出 |
 
 AuNote当前数字输入接受非负十进制数，不接受负号、指数记法或千位分隔符。
+
+## 样本名称与多题同页
+
+样本列表不是按题目文字猜姓名。推荐显式设置`recordLabelField`：
+
+```json
+{
+  "recordLabelField": "participantName",
+  "fields": [
+    { "id": "participantName", "type": "shortText", "label": "姓名" }
+  ]
+}
+```
+
+需要把相邻题目放在同一页时，为它们设置同一个`page`。没有`page`的题仍保持一页一题：
+
+```json
+[
+  { "id": "participantName", "type": "shortText", "label": "姓名", "page": "participantInfo" },
+  { "id": "age", "type": "number", "label": "年龄", "integer": true, "page": "participantInfo" },
+  { "id": "comments", "type": "longText", "label": "其他反馈" }
+]
+```
+
+`page`只控制手机填写布局，不合并答案、不改变字段ID、保存结构或CSV列。当前手机问卷编辑器不提供该配置入口；需要在问卷JSON中由人工或AI生成。
 
 ## 各题型字段与CSV
 

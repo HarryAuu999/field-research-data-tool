@@ -8,7 +8,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 
 - 本地预览：在项目根目录运行 `python -m http.server 4173`，打开 `http://127.0.0.1:4173/`。
 - 快速测试：统计改动运行 `node tests/statistics.mjs`；问卷编辑纯数据逻辑运行 `node tests/questionnaire-editor.mjs`；问卷 JSON 校验运行 `node tests/questionnaire-schema.mjs`；版本与缓存资源引用运行 `node tests/version-consistency.mjs`。
-- 浏览器测试：顶部栏、基础手机布局和样本左滑运行 `node tests/ui-smoke.mjs`；Android Manifest、图标资源和 Pixel 视口运行 `node tests/android-smoke.mjs`；问卷编辑界面与排序运行 `node tests/editor-e2e.mjs`；完整填写、样本、分析、CSV、备份和离线运行 `node tests/e2e.mjs`。测试需要本机 Chrome及已启动的本地预览服务。
+- 浏览器测试：顶部栏、基础手机布局和样本左滑运行 `node tests/ui-smoke.mjs`；JSON配置的多题同页和样本名称运行 `node tests/questionnaire-layout-e2e.mjs`；Android Manifest、图标资源和 Pixel 视口运行 `node tests/android-smoke.mjs`；问卷编辑界面与排序运行 `node tests/editor-e2e.mjs`；完整填写、样本、分析、CSV、备份和离线运行 `node tests/e2e.mjs`。测试需要本机 Chrome及已启动的本地预览服务。
 - 开发过程中优先运行与改动范围对应的最小测试集；除非改动影响跨模块行为，不要在每个小编辑后反复运行完整 E2E。
 - 修改 `js/db.js`、数据迁移、备份恢复、Service Worker、离线逻辑或跨模块状态时，必须运行全部测试。正式发布前也必须运行全部测试。
 - 发布前核对 `js/app.js` 与 `sw.js` 的应用版本号一致。
@@ -23,6 +23,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 - `js/questionnaire-editor.js`：问卷复制、版本、题型和编辑数据操作。
 - `js/questionnaire-schema.js`：schemaVersion 1 问卷与分析配置校验。
 - `js/question-reorder.js`：手机端长按拖动排序。
+- `tools/validate-questionnaire.mjs`：用与PWA一致的校验逻辑预检AI生成问卷。
 - `docs/questionnaire-template.md`：现役问卷 JSON 格式说明。
 - `tests/e2e.mjs`：手机尺寸端到端回归测试。
 
@@ -36,6 +37,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 
 ## 当前状态
 
-- 当前正式应用版本：V1.3.6。
+- 当前正式应用版本：V1.3.7。
 - GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。

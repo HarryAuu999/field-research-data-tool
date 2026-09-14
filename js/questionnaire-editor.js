@@ -89,6 +89,7 @@ export function changeQuestionType(field, type, fields = []) {
   changed.id = field.id;
   changed.label = field.label;
   changed.description = field.description || "";
+  if (field.page) changed.page = field.page;
   if (type !== "section") changed.required = Boolean(field.required);
   if (field.image) changed.image = JSON.parse(JSON.stringify(field.image));
   return changed;

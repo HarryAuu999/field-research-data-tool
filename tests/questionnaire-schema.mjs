@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { validateTemplate } from "../js/questionnaire-schema.js";
+import { normalizeTemplateImport, validateTemplate } from "../js/questionnaire-schema.js";
 
 const fixedTime = "2026-09-14T00:00:00.000Z";
 const baseTemplate = {
@@ -20,6 +20,15 @@ const validated = validateTemplate(baseTemplate, { importedAt: fixedTime });
 assert.equal(validated.key, "test-questionnaire@1.0");
 assert.equal(validated.importedAt, fixedTime);
 assert.notEqual(validated, baseTemplate, "校验结果应为副本，避免修改导入来源");
+assert.equal(normalizeTemplateImport({ ...baseTemplate, schemaVersion: "1" }).schemaVersion, 1, "导入未兼容字符串版本1");
+assert.equal(normalizeTemplateImport({ questionnaire: baseTemplate }), baseTemplate, "导入未兼容questionnaire单层包装");
+assert.equal(normalizeTemplateImport({ template: baseTemplate }), baseTemplate, "导入未兼容template单层包装");
+
+const layoutTemplate = structuredClone(baseTemplate);
+layoutTemplate.recordLabelField = "name";
+layoutTemplate.fields.push({ id: "age", type: "number", label: "年龄", page: "profile" });
+layoutTemplate.fields[0].page = "profile";
+assert.equal(validateTemplate(layoutTemplate, { importedAt: fixedTime }).fields[1].page, "profile");
 
 expectInvalid((template) => { template.schemaVersion = 2; }, /schemaVersion/);
 expectInvalid((template) => { template.fields.push({ ...template.fields[0] }); }, /题目ID重复/);
@@ -36,6 +45,7 @@ expectInvalid((template) => {
 expectInvalid((template) => {
   template.fields[0].image = { src: "https://example.com/image.png" };
 }, /不能依赖外部网址/);
+expectInvalid((template) => { template.recordLabelField = "missing"; }, /recordLabelField/);
 
 const analyzed = structuredClone(baseTemplate);
 analyzed.fields = [{ id: "score", type: "number", label: "分数" }];
@@ -63,4 +73,4 @@ expectInvalid((template) => {
   template.analysis = { type: "descriptiveDistribution", aggregation: "participantMean", fields: [{ id: "score", theme: "green" }] };
 }, /主题色无效/);
 
-console.log(JSON.stringify({ passed: true, scenarios: 12 }, null, 2));
+console.log(JSON.stringify({ passed: true, scenarios: 17 }, null, 2));

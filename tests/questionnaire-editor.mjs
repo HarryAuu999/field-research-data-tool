@@ -32,12 +32,14 @@ const original = {
   label: "舒适度",
   description: "请填写",
   required: true,
+  page: "scores",
   image: { src: "./example.png", alt: "示例" }
 };
 const changed = changeQuestionType(original, "rating", [original]);
 assert.equal(changed.id, original.id);
 assert.equal(changed.label, original.label);
 assert.equal(changed.required, true);
+assert.equal(changed.page, "scores", "题型转换不应丢失JSON中的同页配置");
 assert.deepEqual(changed.image, original.image);
 assert.notEqual(changed.image, original.image, "题型转换应复制图片配置");
 

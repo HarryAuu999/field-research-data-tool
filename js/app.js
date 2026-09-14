@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.3.6";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.6";
+} from "./db.js?v=1.3.7";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.7";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,9 +29,9 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.3.6";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.3.6";
-import { validateTemplate } from "./questionnaire-schema.js?v=1.3.6";
+} from "./questionnaire-editor.js?v=1.3.7";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.3.7";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.3.7";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -39,9 +39,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.3.6";
+} from "./statistics.js?v=1.3.7";
 
-const APP_VERSION = "1.3.6";
+const APP_VERSION = "1.3.7";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -435,21 +435,24 @@ function renderTemplateOverview() {
   const config = analysisConfig(template);
   let questionNumber = 0;
   const questions = template.fields.map((field, fieldIndex) => {
+    const action = editing ? "open-editor-question" : "edit-template-question";
+    const rowStart = `<div class="swipe-row overview-question-row" data-swipe-row data-swipe-offset="64" data-action="${action}" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" data-editor-field-id="${escapeHtml(field.id)}">
+      <div class="swipe-actions" aria-label="问题操作"><button class="swipe-action swipe-delete" type="button" data-action="delete-overview-question" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" aria-label="删除${escapeHtml(field.label)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button></div>`;
     if (field.type === "section") {
-      return `<button class="overview-section overview-edit-target" type="button" data-action="${editing ? "open-editor-question" : "edit-template-question"}" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" data-editor-field-id="${escapeHtml(field.id)}" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序"><h3>${escapeHtml(field.label)}</h3>${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}</button>`;
+      return `${rowStart}<button class="swipe-content overview-section overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序"><h3>${escapeHtml(field.label)}</h3>${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}</button></div>`;
     }
     questionNumber += 1;
     const options = ["singleChoice", "multiChoice"].includes(field.type)
       ? `<p class="overview-options">${field.options.map((option) => escapeHtml(option.label)).join(" · ")}</p>`
       : "";
     const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
-    return `
-      <button class="overview-question overview-edit-target" type="button" data-action="${editing ? "open-editor-question" : "edit-template-question"}" data-key="${escapeHtml(sourceTemplate.key)}" data-index="${fieldIndex}" data-editor-field-id="${escapeHtml(field.id)}" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
+    return `${rowStart}
+      <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
         <div class="overview-question-heading"><span>Q${questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
         <p class="overview-question-type">${escapeHtml(fieldTypeName(field.type))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
         ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
         ${options}
-      </button>`;
+      </button></div>`;
   }).join("");
   const typePicker = state.questionTypePickerOpen && state.questionTypePickerMode === "add" ? `
     <div class="question-type-overlay" role="presentation">
@@ -496,6 +499,7 @@ function renderTemplateOverview() {
       }
     });
   }
+  bindSwipeRows();
 }
 
 function editorDraftSettingKey(key) {
@@ -933,6 +937,7 @@ async function changeEditorQuestionType(type) {
   if (!confirmed) return;
   captureQuestionEditor();
   state.editorTemplate.fields[index] = changeQuestionType(field, type, state.editorTemplate.fields);
+  if (type === "section" && state.editorTemplate.recordLabelField === field.id) delete state.editorTemplate.recordLabelField;
   state.questionTypePickerOpen = false;
   state.questionTypePickerMode = null;
   render();
@@ -959,6 +964,37 @@ async function removeEditorOption(index) {
   renderQuestionEditor();
 }
 
+async function deleteOverviewQuestion(key, index) {
+  const scrollTop = window.scrollY;
+  if (state.editorSourceKey !== key || !state.editorTemplate) await beginTemplateEditor(key);
+  if (state.editorSourceKey !== key || !state.editorTemplate) return;
+  const fieldIndex = Number(index);
+  const field = state.editorTemplate.fields[fieldIndex];
+  if (!field) return;
+  if (state.editorTemplate.fields.length <= 1) {
+    showToast("问卷至少需要保留一个问题或说明");
+    return;
+  }
+  if (questionUsesAnalysis(state.editorTemplate, field.id)) {
+    showToast("这个问题用于简易分析，当前版本不能删除");
+    return;
+  }
+  const confirmed = await showConfirm({
+    title: "删除该问题？",
+    message: `“${field.label}”将不会出现在修改后的问卷中。已有记录所属的旧版本不会改变。`,
+    confirmLabel: "删除问题"
+  });
+  if (!confirmed) return;
+  if (state.editorTemplate.recordLabelField === field.id) delete state.editorTemplate.recordLabelField;
+  state.editorTemplate.fields.splice(fieldIndex, 1);
+  state.editorDirty = true;
+  await persistTemplateEditorDraft();
+  state.view = "templateOverview";
+  render();
+  restoreWindowScroll(scrollTop);
+  showToast("问题已从修改稿中删除");
+}
+
 async function deleteEditorQuestion() {
   const field = state.editorTemplate?.fields?.[state.editorQuestionIndex];
   if (!field) return;
@@ -976,6 +1012,7 @@ async function deleteEditorQuestion() {
     confirmLabel: "删除问题"
   });
   if (!confirmed) return;
+  if (state.editorTemplate.recordLabelField === field.id) delete state.editorTemplate.recordLabelField;
   state.editorTemplate.fields.splice(state.editorQuestionIndex, 1);
   state.editorDirty = true;
   await persistTemplateEditorDraft();
@@ -986,7 +1023,12 @@ async function deleteEditorQuestion() {
 }
 
 function recordName(record) {
-  const field = state.currentTemplate?.fields.find((item) => item.id === "name");
+  const fields = state.currentTemplate?.fields || [];
+  const configuredId = state.currentTemplate?.recordLabelField;
+  const field = fields.find((item) => item.id === configuredId)
+    || fields.find((item) => item.id === "name")
+    || fields.find((item) => item.type === "shortText" && /姓名|name/i.test(`${item.id} ${item.label}`))
+    || fields.find((item) => item.type === "shortText");
   const value = field ? formatAnswer(field, record.answers[field.id], { forList: true }) : "";
   return value || "未填写姓名";
 }
@@ -1072,13 +1114,13 @@ function getFieldAnswer(field) {
   return state.draft?.answers?.[field.id];
 }
 
-function renderTextField(field, answer, long = false) {
+function renderTextField(field, answer, long = false, fieldIndex = state.formIndex) {
   const data = field.allowAnonymous && typeof answer === "object" ? answer : { value: answer ?? "", anonymous: false };
   const input = long
     ? `<textarea class="textarea-input" data-field-input autocomplete="off" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(data.value || "")}</textarea>`
     : `<input class="text-input" data-field-input type="text" inputmode="text" autocomplete="off" value="${escapeHtml(data.value || "")}" placeholder="${escapeHtml(field.placeholder || "")}" ${data.anonymous ? "disabled" : ""} />`;
   const anonymous = field.allowAnonymous
-    ? `<label class="anonymous-row"><input type="checkbox" data-anonymous ${data.anonymous ? "checked" : ""} /><span>${escapeHtml(field.anonymousLabel || "匿名")}</span></label>`
+    ? `<label class="anonymous-row"><input type="checkbox" data-anonymous data-field-index="${fieldIndex}" ${data.anonymous ? "checked" : ""} /><span>${escapeHtml(field.anonymousLabel || "匿名")}</span></label>`
     : "";
   return `<div class="field-wrap">${input}${anonymous}</div>`;
 }
@@ -1471,51 +1513,84 @@ function renderRepeatedNumberField(field, answer) {
     </div>`;
 }
 
-function renderSingleChoice(field, answer) {
+function renderSingleChoice(field, answer, fieldIndex = state.formIndex) {
   const current = answer && typeof answer === "object" ? answer : { value: "", otherText: "" };
   return `<div class="choice-list">${field.options.map((option) => {
     const selected = current.value === option.id;
     return `
-      <button class="choice-button ${selected ? "selected" : ""}" type="button" data-action="select-single" data-option="${escapeHtml(option.id)}">${escapeHtml(option.label)}</button>
+      <button class="choice-button ${selected ? "selected" : ""}" type="button" data-action="select-single" data-field-index="${fieldIndex}" data-option="${escapeHtml(option.id)}">${escapeHtml(option.label)}</button>
       ${selected && option.textInput ? `<input class="other-input" data-other-input type="text" inputmode="text" autocomplete="off" value="${escapeHtml(current.otherText || "")}" placeholder="${escapeHtml(option.textInput.placeholder || "")}" aria-label="${escapeHtml(option.textInput.label || "其他说明")}" />` : ""}`;
   }).join("")}</div>`;
 }
 
-function renderMultiChoice(field, answer) {
+function renderMultiChoice(field, answer, fieldIndex = state.formIndex) {
   const current = answer && typeof answer === "object" ? answer : { values: [], otherTextById: {} };
   const selectedValues = Array.isArray(current.values) ? current.values : [];
   return `<div class="choice-list ${field.image?.src ? "choice-grid" : ""}">${field.options.map((option) => {
     const selected = selectedValues.includes(option.id);
     return `
-      <button class="choice-button multi ${option.exclusive ? "choice-exclusive" : ""} ${selected ? "selected" : ""}" type="button" data-action="toggle-multi" data-option="${escapeHtml(option.id)}">${escapeHtml(option.label)}</button>
+      <button class="choice-button multi ${option.exclusive ? "choice-exclusive" : ""} ${selected ? "selected" : ""}" type="button" data-action="toggle-multi" data-field-index="${fieldIndex}" data-option="${escapeHtml(option.id)}">${escapeHtml(option.label)}</button>
       ${selected && option.textInput ? `<input class="other-input" data-other-input data-option="${escapeHtml(option.id)}" type="text" inputmode="text" autocomplete="off" value="${escapeHtml(current.otherTextById?.[option.id] || "")}" placeholder="${escapeHtml(option.textInput.placeholder || "")}" />` : ""}`;
   }).join("")}</div>`;
 }
 
-function renderRating(field, answer) {
+function renderRating(field, answer, fieldIndex = state.formIndex) {
   const values = [];
   for (let value = field.min; value <= field.max; value += 1) values.push(value);
   const selectedHelp = typeof answer === "number" ? field.labels?.[String(answer)]?.help : "";
   return `
     <div class="rating-grid">
-      ${values.map((value) => `<button class="rating-button ${answer === value ? "selected" : ""}" type="button" data-action="select-rating" data-value="${value}"><strong>${value}</strong><span>${escapeHtml(field.labels?.[String(value)]?.short || "")}</span></button>`).join("")}
+      ${values.map((value) => `<button class="rating-button ${answer === value ? "selected" : ""}" type="button" data-action="select-rating" data-field-index="${fieldIndex}" data-value="${value}"><strong>${value}</strong><span>${escapeHtml(field.labels?.[String(value)]?.short || "")}</span></button>`).join("")}
     </div>
     ${selectedHelp ? `<div class="rating-help">${escapeHtml(selectedHelp)}</div>` : ""}
-    ${field.unknownOption ? `<button class="choice-button unknown-button ${answer === field.unknownOption.id ? "selected" : ""}" type="button" data-action="select-rating" data-value="${escapeHtml(field.unknownOption.id)}">${escapeHtml(field.unknownOption.label)}</button>` : ""}`;
+    ${field.unknownOption ? `<button class="choice-button unknown-button ${answer === field.unknownOption.id ? "selected" : ""}" type="button" data-action="select-rating" data-field-index="${fieldIndex}" data-value="${escapeHtml(field.unknownOption.id)}">${escapeHtml(field.unknownOption.label)}</button>` : ""}`;
 }
 
-function renderFieldControl(field, answer) {
+function renderFieldControl(field, answer, fieldIndex = state.formIndex) {
   switch (field.type) {
-    case "shortText": return renderTextField(field, answer, false);
-    case "longText": return renderTextField(field, answer, true);
+    case "shortText": return renderTextField(field, answer, false, fieldIndex);
+    case "longText": return renderTextField(field, answer, true, fieldIndex);
     case "number": return renderNumberField(field, answer);
     case "repeatedNumber": return renderRepeatedNumberField(field, answer);
-    case "singleChoice": return renderSingleChoice(field, answer);
-    case "multiChoice": return renderMultiChoice(field, answer);
-    case "rating": return renderRating(field, answer);
+    case "singleChoice": return renderSingleChoice(field, answer, fieldIndex);
+    case "multiChoice": return renderMultiChoice(field, answer, fieldIndex);
+    case "rating": return renderRating(field, answer, fieldIndex);
     case "section": return `<div class="card">${escapeHtml(field.description || "")}</div>`;
     default: return "";
   }
+}
+
+function formPages(fields) {
+  const pages = [];
+  fields.forEach((field, fieldIndex) => {
+    const pageId = field.page?.trim() || null;
+    const previous = pages.at(-1);
+    if (pageId && previous?.pageId === pageId) previous.items.push({ field, fieldIndex });
+    else pages.push({ pageId, items: [{ field, fieldIndex }] });
+  });
+  return pages;
+}
+
+function currentFormPage(fields = state.currentTemplate?.fields || []) {
+  const pages = formPages(fields);
+  const pageIndex = Math.max(0, pages.findIndex((page) => page.items.some((item) => item.fieldIndex === state.formIndex)));
+  return { pages, pageIndex, page: pages[pageIndex] };
+}
+
+function renderFormQuestion({ field, fieldIndex }) {
+  if (field.type === "section") {
+    return `<section class="form-page-section" data-question-index="${fieldIndex}"><h2 class="question-title">${escapeHtml(field.label)}</h2>${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}</section>`;
+  }
+  const answer = getFieldAnswer(field);
+  const requirementLabel = field.required ? "必填" : "可跳过";
+  return `<section class="form-page-question" data-question-index="${fieldIndex}">
+    <div class="question-meta"><span class="question-number">Q${fieldIndex + 1}.</span><span class="requirement-chip ${field.required ? "is-required" : ""}">${requirementLabel}</span></div>
+    <h2 class="question-title">${escapeHtml(field.label)}</h2>
+    ${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}
+    ${field.image?.src ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
+    ${renderFieldControl(field, answer, fieldIndex)}
+    <div class="validation-message" data-validation-for="${fieldIndex}"></div>
+  </section>`;
 }
 
 function renderForm() {
@@ -1527,33 +1602,28 @@ function renderForm() {
 
   const fields = state.currentTemplate.fields;
   state.formIndex = Math.max(0, Math.min(state.formIndex, fields.length - 1));
-  const field = fields[state.formIndex];
-  const progress = ((state.formIndex + 1) / fields.length) * 100;
-  const isLast = state.formIndex === fields.length - 1;
-  const answer = getFieldAnswer(field);
-  const requirementLabel = field.required ? "必填" : "可跳过";
+  const { pages, pageIndex, page } = currentFormPage(fields);
+  state.formIndex = page.items[0].fieldIndex;
+  const progress = ((pageIndex + 1) / pages.length) * 100;
+  const isLast = pageIndex === pages.length - 1;
+  const usesGroupedPages = pages.some((item) => item.items.length > 1);
 
   app.innerHTML = `
     <section class="screen form-screen">
       <header class="nav-top-bar form-top-bar">
         <button class="back-button" type="button" data-action="leave-form" aria-label="${state.draft.mode === "edit" ? "返回记录详情" : "返回首页"}"><img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" /></button>
         <h1>${state.draft.mode === "edit" ? "修改记录" : "填写问卷"}</h1>
-        <span class="form-counter">${state.formIndex + 1}/${fields.length}</span>
+        <span class="form-counter">${pageIndex + 1}/${pages.length}</span>
       </header>
       <div class="progress-block">
         <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
       </div>
-      <article class="question-card">
-        <div class="question-meta"><span class="question-number">Q${state.formIndex + 1}.</span><span class="requirement-chip ${field.required ? "is-required" : ""}">${requirementLabel}</span></div>
-        <h2 class="question-title">${escapeHtml(field.label)}</h2>
-        ${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}
-        ${field.image?.src ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
-        ${renderFieldControl(field, answer)}
-        <div id="validation-message" class="validation-message"></div>
+      <article class="question-card ${page.items.length > 1 ? "multi-question-page" : ""}">
+        ${page.items.map(renderFormQuestion).join("")}
       </article>
       <div class="form-navigation">
-        <button class="secondary-button" type="button" data-action="previous-question" ${state.formIndex === 0 ? "disabled" : ""}>上一题</button>
-        <button class="primary-button" type="button" data-action="next-question">${isLast ? (state.draft.mode === "edit" ? "保存修改" : "保存记录") : "下一题"}</button>
+        <button class="secondary-button" type="button" data-action="previous-question" ${pageIndex === 0 ? "disabled" : ""}>${usesGroupedPages ? "上一页" : "上一题"}</button>
+        <button class="primary-button" type="button" data-action="next-question">${isLast ? (state.draft.mode === "edit" ? "保存修改" : "保存记录") : (usesGroupedPages ? "下一页" : "下一题")}</button>
       </div>
     </section>`;
 }
@@ -1610,14 +1680,15 @@ async function persistDraft() {
 
 async function saveEditedRecord({ validateAll = false } = {}) {
   if (state.draft?.mode !== "edit") return false;
-  captureCurrentField();
-  const fields = validateAll ? state.currentTemplate.fields : [state.currentTemplate.fields[state.formIndex]];
+  captureCurrentPage();
+  const fields = validateAll ? state.currentTemplate.fields : currentFormPage().page.items.map((item) => item.field);
   for (const field of fields) {
     const message = fieldValidation(field, state.draft.answers[field.id]);
     if (message) {
-      if (validateAll) state.formIndex = state.currentTemplate.fields.indexOf(field);
+      const fieldIndex = state.currentTemplate.fields.indexOf(field);
+      if (validateAll) state.formIndex = fieldIndex;
       render();
-      showValidation(message);
+      showValidation(message, fieldIndex);
       return false;
     }
   }
@@ -1634,18 +1705,20 @@ async function saveEditedRecord({ validateAll = false } = {}) {
   return true;
 }
 
-function captureCurrentField() {
+function captureFieldAt(fieldIndex) {
   if (!state.draft || !state.currentTemplate) return;
-  const field = state.currentTemplate.fields[state.formIndex];
+  const field = state.currentTemplate.fields[fieldIndex];
   if (!field || field.type === "section") return;
+  const container = app.querySelector(`[data-question-index="${fieldIndex}"]`);
+  if (!container) return;
 
   if (["shortText", "longText", "number"].includes(field.type)) {
-    const input = app.querySelector("[data-field-input]");
+    const input = container.querySelector("[data-field-input]");
     const value = input?.value ?? "";
     if (field.allowAnonymous) {
       state.draft.answers[field.id] = {
         value,
-        anonymous: Boolean(app.querySelector("[data-anonymous]")?.checked)
+        anonymous: Boolean(container.querySelector("[data-anonymous]")?.checked)
       };
     } else {
       state.draft.answers[field.id] = value;
@@ -1653,23 +1726,31 @@ function captureCurrentField() {
   }
 
   if (field.type === "repeatedNumber") {
-    state.draft.answers[field.id] = Array.from(app.querySelectorAll("[data-repeat-input]"), (input) => input.value);
+    state.draft.answers[field.id] = Array.from(container.querySelectorAll("[data-repeat-input]"), (input) => input.value);
   }
 
   if (field.type === "singleChoice") {
     const answer = state.draft.answers[field.id] || { value: "", otherText: "" };
-    const other = app.querySelector("[data-other-input]");
+    const other = container.querySelector("[data-other-input]");
     if (other) answer.otherText = other.value;
     state.draft.answers[field.id] = answer;
   }
 
   if (field.type === "multiChoice") {
     const answer = state.draft.answers[field.id] || { values: [], otherTextById: {} };
-    app.querySelectorAll("[data-other-input][data-option]").forEach((input) => {
+    container.querySelectorAll("[data-other-input][data-option]").forEach((input) => {
       answer.otherTextById[input.dataset.option] = input.value;
     });
     state.draft.answers[field.id] = answer;
   }
+}
+
+function captureCurrentPage() {
+  currentFormPage().page?.items.forEach((item) => captureFieldAt(item.fieldIndex));
+}
+
+function captureCurrentField() {
+  captureFieldAt(state.formIndex);
 }
 
 function fieldValidation(field, answer) {
@@ -1727,35 +1808,37 @@ function fieldValidation(field, answer) {
   return "";
 }
 
-function showValidation(message) {
-  const element = document.querySelector("#validation-message");
+function showValidation(message, fieldIndex = state.formIndex) {
+  const element = document.querySelector(`[data-validation-for="${fieldIndex}"]`);
   if (element) element.textContent = message;
   if (message) showToast(message);
 }
 
 async function moveQuestion(direction) {
-  captureCurrentField();
+  captureCurrentPage();
   const fields = state.currentTemplate.fields;
-  const currentField = fields[state.formIndex];
+  const { pages, pageIndex, page } = currentFormPage(fields);
 
   if (direction > 0) {
-    const message = fieldValidation(currentField, state.draft.answers[currentField.id]);
-    if (message) {
-      showValidation(message);
-      return;
+    for (const { field, fieldIndex } of page.items) {
+      const message = fieldValidation(field, state.draft.answers[field.id]);
+      if (message) {
+        showValidation(message, fieldIndex);
+        return;
+      }
     }
   }
 
   await persistDraft();
   if (direction < 0) {
-    state.formIndex = Math.max(0, state.formIndex - 1);
+    state.formIndex = pages[Math.max(0, pageIndex - 1)].items[0].fieldIndex;
     await persistDraft();
     render();
     return;
   }
 
-  if (state.formIndex < fields.length - 1) {
-    state.formIndex += 1;
+  if (pageIndex < pages.length - 1) {
+    state.formIndex = pages[pageIndex + 1].items[0].fieldIndex;
     await persistDraft();
     render();
     return;
@@ -1769,7 +1852,7 @@ async function completeRecord() {
     await saveEditedRecord({ validateAll: true });
     return;
   }
-  captureCurrentField();
+  captureCurrentPage();
   const fields = state.currentTemplate.fields;
   for (let index = 0; index < fields.length; index += 1) {
     const field = fields[index];
@@ -1778,7 +1861,7 @@ async function completeRecord() {
       state.formIndex = index;
       await persistDraft();
       render();
-      showValidation(message);
+      showValidation(message, index);
       return;
     }
   }
@@ -1948,7 +2031,13 @@ function validateBackup(payload) {
 }
 
 async function importTemplateFile(file) {
-  const input = JSON.parse(await file.text());
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (error) {
+    throw new Error(`文件“${file.name}”不是有效JSON：${error.message}`);
+  }
+  const input = normalizeTemplateImport(parsed);
   const template = validateTemplate(input);
   if (await getTemplate(template.key)) throw new Error("相同问卷和版本已经存在；本工具不会覆盖已有问卷");
   await putTemplate(template);
@@ -2075,14 +2164,16 @@ async function removeSelectedRecord() {
   await removeRecord(state.selectedRecord.id);
 }
 
+function closeSwipeRows(current = null) {
+  app.querySelectorAll("[data-swipe-row], [data-template-row]").forEach((row) => {
+    if (row === current) return;
+    row.classList.remove("revealed", "dragging");
+    row.querySelector(".swipe-content")?.style.removeProperty("transform");
+  });
+}
+
 function bindSwipeRows() {
   const rows = Array.from(app.querySelectorAll("[data-swipe-row], [data-template-row]"));
-  const closeOthers = (current = null) => rows.forEach((row) => {
-    if (row !== current) {
-      row.classList.remove("revealed", "dragging");
-      row.querySelector(".swipe-content")?.style.removeProperty("transform");
-    }
-  });
 
   rows.forEach((row) => {
     const openOffset = -Math.max(48, Number(row.dataset.swipeOffset) || 116);
@@ -2104,7 +2195,7 @@ function bindSwipeRows() {
 
     content.addEventListener("pointerdown", (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      closeOthers(row);
+      closeSwipeRows(row);
       pointerId = event.pointerId;
       startX = event.clientX;
       startY = event.clientY;
@@ -2150,7 +2241,7 @@ function bindSwipeRows() {
     });
   });
 
-  app.querySelector(".template-content, .records-content")?.addEventListener("scroll", () => closeOthers(), { passive: true });
+  app.querySelector(".template-content, .records-content, .template-overview-content")?.addEventListener("scroll", () => closeSwipeRows(), { passive: true });
 }
 
 async function handleAction(action, element) {
@@ -2174,6 +2265,7 @@ async function handleAction(action, element) {
     case "change-editor-question-type": await changeEditorQuestionType(element.dataset.type); break;
     case "add-editor-option": await addEditorOption(); break;
     case "remove-editor-option": await removeEditorOption(element.dataset.index); break;
+    case "delete-overview-question": await deleteOverviewQuestion(element.dataset.key, element.dataset.index); break;
     case "delete-editor-question": await deleteEditorQuestion(); break;
     case "save-template-editor": await saveTemplateEditor(); break;
     case "discard-template-editor": await discardTemplateEditor(); break;
@@ -2195,7 +2287,7 @@ async function handleAction(action, element) {
       break;
     case "leave-form":
       if (state.draft?.mode === "edit") await saveEditedRecord();
-      else { captureCurrentField(); await persistDraft(); await refreshContext(); state.view = "home"; render(); showToast("草稿已保存"); }
+      else { captureCurrentPage(); await persistDraft(); await refreshContext(); state.view = "home"; render(); showToast("草稿已保存"); }
       break;
     case "previous-question": await moveQuestion(-1); break;
     case "next-question": await moveQuestion(1); break;
@@ -2208,25 +2300,25 @@ async function handleAction(action, element) {
     case "check-update": await checkForUpdates(); break;
     case "export-backup": await exportBackup(); break;
     case "import-backup": backupFileInput.click(); break;
-    case "select-single": await selectSingle(element.dataset.option); break;
-    case "toggle-multi": await toggleMulti(element.dataset.option); break;
-    case "select-rating": await selectRating(element.dataset.value); break;
+    case "select-single": await selectSingle(element.dataset.option, Number(element.dataset.fieldIndex)); break;
+    case "toggle-multi": await toggleMulti(element.dataset.option, Number(element.dataset.fieldIndex)); break;
+    case "select-rating": await selectRating(element.dataset.value, Number(element.dataset.fieldIndex)); break;
   }
 }
 
-async function selectSingle(optionId) {
-  captureCurrentField();
-  const field = state.currentTemplate.fields[state.formIndex];
+async function selectSingle(optionId, fieldIndex = state.formIndex) {
+  captureCurrentPage();
+  const field = state.currentTemplate.fields[fieldIndex];
   const previous = state.draft.answers[field.id];
   state.draft.answers[field.id] = { value: optionId, otherText: previous?.value === optionId ? previous.otherText || "" : "" };
   await persistDraft();
   render();
-  if (field.options.find((item) => item.id === optionId)?.textInput) requestAnimationFrame(() => app.querySelector("[data-other-input]")?.focus());
+  if (field.options.find((item) => item.id === optionId)?.textInput) requestAnimationFrame(() => app.querySelector(`[data-question-index="${fieldIndex}"] [data-other-input]`)?.focus());
 }
 
-async function toggleMulti(optionId) {
-  captureCurrentField();
-  const field = state.currentTemplate.fields[state.formIndex];
+async function toggleMulti(optionId, fieldIndex = state.formIndex) {
+  captureCurrentPage();
+  const field = state.currentTemplate.fields[fieldIndex];
   const answer = state.draft.answers[field.id] || { values: [], otherTextById: {} };
   const option = field.options.find((item) => item.id === optionId);
   let values = Array.isArray(answer.values) ? [...answer.values] : [];
@@ -2244,10 +2336,11 @@ async function toggleMulti(optionId) {
   render();
 }
 
-async function selectRating(rawValue) {
+async function selectRating(rawValue, fieldIndex = state.formIndex) {
   const numeric = Number(rawValue);
   const value = Number.isFinite(numeric) && rawValue.trim() !== "" ? numeric : rawValue;
-  const field = state.currentTemplate.fields[state.formIndex];
+  captureCurrentPage();
+  const field = state.currentTemplate.fields[fieldIndex];
   state.draft.answers[field.id] = value;
   await persistDraft();
   render();
@@ -2265,6 +2358,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 app.addEventListener("click", async (event) => {
+  if (!event.target.closest(".swipe-action, .swipe-row.revealed")) closeSwipeRows();
   if (state.questionTypePickerOpen && !event.target.closest(".question-type-dialog, .editor-type-popover")) {
     event.preventDefault();
     closeQuestionTypePicker();
@@ -2291,7 +2385,7 @@ app.addEventListener("click", async (event) => {
   }
 });
 
-app.addEventListener("input", () => {
+app.addEventListener("input", (event) => {
   if (state.view === "templateMetaEditor") {
     captureTemplateMetaEditor();
     persistTemplateEditorDraft().catch(console.error);
@@ -2302,10 +2396,12 @@ app.addEventListener("input", () => {
     return;
   }
   if (state.view !== "form") return;
-  captureCurrentField();
-  const field = state.currentTemplate.fields[state.formIndex];
+  captureCurrentPage();
+  const repeatedContainer = event?.target?.closest?.("[data-question-index]");
+  const fieldIndex = Number(repeatedContainer?.dataset.questionIndex ?? state.formIndex);
+  const field = state.currentTemplate.fields[fieldIndex];
   if (field?.type === "repeatedNumber") {
-    const summary = app.querySelector("[data-repeated-summary]");
+    const summary = repeatedContainer?.querySelector("[data-repeated-summary]");
     const answer = state.draft.answers[field.id];
     if (summary) {
       summary.innerHTML = repeatedSummaryHtml(field, answer);
@@ -2322,8 +2418,9 @@ app.addEventListener("change", async (event) => {
     return;
   }
   if (state.view !== "form" || !event.target.matches("[data-anonymous]")) return;
-  captureCurrentField();
-  const field = state.currentTemplate.fields[state.formIndex];
+  const fieldIndex = Number(event.target.dataset.fieldIndex ?? state.formIndex);
+  captureFieldAt(fieldIndex);
+  const field = state.currentTemplate.fields[fieldIndex];
   if (event.target.checked) state.draft.answers[field.id].value = "";
   await persistDraft();
   render();

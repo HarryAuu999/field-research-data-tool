@@ -1,11 +1,24 @@
-import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.3.6";
-import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.3.6";
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.3.7";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.3.7";
 
 const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);
 
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+export function normalizeTemplateImport(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  let candidate = input;
+  if (candidate.schemaVersion === undefined) {
+    const wrapped = ["questionnaire", "template"]
+      .map((key) => candidate[key])
+      .filter((value) => value && typeof value === "object" && !Array.isArray(value));
+    if (wrapped.length === 1) candidate = wrapped[0];
+  }
+  if (candidate.schemaVersion === "1") candidate = { ...candidate, schemaVersion: 1 };
+  return candidate;
 }
 
 function validateAnalysisConfig(config, fields) {
@@ -36,7 +49,12 @@ function validateAnalysisConfig(config, fields) {
 
 export function validateTemplate(input, { importedAt = new Date().toISOString() } = {}) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("问卷JSON的最外层必须是一个对象");
-  if (input.schemaVersion !== 1) throw new Error("目前只支持 schemaVersion 为 1 的问卷模板");
+  if (input.schemaVersion !== 1) {
+    const hasVersion = Object.prototype.hasOwnProperty.call(input, "schemaVersion");
+    const received = hasVersion ? `${JSON.stringify(input.schemaVersion)}（${typeof input.schemaVersion}）` : "未找到";
+    const keys = Object.keys(input).slice(0, 8).join("、") || "无";
+    throw new Error(`目前只支持 schemaVersion 为数字1的问卷模板；实际读取：${received}；顶层字段：${keys}`);
+  }
   for (const key of ["id", "version", "title"]) {
     if (typeof input[key] !== "string" || !input[key].trim()) throw new Error(`问卷缺少有效的 ${key}`);
   }
@@ -50,7 +68,9 @@ export function validateTemplate(input, { importedAt = new Date().toISOString() 
     ids.add(field.id);
     if (!SUPPORTED_FIELD_TYPES.has(field.type)) throw new Error(`不支持的题型：${field.type}`);
     if (typeof field.label !== "string" || !field.label.trim()) throw new Error(`题目 ${field.id} 缺少标题`);
-
+    if (field.page !== undefined && (typeof field.page !== "string" || !field.page.trim())) {
+      throw new Error(`题目 ${field.id} 的 page 必须是非空字符串`);
+    }
     if (["singleChoice", "multiChoice"].includes(field.type)) {
       if (!Array.isArray(field.options) || field.options.length === 0) throw new Error(`题目 ${field.label} 缺少选项`);
       const optionIds = new Set();
@@ -82,6 +102,15 @@ export function validateTemplate(input, { importedAt = new Date().toISOString() 
       }
     }
   });
+
+  if (input.recordLabelField !== undefined) {
+    if (typeof input.recordLabelField !== "string" || !ids.has(input.recordLabelField)) {
+      throw new Error("recordLabelField 必须引用一个现有题目ID");
+    }
+    if (input.fields.find((field) => field.id === input.recordLabelField)?.type === "section") {
+      throw new Error("recordLabelField 不能引用 section");
+    }
+  }
 
   if (input.analysis !== undefined) validateAnalysisConfig(input.analysis, input.fields);
 
