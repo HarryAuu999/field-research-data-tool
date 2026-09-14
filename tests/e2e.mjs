@@ -1,24 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
+import { appVersion } from "./version-consistency.mjs";
 
 const outputDir = path.resolve("test-results");
 await fs.mkdir(outputDir, { recursive: true });
-
-const [indexSource, appSource, workerSource] = await Promise.all([
-  fs.readFile("index.html", "utf8"),
-  fs.readFile("js/app.js", "utf8"),
-  fs.readFile("sw.js", "utf8")
-]);
-const appVersion = appSource.match(/const APP_VERSION = "([^"]+)";/)?.[1];
-const workerVersion = workerSource.match(/const APP_VERSION = "([^"]+)";/)?.[1];
-assert(appVersion && appVersion === workerVersion, "app.js 与 sw.js 的应用版本不一致");
-assert(indexSource.includes(`./styles.css?v=${appVersion}`), "入口样式缺少当前版本参数");
-assert(indexSource.includes(`./js/app.js?v=${appVersion}`), "入口脚本缺少当前版本参数");
-for (const moduleName of ["db", "default-template", "questionnaire-editor", "question-reorder", "statistics"]) {
-  assert(appSource.includes(`./${moduleName}.js?v=${appVersion}`), `${moduleName}.js 导入缺少当前版本参数`);
-  assert(workerSource.includes(`./js/${moduleName}.js?v=${appVersion}`), `${moduleName}.js 未按当前版本加入离线缓存`);
-}
 
 const browser = await chromium.launch({
   headless: true,
@@ -247,7 +233,7 @@ assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
 await page.evaluate(() => navigator.serviceWorker?.ready);
 await clickAction("check-update");
-await page.getByText("当前已是最新版本 V1.3.3", { exact: true }).waitFor();
+await page.getByText(`当前已是最新版本 V${appVersion}`, { exact: true }).waitFor();
 
 await clickAction("start-form");
 await page.locator("[data-field-input]").fill("测试参与者A");
@@ -528,6 +514,13 @@ const recordDeleteButton = page.locator('[data-action="delete-record-by-id"]');
 await recordDeleteButton.waitFor();
 assert(await page.locator('[data-record-row]').getAttribute("class").then((value) => value.includes("revealed")), "样本左滑后没有显示删除操作");
 assert(await page.locator('[data-record-row] [data-action="duplicate-template"]').count() === 0, "样本左滑错误显示复制操作");
+await page.waitForTimeout(220);
+const recordSwipeGeometry = await page.locator('[data-record-row]').evaluate((row) => {
+  const content = row.querySelector(".swipe-content").getBoundingClientRect();
+  const remove = row.querySelector(".swipe-delete").getBoundingClientRect();
+  return { contentRight: content.right, deleteLeft: remove.left };
+});
+assert(recordSwipeGeometry.deleteLeft >= recordSwipeGeometry.contentRight, "样本垃圾桶没有显示在内容框外侧");
 await recordDeleteButton.click();
 await confirmCustomDialog("删除样本");
 await page.getByText("还没有已记录样本", { exact: true }).waitFor();

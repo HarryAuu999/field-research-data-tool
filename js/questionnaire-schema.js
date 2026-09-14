@@ -1,0 +1,92 @@
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.3.6";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.3.6";
+
+const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution"]);
+const ANALYSIS_THEMES = new Set(["blue", "orange"]);
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function validateAnalysisConfig(config, fields) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
+  if (!ANALYSIS_TYPES.has(config.type)) throw new Error("目前只支持 distribution 或 descriptiveDistribution 分析");
+  if (config.aggregation !== "participantMean") throw new Error("分布分析必须按参与者平均值汇总");
+  if (config.binWidth !== undefined && (!Number.isFinite(config.binWidth) || config.binWidth <= 0)) {
+    throw new Error("分布分析的固定区间宽度必须大于0；不填写时将自动分箱");
+  }
+  if (config.type === "distribution" && (!Array.isArray(config.percentiles) || !config.percentiles.length)) {
+    throw new Error("distribution 分布分析至少需要一个百分位");
+  }
+  if (config.percentiles !== undefined && (!Array.isArray(config.percentiles) || !config.percentiles.length || config.percentiles.some((value) => !Number.isFinite(value) || value <= 0 || value >= 100))) {
+    throw new Error("分布分析的百分位设置无效");
+  }
+  if (config.statistics !== undefined && (!Array.isArray(config.statistics) || !config.statistics.length || new Set(config.statistics).size !== config.statistics.length || config.statistics.some((value) => !DESCRIPTIVE_STATISTICS.includes(value)))) {
+    throw new Error("描述性统计项目设置无效");
+  }
+  if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("分布分析至少需要一个数字题");
+  const fieldMap = new Map(fields.map((field) => [field.id, field]));
+  for (const item of config.fields) {
+    const field = fieldMap.get(item?.id);
+    if (!field || !["number", "repeatedNumber"].includes(field.type)) throw new Error(`简易分析字段无效：${item?.id || "未命名"}`);
+    if (item.label !== undefined && (typeof item.label !== "string" || !item.label.trim())) throw new Error(`简易分析字段 ${item.id} 的标题无效`);
+    if (item.theme !== undefined && !ANALYSIS_THEMES.has(item.theme)) throw new Error(`简易分析字段 ${item.id} 的主题色无效`);
+  }
+}
+
+export function validateTemplate(input, { importedAt = new Date().toISOString() } = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("问卷JSON的最外层必须是一个对象");
+  if (input.schemaVersion !== 1) throw new Error("目前只支持 schemaVersion 为 1 的问卷模板");
+  for (const key of ["id", "version", "title"]) {
+    if (typeof input[key] !== "string" || !input[key].trim()) throw new Error(`问卷缺少有效的 ${key}`);
+  }
+  if (!Array.isArray(input.fields) || input.fields.length === 0) throw new Error("问卷至少需要一道题目");
+
+  const ids = new Set();
+  input.fields.forEach((field, index) => {
+    if (!field || typeof field !== "object") throw new Error(`第${index + 1}项不是有效题目`);
+    if (typeof field.id !== "string" || !field.id.trim()) throw new Error(`第${index + 1}项缺少题目ID`);
+    if (ids.has(field.id)) throw new Error(`题目ID重复：${field.id}`);
+    ids.add(field.id);
+    if (!SUPPORTED_FIELD_TYPES.has(field.type)) throw new Error(`不支持的题型：${field.type}`);
+    if (typeof field.label !== "string" || !field.label.trim()) throw new Error(`题目 ${field.id} 缺少标题`);
+
+    if (["singleChoice", "multiChoice"].includes(field.type)) {
+      if (!Array.isArray(field.options) || field.options.length === 0) throw new Error(`题目 ${field.label} 缺少选项`);
+      const optionIds = new Set();
+      for (const option of field.options) {
+        if (!option.id || !option.label) throw new Error(`题目 ${field.label} 存在无效选项`);
+        if (optionIds.has(option.id)) throw new Error(`题目 ${field.label} 的选项ID重复`);
+        optionIds.add(option.id);
+      }
+    }
+
+    if (field.type === "rating" && (!Number.isInteger(field.min) || !Number.isInteger(field.max) || field.min >= field.max)) {
+      throw new Error(`评分题 ${field.label} 的分值范围无效`);
+    }
+
+    if (field.type === "repeatedNumber") {
+      if (!Number.isInteger(field.repeatCount) || field.repeatCount < 2 || field.repeatCount > 10) {
+        throw new Error(`重复数字题 ${field.label} 的填写次数必须是2至10`);
+      }
+      const minEntries = field.minEntries ?? (field.required ? 1 : 0);
+      if (!Number.isInteger(minEntries) || minEntries < 0 || minEntries > field.repeatCount) {
+        throw new Error(`重复数字题 ${field.label} 的最少填写数量无效`);
+      }
+    }
+
+    if (field.image?.src) {
+      const src = String(field.image.src);
+      if (!src.startsWith("data:image/") && !src.startsWith("./assets/")) {
+        throw new Error(`题目 ${field.label} 的图片必须嵌入JSON，不能依赖外部网址`);
+      }
+    }
+  });
+
+  if (input.analysis !== undefined) validateAnalysisConfig(input.analysis, input.fields);
+
+  const template = deepClone(input);
+  template.key = `${template.id}@${template.version}`;
+  template.importedAt = template.importedAt || importedAt;
+  return template;
+}

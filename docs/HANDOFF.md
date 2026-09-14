@@ -2,7 +2,7 @@
 
 更新日期：2026-09-14
 
-当前正式版本：V1.3.3
+当前正式版本：V1.3.6
 
 ## 项目与地址
 
@@ -21,7 +21,7 @@
 - 不要修改或混入独立项目 `earclip-force-curve-tool` 的文件。
 - “已编码、已测试、已提交、已推送、已部署、iPhone实机验证”是不同状态，交接时必须分开说明。
 
-## V1.3.3 已实现
+## V1.3.6 已实现
 
 - 新安装只内置一份“佩戴耳厚数据采集 V1.1”示例问卷；更新旧设备时，不主动删除其已有V1.0或其他问卷。
 - 问卷管理支持复制和删除。复制后留在管理页，用户自行打开副本。
@@ -36,11 +36,15 @@
 - 主页显示当前问卷背景；支持草稿、记录查看与修改、CSV导出、完整JSON备份和恢复。
 - 首页记录入口使用“已记录样本”，避免把一份参与者记录误称为一份问卷。
 - 样本列表页标题统一为“已记录样本”；列表左滑只显示删除垃圾桶，不提供复制。记录详情无需“编辑记录”按钮，直接点击问题修改；已有样本修改不写入问卷草稿，返回时依次回到记录详情、样本列表和主页。
+- 样本列表恢复为紧凑行式布局，左滑后垃圾桶显示在移动内容框外；主页与返回页顶部栏尺寸统一，并放大返回图标。
+- 问卷概览保存成功提示显示在底部操作栏上方，不遮挡按钮；其他Toast仍使用默认位置。
 - 特定问卷可配置简易分析；当前示例包含水平和倾斜耳厚的直方图、KDE曲线、正态参考曲线、P20/P50/P80及触摸查看P值。
 - `distribution`继续兼容；新增通用`descriptiveDistribution`配置与描述性统计摘要，并提供AI转换指南、JSON Schema和两份示例问卷。
 - 应用图标改用`assets/App-icon2.svg`，并生成180、192和512像素PNG图标。
+- Android安装清单使用192和512像素PNG普通图标并提供稳定PWA ID；SVG继续作为网页favicon。新增Pixel 7核心流程测试，覆盖填写、保存、修改、触摸左滑、CSV和离线重开。
 - 更新提示包含版本概况，并提供“立即更新”“此次不更新”“跳过此版本”。
 - 入口样式、主模块及其依赖使用随版本变化的URL；即使设备仍由V1.0.0等旧Service Worker控制，也不会继续命中过期的静态资源缓存。
+- 问卷JSON校验已从主应用拆到独立模块；统计、问卷编辑、校验、版本、基础UI和Android均有可单独运行的快速测试，开发时按改动范围选择最小测试集。
 
 ## 代码结构
 
@@ -50,11 +54,14 @@
 - `js/db.js`：IndexedDB数据读写。
 - `js/default-template.js`：内置V1.1示例问卷和分析预设。
 - `js/questionnaire-editor.js`：问卷复制、编辑、题型与版本处理。
+- `js/questionnaire-schema.js`：schemaVersion 1问卷与分析配置校验。
 - `js/question-reorder.js`：手机端长按拖动问题排序。
 - `sw.js`：离线缓存、应用版本及更新概况。
 - `docs/questionnaire-template.md`：问卷JSON格式说明。
 - `tests/e2e.mjs`：主要填写、数据与离线回归测试。
 - `tests/editor-e2e.mjs`：问卷复制、编辑、排序和版本规则测试。
+- `tests/statistics.mjs`、`tests/questionnaire-editor.mjs`、`tests/questionnaire-schema.mjs`：纯逻辑快速测试。
+- `tests/version-consistency.mjs`、`tests/ui-smoke.mjs`、`tests/android-smoke.mjs`：版本缓存、基础手机UI和Android核心流程测试。
 
 ## 本地运行与测试
 
@@ -69,6 +76,12 @@ python -m http.server 4173
 小修改先只检查受影响模块；正式发布前运行完整测试：
 
 ```powershell
+node tests/statistics.mjs
+node tests/questionnaire-editor.mjs
+node tests/questionnaire-schema.mjs
+node tests/version-consistency.mjs
+node tests/ui-smoke.mjs
+node tests/android-smoke.mjs
 node tests/e2e.mjs
 node tests/editor-e2e.mjs
 ```
@@ -91,7 +104,7 @@ node tests/editor-e2e.mjs
 ## 下一任务建议先做什么
 
 1. 读取 `AGENTS.md`、本文件、`README.md` 和当前 `git status`。
-2. 让用户报告V1.3.3在iPhone主屏幕PWA中的更新结果与具体问题。
+2. 让用户报告V1.3.6在iPhone及Android主屏幕PWA中的更新结果与具体问题。
 3. 只修改用户明确提出的部分；未变化模块做针对性而非重复性测试。
 4. 每次正式发布前仍执行两套完整回归测试，并核对GitHub Pages真实访问版本。
 

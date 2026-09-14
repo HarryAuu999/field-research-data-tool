@@ -3,6 +3,7 @@
   "short_name": "AuNote",
   "description": "离线用户研究问卷记录与导出工具",
   "lang": "zh-CN",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -13,19 +14,13 @@
       "src": "./assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./assets/App-icon2.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

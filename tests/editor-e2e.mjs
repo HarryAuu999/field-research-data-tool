@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import fs from "node:fs/promises";
+import { appVersion } from "./version-consistency.mjs";
 
 const browser = await chromium.launch({
   headless: true,
@@ -71,12 +72,12 @@ const noRecordContext = await browser.newContext({ viewport: { width: 390, heigh
 const noRecordPage = await noRecordContext.newPage();
 await noRecordPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 assert(await noRecordPage.locator("#update-skip").count() === 1 && await noRecordPage.locator("#update-later").count() === 1, "更新提示缺少跳过或此次不更新操作");
-await noRecordPage.evaluate(() => {
-  document.querySelector("#update-title").textContent = "发现新版本 V1.3.3";
+await noRecordPage.evaluate((version) => {
+  document.querySelector("#update-title").textContent = `发现新版本 V${version}`;
   document.querySelector("#update-summary").textContent = "本次更新：改进问卷编辑体验，并修复已知问题。";
   document.querySelector("#update-dialog").hidden = false;
   document.body.classList.add("dialog-open");
-});
+}, appVersion);
 await noRecordPage.screenshot({ path: "test-results/mobile-update-dialog.png" });
 await noRecordPage.evaluate(() => {
   document.querySelector("#update-dialog").hidden = true;
@@ -180,6 +181,12 @@ await noRecordPage.getByRole("button", { name: "保存问卷", exact: true }).wa
 await noRecordPage.getByRole("button", { name: "保存问卷", exact: true }).click();
 await noRecordPage.locator("#toast", { hasText: "问卷已保存为" }).waitFor();
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
+const savedToastPosition = await noRecordPage.evaluate(() => {
+  const toast = document.querySelector("#toast").getBoundingClientRect();
+  const footer = document.querySelector(".overview-footer").getBoundingClientRect();
+  return { toastBottom: toast.bottom, footerTop: footer.top };
+});
+assert(savedToastPosition.toastBottom < savedToastPosition.footerTop, "问卷保存成功提示遮挡了底部操作按钮");
 const noRecordData = await databaseSnapshot(noRecordPage);
 assert(!noRecordData.templates.some((item) => item.key === emptySource.key), "无记录问卷编辑后仍保留旧的空模板");
 const replaced = noRecordData.templates.find((item) => item.title === "无记录问卷修改测试");

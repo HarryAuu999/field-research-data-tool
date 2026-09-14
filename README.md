@@ -2,7 +2,7 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 CSV。
 
-当前状态：**正式版 V1.3.3**。本地自动化测试已通过，正式版本通过 GitHub Pages 发布。入口样式和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.3.6**。本地自动化测试已通过，正式版本通过 GitHub Pages 发布。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
 ## 手机测试地址
 
@@ -57,6 +57,11 @@ http://127.0.0.1:4173/
 
 ```powershell
 node tests/statistics.mjs
+node tests/questionnaire-editor.mjs
+node tests/questionnaire-schema.mjs
+node tests/version-consistency.mjs
+node tests/ui-smoke.mjs
+node tests/android-smoke.mjs
 node tests/e2e.mjs
 node tests/editor-e2e.mjs
 ```
