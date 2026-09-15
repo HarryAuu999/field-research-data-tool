@@ -111,6 +111,7 @@ await longPressReorder(noRecordPage);
 const reorderedInitialOrder = await noRecordPage.locator("[data-editor-field-id]").evaluateAll((items) => items.map((item) => item.dataset.editorFieldId));
 assert(JSON.stringify(initialOrder) !== JSON.stringify(reorderedInitialOrder), "长按拖动没有改变问题顺序");
 await noRecordPage.getByRole("button", { name: "保存问卷", exact: true }).waitFor();
+assert(await noRecordPage.getByRole("button", { name: "另存为副本", exact: true }).isVisible(), "问卷修改后缺少另存为副本操作");
 await noRecordPage.screenshot({ path: "test-results/mobile-questionnaire-editor.png", fullPage: true });
 await noRecordPage.locator('[data-action="open-editor-meta"]').click();
 await noRecordPage.locator("[data-editor-template-title]").fill("无记录问卷修改测试");
@@ -272,7 +273,23 @@ assert(copied && copied.id !== oldVersion.id && copied.version === "1.0", "复�
 assert(!copiedData.records.some((item) => item.templateKey === copied.key), "复制问卷错误地复制了记录");
 assert(copied.analysis?.fields?.length === 2, "复制问卷没有保留简易分析设置");
 
+await recordedPage.locator('[data-action="open-editor-meta"]').click();
+await recordedPage.locator('[data-editor-template-description]').fill("第一行背景\n第二行背景");
+await recordedPage.getByRole("button", { name: "完成", exact: true }).click();
+await recordedPage.getByRole("button", { name: "另存为副本", exact: true }).click();
+await recordedPage.locator("#toast", { hasText: "问卷已另存为副本" }).waitFor();
+const savedCopyData = await databaseSnapshot(recordedPage);
+const savedCopy = savedCopyData.templates.find((item) => item.title === "佩戴耳厚数据采集（副本）（副本）");
+assert(savedCopy && savedCopy.id !== copied.id && savedCopy.version === "1.0", "另存为副本没有生成独立问卷身份");
+assert(savedCopy.description === "第一行背景\n第二行背景", "另存为副本没有保留编辑后的多行背景");
+assert(!savedCopyData.records.some((item) => item.templateKey === savedCopy.key), "另存为副本错误地复制了样本");
 await recordedPage.locator('[data-action="leave-template-overview"]').click();
+await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
+await recordedPage.locator('[data-action="home"]').click();
+const multilineBackground = recordedPage.locator(".hero-description");
+assert(await multilineBackground.innerText() === "第一行背景\n第二行背景", "首页没有保留问卷背景换行");
+assert(await multilineBackground.evaluate((element) => getComputedStyle(element).whiteSpace) === "pre-line", "首页问卷背景没有启用换行显示");
+await recordedPage.locator('[data-action="templates"]').first().click();
 await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.1"]').click();
 await recordedPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
 await recordedPage.getByText("1 份", { exact: true }).waitFor();
@@ -286,5 +303,5 @@ assert(!oldCsv.includes("偏好原因（已删除）"), "旧版本CSV错误地�
 
 await recordedContext.close();
 
-console.log(JSON.stringify({ passed: true, scenarios: ["empty-template-replace", "recorded-template-versioning", "copy-without-records", "long-press-reorder", "overview-swipe-delete", "swipe-outside-dismiss"] }, null, 2));
+console.log(JSON.stringify({ passed: true, scenarios: ["empty-template-replace", "recorded-template-versioning", "save-as-copy", "multiline-home-description", "copy-without-records", "long-press-reorder", "overview-swipe-delete", "swipe-outside-dismiss"] }, null, 2));
 await browser.close();

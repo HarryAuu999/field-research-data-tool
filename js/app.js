@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.3.7";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.7";
+} from "./db.js?v=1.3.8";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.8";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,9 +29,9 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.3.7";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.3.7";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.3.7";
+} from "./questionnaire-editor.js?v=1.3.8";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.3.8";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.3.8";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -39,9 +39,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.3.7";
+} from "./statistics.js?v=1.3.8";
 
-const APP_VERSION = "1.3.7";
+const APP_VERSION = "1.3.8";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -482,7 +482,11 @@ function renderTemplateOverview() {
         ${state.editorDirty ? '<button class="editor-discard-link" type="button" data-action="discard-template-editor">放弃本次修改</button>' : ""}
         <button class="overview-delete-link" type="button" data-action="delete-template" data-key="${escapeHtml(sourceTemplate.key)}">删除此问卷</button>
       </div>
-      <footer class="overview-footer"><button class="primary-button" type="button" data-action="${state.editorDirty ? "save-template-editor" : "select-template"}" data-key="${escapeHtml(sourceTemplate.key)}">${state.editorDirty ? "保存问卷" : "选择此问卷"}</button></footer>
+      <footer class="overview-footer ${state.editorDirty ? "overview-footer-actions" : ""}">
+        ${state.editorDirty
+          ? '<button class="primary-button" type="button" data-action="save-template-editor">保存问卷</button><button class="secondary-button" type="button" data-action="save-template-editor-copy">另存为副本</button>'
+          : `<button class="primary-button" type="button" data-action="select-template" data-key="${escapeHtml(sourceTemplate.key)}">选择此问卷</button>`}
+      </footer>
     </section>
     ${typePicker}`;
   const list = app.querySelector(".overview-question-list");
@@ -805,6 +809,24 @@ async function saveTemplateEditor() {
   await loadTemplateCounts();
   await openTemplateOverview(candidate.key);
   showToast(`问卷已保存为 V${candidate.version}，并设为当前问卷`, 2600, "aboveOverviewFooter");
+}
+
+async function saveTemplateEditorCopy() {
+  if (!state.editorTemplate || !state.editorSourceKey) return;
+  const source = await getTemplate(state.editorSourceKey);
+  if (!source) throw new Error("原问卷已经不存在");
+  const candidate = validateTemplate({
+    ...duplicateTemplate(state.editorTemplate, analysisConfig(state.editorTemplate)),
+    importedAt: nowIso()
+  });
+  await putTemplate(candidate);
+  await setSetting("currentTemplateKey", candidate.key);
+  await deleteSetting(editorDraftSettingKey(source.key));
+  clearTemplateEditorState();
+  await refreshContext();
+  await loadTemplateCounts();
+  await openTemplateOverview(candidate.key);
+  showToast("问卷已另存为副本，并设为当前问卷", 2600, "aboveOverviewFooter");
 }
 
 async function discardTemplateEditor() {
@@ -2268,6 +2290,7 @@ async function handleAction(action, element) {
     case "delete-overview-question": await deleteOverviewQuestion(element.dataset.key, element.dataset.index); break;
     case "delete-editor-question": await deleteEditorQuestion(); break;
     case "save-template-editor": await saveTemplateEditor(); break;
+    case "save-template-editor-copy": await saveTemplateEditorCopy(); break;
     case "discard-template-editor": await discardTemplateEditor(); break;
     case "leave-template-editor": await leaveTemplateEditor(); break;
     case "records":
