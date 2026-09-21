@@ -1,61 +1,68 @@
-# Earclip Force Curve Tool — Public Demo
+# Earclip Force Curve Tool｜耳夹佩戴人因分析工具
 
-A lightweight human-factors analysis tool for **ear-clip / open-ear headphones**.
+这是一个用于**耳夹式 / 开放式耳机佩戴人因研究**的轻量级分析工具。
 
-This public demo shows how I connect **objective mechanical measurements** with **anthropometric ear-thickness data** to support wearable-product evaluation.
+它的目的不是单纯记录“夹持力有多大”，而是尝试把：
 
-## What this tool is for
+> **人体耳厚差异 × 产品机械载荷 × 主观佩戴体验**
 
-Ear-clip comfort is not determined by clamping force alone. The same product can feel very different across users because ear thickness varies, and force changes as the clip opens.
+放到同一个分析框架里，用更客观的方法辅助舒适度、稳固性和结构设计研究。
 
-This tool therefore combines:
+## 为什么做这个工具
 
-- Ear-thickness distribution and percentile references (P20 / P50 / P80)
-- Thin / Mid / Thick ear population zones
-- Force–opening-distance curves
-- Repeated measurement averaging
-- Contact-area / pressure analysis support
-- Product-to-product curve comparison
+耳夹耳机的主观佩戴体验并不只由一个固定的“夹持力”决定。
 
-The goal is to help translate subjective questions such as **“Does this ear clip feel too tight?”** into a more structured relationship between:
+不同用户耳厚不同，耳机被撑开的距离不同，实际作用力也会变化。因此，同一款产品在不同人群上的体验可能明显不同。
 
-> **Anthropometrics × Mechanical load × Subjective wearing experience**
+这个工具把耳厚分布与产品力学曲线结合起来，帮助研究人员观察：
 
-## Public demo data
+- 不同耳厚人群对应的实际佩戴开口区间；
+- 产品在不同开口量下的夹持力变化；
+- P20 / P50 / P80 对应的薄耳、中耳、厚耳分层；
+- 不同产品在目标人群区间内的力学差异；
+- 在有接触面积数据时进一步观察压强变化。
 
-For portfolio demonstration, this version contains only two publicly available commercial products:
+## Public Demo 展示内容
 
-- HUAWEI FreeClip 2
-- Shokz OpenDots 2
+为保护内部项目资料，本公开版本只保留两款已上市商业产品作为示例：
 
-Other internal project curves and product data have been removed.
+- **HUAWEI FreeClip 2**
+- **Shokz OpenDots 2**
 
-The embedded ear-thickness population statistics are retained because they are required to demonstrate the Thin / Mid / Thick user-group analysis workflow.
+其他内部项目曲线、项目编号和未公开产品数据均已移除。
 
-## How to use
+公开版本保留了耳厚统计数据，因为它们用于展示薄 / 中 / 厚耳人群分层及人因分析方法。
 
-Open the online demo and view the two product curves against the ear-thickness population zones.
+## 核心功能
 
-The tool can also:
+- 记录不同间距下的重复拉力测量，并自动取平均值；
+- 扣除测试治具空载基线；
+- 绘制多产品力曲线进行横向比较；
+- 显示耳厚分布与 P20 / P50 / P80 人群区间；
+- 支持薄耳 / 中耳 / 厚耳区域可视化；
+- 支持接触面积与压强分析；
+- 支持曲线临时平移，用于结构方案探索；
+- 支持项目 JSON 导入 / 导出和图表导出。
 
-- Show / hide measurement points
-- Compare force curves
-- Switch between force and pressure views when contact-area data is available
-- Move curves temporarily for design exploration
-- Import / export compatible project JSON files
+## 建议查看方式
 
-## Research context
+直接打开在线 Demo，先观察 **FreeClip 2 与 OpenDots 2 的曲线**，再结合图中的薄耳 / 中耳 / 厚耳区域理解不同人群在实际佩戴时对应的受力区间。
 
-This tool is part of a broader effort to digitize and standardize hardware human-factors research workflows.
+## Research Workflow
 
-Related tool:
+该工具属于我搭建的一套消费电子人因研究工作流的一部分：
 
-**AuNote** — a local-first PWA for structured field-research data collection, questionnaire import, participant records, anthropometric analysis and CSV / JSON export.
+**用户 / 人体数据采集 → 产品客观测量 → 主观体验研究 → 数据分析 → 产品定义与设计验证**
+
+配套工具：
+
+**AuNote** —— 用于现场用户研究、结构化问卷采集、人体数据记录与导出的本地 PWA。
 
 ## Privacy
 
-This repository is a **sanitized portfolio demo**. It does not contain confidential client projects, unreleased product data, or identifiable participant information.
+这是用于作品展示的**脱敏公开版本**，不包含未公开客户项目、内部产品曲线或可识别的用户信息。
 
 ---
 
-Designed and built by Harry for consumer-electronics human-factors research.
+Designed & built by Harry  
+Consumer Electronics · User Research · Human Factors
