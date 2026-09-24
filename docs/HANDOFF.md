@@ -6,9 +6,9 @@
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | GitHub Pages 上的 V1.3.8；仓库 main / origin/main 位于 a2860c4 | https://harryauu999.github.io/field-research-data-tool/ 。这不是 Beta；不要将测试改动直接并入或覆盖它。 |
-| Beta 源码 | 本机分支 codex/aunote-beta-1.4.2，应用代码提交 5ffef44，应用版本 V1.4.2-beta.3；交接文档可能在后续本地提交中 | 2026-09-24 检查 GitHub 分支时未见此 Beta 分支。另一台设备只克隆 GitHub 仓库，无法得到这份源码及本文的新内容。需要用户明确同意推送单独分支，或由用户安全地传递代码。未经明确要求不得推送 GitHub。 |
-| Beta 网页 | 已部署到独立测试站点 https://aunote-beta.harryxiangyu.chatgpt.site/ | Codex Sites 站点 ID 为 appgprj_6ab4f840c94481919e80a1b4dad7b22c；部署状态为 succeeded，站点快照提交 89948d4。仅所有者账号可访问；真实 iPhone 安装、触控、离线尚待用户验收。网页已部署不等于源码已进 GitHub，也不等于实机通过。 |
+| 正式版 | GitHub Pages 上的 V1.3.8；2026-09-24 远端 origin/main 位于 5bc998b，本机 main 仍位于 a2860c4 | https://harryauu999.github.io/field-research-data-tool/ 。远端后续提交增加独立的人因工程演示，不是 Beta；不要把它混进本次 AuNote Beta 分支，也不要将测试改动直接并入正式版。 |
+| Beta 源码 | GitHub 独立分支 codex/aunote-beta-1.4.2，应用版本 V1.4.2-beta.3 | 从 https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2 获取；不要只克隆默认 main 后直接开发。此分支以正式版 a2860c4 为基底，不含后来独立的人因工程演示提交。|
+| Beta 网页 | 已部署到独立测试站点 https://aunote-beta.harryxiangyu.chatgpt.site/ | Codex Sites 站点 ID 为 appgprj_6ab4f840c94481919e80a1b4dad7b22c；部署状态为 succeeded，站点快照提交 89948d4。仅所有者账号可访问；真实 iPhone 安装、触控、离线尚待用户验收。网页部署与 GitHub 源码分支是两件事；推送源码不会自动更新测试网页。 |
 
 正式版和 Beta 是不同 origin、不同 PWA 安装入口与 Service Worker 作用域，浏览器 IndexedDB 不共享。即便同一站点，Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
 
@@ -64,7 +64,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 
 ## 接手时先做
 
-1. 读 AGENTS.md、本文件、README.md；检查 git status、当前分支和 GitHub 分支。若只拿到 GitHub main，应先说明 Beta 源码和本交接文件的新内容还未上传，不要在 V1.3.8 上假装拥有图片标注／热力图实现。
+1. 从 GitHub 的 codex/aunote-beta-1.4.2 分支检出代码，再读 AGENTS.md、本文件、README.md；检查 git status、当前分支和远端。默认 main 仍是 V1.3.8，不能在 main 上假装拥有图片标注／热力图实现。
 2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不自行扩大到另一个站点或把 Beta 公开。Beta 当前仅所有者账号可访问。是否公开需用户明确批准；不要上传真实样本来换取跨设备数据同步。
 3. 只改用户提出的行为，保留旧 schemaVersion 1、问卷版本、IndexedDB 和备份兼容；针对性测试后再按风险跑回归。
 4. 汇报时分开写：本地实现、测试通过、本地 Git 提交、GitHub 推送、Beta 部署成功、真实设备验证。尤其不要把独立 Beta 网页部署误称为 GitHub 正式版升级。
@@ -72,6 +72,6 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 ## 待验证与保留现场
 
 - 待验证：真实 iPhone Safari／主屏幕安装、手指连续绘制、离线重开与热力图可读性；只有站点所有者账号的访问体验。公开访问尚未授权。
-- GitHub 未包含当前 Beta 分支及本次更新后的 handoff；跨设备接手的先决条件是用户授权推送单独 Beta 分支或传递代码快照。
+- GitHub 的独立 Beta 分支包含源码和本交接文档；但本机未跟踪材料、浏览器 IndexedDB 样本、Codex Sites 账号权限和未公开的真实研究数据不会随 Git 同步。另一设备开发无需重做功能，现场样本如需迁移须经用户主动使用完整 JSON 备份／恢复。
 - 不处理：analysis/、demo/、design-qa.md、已有 outputs/ 和研究文件。它们仍留在原位；没有收到删除或归档确认。
 - 不适用：没有获准写入的平台长期记忆；本交接文档就是应共享的知识入口，不另造记忆副本。

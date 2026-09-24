@@ -6,7 +6,7 @@ AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员�
 
 Beta 测试站点：<https://aunote-beta.harryxiangyu.chatgpt.site/>。当前仅站点所有者账号可访问；手机端安装与离线体验仍需实机验收。
 
-新设备或其他 AI 接手开发时，先阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。注意：当前 Beta 源码与更新后的交接说明仍只在本机分支，尚未推送 GitHub；仅克隆公开仓库只能得到正式版。
+新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。默认 `main` 仍是正式版，不含 Beta 功能；Git 不会同步各设备浏览器里的样本和草稿。
 
 ## 手机测试地址
 
