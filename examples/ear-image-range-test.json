@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "ear-hook-annotation-acceptance",
+  "version": "1.0",
+  "title": "耳挂耳机接触与疼痛范围验收",
+  "description": "共3项研究问题、7个填写页面：姓名1页，接触范围3张图，疼痛区域3张图。每张图独立标注；同等级重复涂画仅补充范围。",
+  "recordLabelField": "name",
+  "fields": [
+    { "id": "name", "type": "shortText", "label": "姓名", "required": true, "placeholder": "请输入姓名" },
+    { "id": "contactSide", "type": "imageRange", "questionNumber": 2, "label": "选取耳挂耳机接触范围 · 侧面", "view": "side", "annotationType": "contact", "brushSize": 0.027, "levels": [{ "id": 1, "label": "接触范围" }], "image": { "src": "./assets/ear-side.png", "alt": "耳侧面", "width": 1149, "height": 1368 } },
+    { "id": "contactSection", "type": "imageRange", "questionNumber": 2, "label": "选取耳挂耳机接触范围 · 截面", "view": "side-section", "annotationType": "contact", "brushSize": 0.027, "levels": [{ "id": 1, "label": "接触范围" }], "image": { "src": "./assets/ear-side-section.png", "alt": "耳侧面截面曲线", "width": 4788, "height": 5700 } },
+    { "id": "contactBack", "type": "imageRange", "questionNumber": 2, "label": "选取耳挂耳机接触范围 · 背面", "view": "back", "annotationType": "contact", "brushSize": 0.027, "levels": [{ "id": 1, "label": "接触范围" }], "image": { "src": "./assets/ear-back.png", "alt": "耳背面", "width": 1122, "height": 1402 } },
+    { "id": "painSide", "type": "imageRange", "questionNumber": 3, "label": "选取疼痛区域 · 侧面", "view": "side", "annotationType": "pain", "brushSize": 0.027, "levels": [{ "id": 1, "label": "一般疼痛" }, { "id": 2, "label": "较为疼痛" }], "image": { "src": "./assets/ear-side.png", "alt": "耳侧面", "width": 1149, "height": 1368 } },
+    { "id": "painSection", "type": "imageRange", "questionNumber": 3, "label": "选取疼痛区域 · 截面", "view": "side-section", "annotationType": "pain", "brushSize": 0.027, "levels": [{ "id": 1, "label": "一般疼痛" }, { "id": 2, "label": "较为疼痛" }], "image": { "src": "./assets/ear-side-section.png", "alt": "耳侧面截面曲线", "width": 4788, "height": 5700 } },
+    { "id": "painBack", "type": "imageRange", "questionNumber": 3, "label": "选取疼痛区域 · 背面", "view": "back", "annotationType": "pain", "brushSize": 0.027, "levels": [{ "id": 1, "label": "一般疼痛" }, { "id": 2, "label": "较为疼痛" }], "image": { "src": "./assets/ear-back.png", "alt": "耳背面", "width": 1122, "height": 1402 } }
+  ],
+  "analysis": {
+    "type": "imageRangeHeatmap",
+    "fields": [
+      { "id": "contactSide", "label": "接触范围 · 侧面" },
+      { "id": "contactSection", "label": "接触范围 · 截面" },
+      { "id": "contactBack", "label": "接触范围 · 背面" },
+      { "id": "painSide", "label": "疼痛区域 · 侧面" },
+      { "id": "painSection", "label": "疼痛区域 · 截面" },
+      { "id": "painBack", "label": "疼痛区域 · 背面" }
+    ]
+  }
+}

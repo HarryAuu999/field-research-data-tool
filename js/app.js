@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.3.8";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.3.8";
+} from "./db.js?v=1.4.2-beta.3";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.3";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,9 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.3.8";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.3.8";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.3.8";
+} from "./questionnaire-editor.js?v=1.4.2-beta.3";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.3";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.3";
+import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.3";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.3";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.3";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -39,9 +42,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.3.8";
+} from "./statistics.js?v=1.4.2-beta.3";
 
-const APP_VERSION = "1.3.8";
+const APP_VERSION = "1.4.2-beta.3";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -241,8 +244,36 @@ async function seedDefaultTemplate() {
     }
   }
 
+  let completedSeedRevision = Math.max(seedRevision, 4);
+  if (seedRevision < 5) {
+    try {
+      const response = await fetch("./examples/ear-image-range-test.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const template = validateTemplate(await response.json());
+      if (!(await getTemplate(template.key))) await putTemplate(template);
+      completedSeedRevision = 5;
+    } catch (error) {
+      console.warn("本地图片标注验收问卷暂未载入；下次启动会重试", error);
+    }
+  }
+
+  if (completedSeedRevision >= 5 && completedSeedRevision < 6) {
+    try {
+      const response = await fetch("./examples/ear-image-range-test.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const source = validateTemplate(await response.json());
+      const stored = await getTemplate(source.key);
+      if (stored && !stored.analysis && JSON.stringify(stored.fields) === JSON.stringify(source.fields)) {
+        await putTemplate({ ...stored, analysis: deepClone(source.analysis) });
+      }
+      completedSeedRevision = 6;
+    } catch (error) {
+      console.warn("图片标注验收问卷的热力图配置暂未就绪；下次启动会重试", error);
+    }
+  }
+
   await setSetting("defaultTemplateSeeded", true);
-  await setSetting("builtInTemplateSeedRevision", 4);
+  await setSetting("builtInTemplateSeedRevision", completedSeedRevision);
 }
 
 async function refreshContext() {
@@ -285,6 +316,7 @@ function pageHeader(title, backAction = "home") {
 }
 
 function render() {
+  document.documentElement.classList.remove("annotation-page");
   state.analysisResizeObserver?.disconnect();
   state.analysisResizeObserver = null;
   state.editorReorderCleanup?.();
@@ -370,7 +402,7 @@ function renderHome() {
         <div class="home-actions">
           ${draftButtons}
           ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
-          <button class="secondary-button" type="button" data-action="export-csv" ${state.records.length ? "" : "disabled"}>导出 CSV 数据</button>
+          <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
         </div>
       </div>
       <footer class="home-footer">
@@ -448,7 +480,7 @@ function renderTemplateOverview() {
     const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
     return `${rowStart}
       <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
-        <div class="overview-question-heading"><span>Q${questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
+        <div class="overview-question-heading"><span>Q${field.questionNumber || questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
         <p class="overview-question-type">${escapeHtml(fieldTypeName(field.type))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
         ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
         ${options}
@@ -1108,7 +1140,7 @@ function renderRecordDetail() {
     return `
       <button class="detail-row" type="button" data-action="edit-record-at" data-field-index="${fieldIndex}" aria-label="编辑${escapeHtml(field.label)}">
         <span class="detail-row-copy">
-          <span class="detail-label">${displayIndex}. ${escapeHtml(field.label)}</span>
+          <span class="detail-label">${field.questionNumber || displayIndex}. ${escapeHtml(field.label)}</span>
           <span class="detail-value">${escapeHtml(formatAnswer(field, record.answers[field.id]) || "未填写")}</span>
         </span>
         <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
@@ -1476,12 +1508,66 @@ function analysisStatisticsHtml(config, values, field) {
     ${detailKeys.length ? `<details class="analysis-more"><summary>更多统计</summary>${statisticGridHtml(detailKeys, stats, values, field, "analysis-detail-stats")}</details>` : ""}`;
 }
 
+function renderImageRangeAnalysis(config) {
+  const fields = config.fields.map((item) => ({
+    item,
+    field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
+  }));
+  const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
+  const scaleTicks = scaleMaximum === 0 ? [0] : Array.from(new Set(Array.from({ length: Math.min(6, scaleMaximum + 1) }, (_, index) => Math.round(index * scaleMaximum / Math.min(5, scaleMaximum)))));
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">每位参与者在同一位置最多计 1 人；颜色边缘仅为显示柔化，人数累计不被改变。三张视图使用相同的人数色标。</p>
+        <section class="analysis-chart-card heatmap-card">
+          <label class="heatmap-picker-label">查看图片
+            <select data-heatmap-field>${fields.map(({ item, field }) => `<option value="${escapeHtml(field.id)}">${escapeHtml(item.label || field.label)}</option>`).join("")}</select>
+          </label>
+          <div class="heatmap-levels" data-heatmap-levels></div>
+          <p class="heatmap-sample-count" data-heatmap-count></p>
+          <div class="heatmap-image-wrap"><img data-heatmap-image alt="" /><canvas data-heatmap-overlay aria-hidden="true"></canvas></div>
+          <div class="heatmap-scale" role="img" aria-label="热力图色标，0至${scaleMaximum}人"><div class="heatmap-scale-bar"></div><div class="heatmap-scale-ticks">${scaleTicks.map((count) => `<span>${count}</span>`).join("")}</div></div>
+          <p class="heatmap-scale-note">色标：同一区域的标注人数（0–${scaleMaximum} 人）</p>
+        </section>
+      </div>
+    </section>`;
+  const picker = app.querySelector("[data-heatmap-field]");
+  const levels = app.querySelector("[data-heatmap-levels]");
+  const count = app.querySelector("[data-heatmap-count]");
+  const image = app.querySelector("[data-heatmap-image]");
+  const overlay = app.querySelector("[data-heatmap-overlay]");
+  let activeLevel = 1;
+  const draw = () => {
+    if (!overlay.isConnected) return;
+    const { field } = fields.find(({ field: candidate }) => candidate.id === picker.value);
+    image.src = field.image.src;
+    image.alt = field.image.alt || field.label;
+    levels.innerHTML = field.levels.length > 1 ? field.levels.map((level) => `<button type="button" data-heatmap-level="${level.id}" aria-pressed="${level.id === activeLevel}">${escapeHtml(level.label)}</button>`).join("") : "";
+    const result = countImageRangeParticipants(field, state.records, activeLevel);
+    count.textContent = `这张图有 ${result.participantCount} 份已标注样本；其中 ${result.levelCount} 份标注了${field.levels[activeLevel - 1].label}。最高重合 ${result.maxCount} 人。`;
+    paintHeatmap(overlay, result, scaleMaximum);
+  };
+  picker.addEventListener("change", () => { activeLevel = 1; draw(); });
+  levels.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-heatmap-level]");
+    if (!button) return;
+    activeLevel = Number(button.dataset.heatmapLevel);
+    draw();
+  });
+  requestAnimationFrame(draw);
+}
+
 function renderAnalysis() {
   const config = analysisConfig(state.currentTemplate);
   if (!config) {
     state.view = "home";
     renderHome();
     showToast("当前问卷没有配置简易分析");
+    return;
+  }
+  if (config.type === "imageRangeHeatmap") {
+    renderImageRangeAnalysis(config);
     return;
   }
   const charts = config.fields.map((item, index) => {
@@ -1577,6 +1663,7 @@ function renderFieldControl(field, answer, fieldIndex = state.formIndex) {
     case "singleChoice": return renderSingleChoice(field, answer, fieldIndex);
     case "multiChoice": return renderMultiChoice(field, answer, fieldIndex);
     case "rating": return renderRating(field, answer, fieldIndex);
+    case "imageRange": return renderImageRange(field, answer, fieldIndex);
     case "section": return `<div class="card">${escapeHtml(field.description || "")}</div>`;
     default: return "";
   }
@@ -1599,6 +1686,128 @@ function currentFormPage(fields = state.currentTemplate?.fields || []) {
   return { pages, pageIndex, page: pages[pageIndex] };
 }
 
+function renderImageRange(field, answer, fieldIndex) {
+  const width = field.image.width;
+  const height = field.image.height;
+  const brushMin = Math.min(0.01, field.brushSize);
+  const brushMax = Math.max(0.06, field.brushSize);
+  const strokes = imageRangeStrokes(answer);
+  const masks = field.levels.map((level) => {
+    const levelPaths = strokes.filter((stroke) => stroke.level === level.id).map((stroke) =>
+      `<path d="${strokePath(stroke, width, height)}" fill="none" stroke="white" stroke-width="${stroke.brushSize * width}" stroke-linecap="round" stroke-linejoin="round" />`).join("");
+    const higherLevelCutout = level.id === 1 ? strokes.filter((stroke) => stroke.level === 2).map((stroke) =>
+      `<path d="${strokePath(stroke, width, height)}" fill="none" stroke="black" stroke-width="${stroke.brushSize * width}" stroke-linecap="round" stroke-linejoin="round" />`).join("") : "";
+    const paths = levelPaths + higherLevelCutout;
+    return `<mask id="annotation-mask-${fieldIndex}-${level.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">${paths}</mask>`;
+  }).join("");
+  const overlays = field.levels.map((level, index) => `<rect width="${width}" height="${height}" fill="${index ? "#d34b50" : "#188d9d"}" opacity="0.48" mask="url(#annotation-mask-${fieldIndex}-${level.id})" pointer-events="none" />`).join("");
+  return `<div class="annotation-workspace" data-annotation-index="${fieldIndex}">
+    <svg class="annotation-canvas" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(field.image.alt || field.label)}；在图上滑动可涂画范围">
+      <image href="${escapeHtml(field.image.src)}" width="${width}" height="${height}" />
+      <defs>${masks}</defs>${overlays}
+      <rect class="annotation-hit-area" width="${width}" height="${height}" fill="transparent" />
+    </svg>
+    <div class="annotation-tools">
+      ${field.levels.length === 2 ? `<div class="annotation-segment" data-active-level="1" role="group" aria-label="疼痛等级">${field.levels.map((level) => `<button type="button" data-annotation-level="${level.id}" aria-pressed="${level.id === 1}">${escapeHtml(level.label)}</button>`).join("")}</div>` : `<span class="annotation-level-name">${escapeHtml(field.levels[0].label)}</span>`}
+      <label class="annotation-brush">画笔 <input type="range" data-annotation-brush min="${brushMin}" max="${brushMax}" step="any" value="${field.brushSize}" aria-label="画笔大小" /><span data-annotation-brush-value></span></label>
+      <div class="annotation-edit-tools"><button type="button" data-annotation-undo>撤销上一笔</button><button type="button" data-annotation-clear>清除所有标记</button></div>
+    </div>
+  </div>`;
+}
+
+function bindImageRange(field, fieldIndex) {
+  const workspace = app.querySelector(`[data-annotation-index="${fieldIndex}"]`);
+  if (!workspace) return;
+  const svg = workspace.querySelector(".annotation-canvas");
+  const hit = workspace.querySelector(".annotation-hit-area");
+  const answer = state.draft.answers[field.id] && Array.isArray(state.draft.answers[field.id].strokes)
+    ? state.draft.answers[field.id] : blankImageRangeAnswer();
+  state.draft.answers[field.id] = answer;
+  let level = 1;
+  let active = null;
+  const brushInput = workspace.querySelector("[data-annotation-brush]");
+  const brushValue = workspace.querySelector("[data-annotation-brush-value]");
+  const updateBrushLabel = () => {
+    brushValue.textContent = `${(Number(brushInput.value) * 100).toFixed(1)}%`;
+    const range = Number(brushInput.max) - Number(brushInput.min);
+    const progress = range ? (Number(brushInput.value) - Number(brushInput.min)) / range : 0;
+    brushInput.style.setProperty("--brush-progress", `${Math.max(0, Math.min(100, progress * 100))}%`);
+  };
+  brushInput.addEventListener("input", updateBrushLabel);
+  updateBrushLabel();
+  const updateMasks = () => field.levels.forEach((item) => {
+    const mask = svg.querySelector(`#annotation-mask-${fieldIndex}-${item.id}`);
+    const maskStrokes = [
+      ...answer.strokes.filter((stroke) => stroke.level === item.id).map((stroke) => [stroke, "white"]),
+      ...(item.id === 1 ? answer.strokes.filter((stroke) => stroke.level === 2).map((stroke) => [stroke, "black"]) : [])
+    ];
+    mask.replaceChildren(...maskStrokes.map(([stroke, color]) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", strokePath(stroke, field.image.width, field.image.height));
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", String(stroke.brushSize * field.image.width));
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      return path;
+    }));
+  });
+  const chooseLevel = (selected) => {
+    level = selected;
+    if (segment) segment.dataset.activeLevel = String(level);
+    workspace.querySelectorAll("[data-annotation-level]").forEach((button) => button.setAttribute("aria-pressed", String(Number(button.dataset.annotationLevel) === level)));
+  };
+  workspace.querySelectorAll("[data-annotation-level]").forEach((button) => button.addEventListener("click", () => chooseLevel(Number(button.dataset.annotationLevel))));
+  const segment = workspace.querySelector(".annotation-segment");
+  segment?.addEventListener("pointerdown", (event) => segment.setPointerCapture(event.pointerId));
+  segment?.addEventListener("pointerup", (event) => {
+    const rect = segment.getBoundingClientRect();
+    chooseLevel(event.clientX < rect.left + rect.width / 2 ? 1 : 2);
+  });
+  hit.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    const point = pointOnImage(svg, event, field.image.width, field.image.height);
+    if (!point) return;
+    const stroke = { id: crypto.randomUUID(), annotationType: field.annotationType, level, brushSize: Number(brushInput.value), points: [point] };
+    answer.strokes.push(stroke);
+    hit.setPointerCapture(event.pointerId);
+    updateMasks();
+    const ownMask = svg.querySelector(`#annotation-mask-${fieldIndex}-${level}`);
+    const livePaths = [Array.from(ownMask.querySelectorAll("path[stroke='white']")).at(-1)];
+    if (level === 2) livePaths.push(Array.from(svg.querySelector(`#annotation-mask-${fieldIndex}-1`).querySelectorAll("path[stroke='black']")).at(-1));
+    active = { pointerId: event.pointerId, stroke, livePaths };
+  });
+  hit.addEventListener("pointermove", (event) => {
+    if (!active || event.pointerId !== active.pointerId) return;
+    event.preventDefault();
+    const point = pointOnImage(svg, event, field.image.width, field.image.height);
+    if (point && appendStrokePoint(active.stroke, point)) {
+      const path = strokePath(active.stroke, field.image.width, field.image.height);
+      active.livePaths.forEach((element) => element?.setAttribute("d", path));
+    }
+  });
+  const endStroke = (event) => {
+    if (!active || event.pointerId !== active.pointerId) return;
+    active.stroke.points = simplifyStrokePoints(active.stroke.points, field.image.width, field.image.height);
+    active = null;
+    if (hit.hasPointerCapture(event.pointerId)) hit.releasePointerCapture(event.pointerId);
+    updateMasks();
+    void persistDraft();
+  };
+  hit.addEventListener("pointerup", endStroke);
+  hit.addEventListener("pointercancel", endStroke);
+  workspace.querySelector("[data-annotation-undo]").addEventListener("click", () => { answer.strokes.pop(); updateMasks(); void persistDraft(); });
+  workspace.querySelector("[data-annotation-clear]").addEventListener("click", async () => {
+    if (!answer.strokes.length) return;
+    const confirmed = await showConfirm({ title: "清除本页标记？", message: "这张图片的所有标记（包括两个疼痛等级）都会清除，其他图片不受影响。", confirmLabel: "全部清除" });
+    if (!confirmed) return;
+    answer.strokes = [];
+    updateMasks();
+    void persistDraft();
+  });
+}
+
 function renderFormQuestion({ field, fieldIndex }) {
   if (field.type === "section") {
     return `<section class="form-page-section" data-question-index="${fieldIndex}"><h2 class="question-title">${escapeHtml(field.label)}</h2>${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}</section>`;
@@ -1606,10 +1815,10 @@ function renderFormQuestion({ field, fieldIndex }) {
   const answer = getFieldAnswer(field);
   const requirementLabel = field.required ? "必填" : "可跳过";
   return `<section class="form-page-question" data-question-index="${fieldIndex}">
-    <div class="question-meta"><span class="question-number">Q${fieldIndex + 1}.</span><span class="requirement-chip ${field.required ? "is-required" : ""}">${requirementLabel}</span></div>
+    <div class="question-meta"><span class="question-number">Q${field.questionNumber || fieldIndex + 1}.</span><span class="requirement-chip ${field.required ? "is-required" : ""}">${requirementLabel}</span></div>
     <h2 class="question-title">${escapeHtml(field.label)}</h2>
     ${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}
-    ${field.image?.src ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
+    ${field.image?.src && field.type !== "imageRange" ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
     ${renderFieldControl(field, answer, fieldIndex)}
     <div class="validation-message" data-validation-for="${fieldIndex}"></div>
   </section>`;
@@ -1629,9 +1838,11 @@ function renderForm() {
   const progress = ((pageIndex + 1) / pages.length) * 100;
   const isLast = pageIndex === pages.length - 1;
   const usesGroupedPages = pages.some((item) => item.items.length > 1);
+  const annotationItem = page.items.length === 1 && page.items[0].field.type === "imageRange" ? page.items[0] : null;
+  document.documentElement.classList.toggle("annotation-page", Boolean(annotationItem));
 
   app.innerHTML = `
-    <section class="screen form-screen">
+    <section class="screen form-screen ${annotationItem ? "annotation-screen" : ""}">
       <header class="nav-top-bar form-top-bar">
         <button class="back-button" type="button" data-action="leave-form" aria-label="${state.draft.mode === "edit" ? "返回记录详情" : "返回首页"}"><img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" /></button>
         <h1>${state.draft.mode === "edit" ? "修改记录" : "填写问卷"}</h1>
@@ -1648,6 +1859,7 @@ function renderForm() {
         <button class="primary-button" type="button" data-action="next-question">${isLast ? (state.draft.mode === "edit" ? "保存修改" : "保存记录") : (usesGroupedPages ? "下一页" : "下一题")}</button>
       </div>
     </section>`;
+  if (annotationItem) bindImageRange(annotationItem.field, annotationItem.fieldIndex);
 }
 
 function renderBackup() {
@@ -1665,6 +1877,7 @@ function renderBackup() {
 }
 
 function blankAnswer(field) {
+  if (field.type === "imageRange") return blankImageRangeAnswer();
   if (field.allowAnonymous) return { value: "", anonymous: false };
   if (field.type === "singleChoice") return { value: "", otherText: "" };
   if (field.type === "multiChoice") return { values: [], otherTextById: {} };
@@ -1778,6 +1991,7 @@ function captureCurrentField() {
 function fieldValidation(field, answer) {
   if (field.type === "section") return "";
   const isBlankString = (value) => typeof value !== "string" || !value.trim();
+  if (field.type === "imageRange" && field.required && imageRangeStrokes(answer).length === 0) return `请标注“${field.label}”`;
 
   if (["shortText", "longText"].includes(field.type)) {
     if (field.allowAnonymous && answer?.anonymous) return "";
@@ -1914,6 +2128,7 @@ function makeRecordNumber(id) {
 
 function formatAnswer(field, answer, options = {}) {
   if (answer === null || answer === undefined || answer === "") return "";
+  if (field.type === "imageRange") return imageRangeStrokes(answer).length ? `已标注（${imageRangeStrokes(answer).length}笔）` : "";
   if (["shortText", "longText"].includes(field.type)) {
     if (field.allowAnonymous && typeof answer === "object") return answer.anonymous ? "匿名" : String(answer.value || "");
     return String(answer);
@@ -1977,13 +2192,7 @@ function exportColumns(field) {
   return columns;
 }
 
-function csvCell(value) {
-  let text = String(value ?? "");
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
-async function exportCsv() {
+async function exportXlsx() {
   if (!state.currentTemplate || !state.records.length) return;
   const fields = state.currentTemplate.fields.filter((field) => field.type !== "section");
   const columns = fields.flatMap(exportColumns);
@@ -1994,9 +2203,20 @@ async function exportCsv() {
     formatDateTime(record.updatedAt),
     ...fields.flatMap((field) => exportColumns(field).map((column) => column.value(record.answers[field.id])))
   ]);
-  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
-  const filename = sanitizeFilename(`${state.currentTemplate.title}_V${state.currentTemplate.version}_${compactDate()}_共${state.records.length}份.csv`);
-  const file = new File([csv], filename, { type: "text/csv;charset=utf-8" });
+  const annotationRows = [["sampleId", "recordNumber", "questionId", "view", "annotationType", "level", "strokeId", "pointOrder", "normalizedX", "normalizedY", "brushSize", "imageSrc", "imageWidth", "imageHeight"]];
+  for (const record of state.records) {
+    for (const field of fields.filter((item) => item.type === "imageRange")) {
+      for (const stroke of imageRangeStrokes(record.answers?.[field.id])) {
+        (stroke.points || []).forEach(([x, y], index) => annotationRows.push([
+          record.id, record.recordNumber, field.id, field.view, stroke.annotationType || field.annotationType,
+          stroke.level, stroke.id, index, x, y, stroke.brushSize, field.image.src, field.image.width, field.image.height
+        ]));
+      }
+    }
+  }
+  const blob = createXlsxBlob([{ name: "Responses", rows: [headers, ...rows] }, { name: "Annotations", rows: annotationRows }]);
+  const filename = sanitizeFilename(`${state.currentTemplate.title}_V${state.currentTemplate.version}_${compactDate()}_共${state.records.length}份.xlsx`);
+  const file = new File([blob], filename, { type: blob.type });
   await shareOrDownload(file);
 }
 
@@ -2319,7 +2539,7 @@ async function handleAction(action, element) {
     case "edit-record-at": await editSelectedRecord(Number(element.dataset.fieldIndex) || 0); break;
     case "delete-record": await removeSelectedRecord(); break;
     case "delete-record-by-id": await removeRecord(element.dataset.id); break;
-    case "export-csv": await exportCsv(); break;
+    case "export-xlsx": await exportXlsx(); break;
     case "check-update": await checkForUpdates(); break;
     case "export-backup": await exportBackup(); break;
     case "import-backup": backupFileInput.click(); break;

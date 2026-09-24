@@ -102,12 +102,12 @@
 - 每个选项包含稳定、唯一的`id`和原始`label`，不得擅自合并、删改或补充选项。
 - “无／以上皆无／不适用”若与其他多选项互斥，在该选项设置`exclusive: true`。
 - “其他，请说明”使用选项的`textInput`。只有原文要求选择“其他”后必须说明时，才设置`textInput.required: true`。
-- CSV导出选项文字而非选项ID；多选以中文分号连接；补充文字导出为“选项：文字”。
+- Excel Responses导出选项文字而非选项ID；多选以中文分号连接；补充文字导出为“选项：文字”。
 
 ## 6. 数字题
 
 - 明确只能整数时设置`integer: true`；测量值、比例或允许小数的评分使用`integer: false`或省略。
-- `unit`只写单位，不写解释，例如`mm`、`岁`。CSV表头会包含单位。
+- `unit`只写单位，不写解释，例如`mm`、`岁`。Excel Responses表头会包含单位。
 - AuNote schemaVersion 1当前接受非负十进制数；负数、科学计数法、范围上下限校验尚无对应配置。原问卷需要这些能力时必须告知用户限制。
 - 如果原问卷要求“1–5分评分，但允许3.2、3.5、4.7等小数”，必须使用支持小数的`number`，不能转换为当前整数型`rating`。除非未来 AuNote 已新增连续评分能力。
 
@@ -117,7 +117,7 @@
 - `repeatCount`为输入框总数，必须是2～10的整数。
 - `minEntries`来自原文允许的最少有效次数；未说明时不要猜。应询问用户；无法询问时，非必填题使用0，必填题使用1，并明确标注该保守处理。
 - 可设置`integer`、`unit`和`placeholder`。填写必须从第1次开始连续，不可跳格。
-- CSV会输出每次原值、参与者内平均值和最大差值。
+- Excel Responses会输出每次原值、参与者内平均值和最大差值。
 
 ## 8. rating
 
@@ -129,7 +129,7 @@
 ## 9. section
 
 - 用`section`保留章节标题、访员说明和不需要答案的过渡页。
-- `label`为章节标题，`description`为说明；不设置`required`，也不会导出CSV列。
+- `label`为章节标题，`description`为说明；不设置`required`，也不会导出Excel Responses列。
 - 不要把需要用户确认或作答的内容转换为`section`。
 
 ## 10. 图片
@@ -137,24 +137,25 @@
 - 普通导入JSON使用`data:image/...;base64,...`内嵌图片，保证离线可用；禁止HTTP/HTTPS外链。
 - `alt`应简洁说明图片传达的内容。图片本身包含关键作答信息时，必须提供足以理解的替代文本。
 - `./assets/...`仅供已随AuNote项目发布并由Service Worker缓存的内置资源使用；AI不能假设用户设备已有某个本地文件。
-- 图片不进入CSV。
+- 普通图片不进入Excel Responses。`imageRange`图片范围标注题属于Beta测试能力；只有用户明确要求在图片上涂画区域且能提供稳定的底图资源时使用。须给出`view`、`annotationType`、`brushSize`、1～2个`levels`和底图原始`width`/`height`，每题独占一页。同一研究问题拆为多个图片页时，可为这些题填写相同的`questionNumber`，但答案仍分别保存。详见[格式说明](questionnaire-template.md)及[七页示例](../examples/ear-image-range-test.json)。普通外部AI不可假定用户设备已有`./assets/...`，应内嵌图片或先确认图片会随应用缓存。
 
 ## 11. 多题同页
 
 - 默认每道题独占一页。只有原问卷或用户明确要求同页呈现时，才添加`page`。
 - 需要同页显示的连续相邻题目使用同一个非空字符串，例如都设置`"page": "participantInfo"`。
 - 只有连续相邻且`page`相同的题目会合并显示；不要在不相邻题目上重复同一值，以免让配置难以阅读。
-- `page`只改变填写界面分页，不改变字段顺序、答案结构或CSV。不要为了减少页数自行合并不同问题。
+- `page`只改变填写界面分页，不改变字段顺序、答案结构或Excel Responses。不要为了减少页数自行合并不同问题。
 - 当前PWA问卷编辑器不编辑`page`；AI转换或人工编辑JSON时才配置。
 
 ## 12. analysis
 
-- 只有用户或研究方案明确要求描述性统计/分布分析时才添加`analysis`；统计方法没有明确说明时，不得自行增加研究分析方法。
-- 分析字段只能引用当前问卷中的`number`或`repeatedNumber`。
+- 只有用户或研究方案明确要求分析时才添加`analysis`；统计方法没有明确说明时，不得自行增加研究分析方法。
+- 数字分布分析字段只能引用当前问卷中的`number`或`repeatedNumber`；图片热力图字段只能引用`imageRange`。
 - 新配置优先使用`type: "descriptiveDistribution"`；旧`type: "distribution"`继续兼容。
 - 当前`aggregation`只能为`participantMean`：数字题每条记录计一次；重复数字题先算该参与者的有效重复测量平均值，再计一次。
 - `statistics`可从`count`、`mean`、`median`、`mode`、`min`、`max`、`sd`、`q1`、`q3`选择；省略显示全部。
 - `percentiles`仅在研究方案指定时填写，取值严格位于0与100之间。`binWidth`也只在明确要求固定区间时填写，否则让AuNote自动分箱。
+- 用户明确要求对图片标注做多人叠加热力图时，才可使用`{ "type": "imageRangeHeatmap", "fields": [{ "id": "图片题ID" }] }`。先按参与者合并同级重复涂画，每人在同一区域最多计1人；按视图和等级分别累计真实人数，只在显示层柔化边缘，不改变原始计数。当前一份问卷的`analysis`一次只支持一种类型；若同时需要数字分布与图片热力图，应先说明此限制，不要静默丢掉其中一种。
 
 ## 13. 禁止猜测与无法映射时的输出
 

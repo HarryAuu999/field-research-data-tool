@@ -13,6 +13,7 @@ const page = await context.newPage();
 
 try {
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  assert.equal(await page.locator('[data-action="export-xlsx"]').textContent(), "导出数据");
   const homeHeader = await page.locator(".app-header").evaluate((element) => element.getBoundingClientRect().toJSON());
   await page.locator('[data-action="templates"]').first().click();
   const subpageHeader = await page.locator(".nav-top-bar").evaluate((element) => element.getBoundingClientRect().toJSON());

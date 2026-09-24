@@ -1,6 +1,6 @@
 {
-  "name": "AuNote",
-  "short_name": "AuNote",
+  "name": "AuNote Beta",
+  "short_name": "AuNote β",
   "description": "离线用户研究问卷记录与导出工具",
   "lang": "zh-CN",
   "id": "./",
@@ -11,13 +11,13 @@
   "theme_color": "#f5f5f7",
   "icons": [
     {
-      "src": "./assets/icon-192.png",
+      "src": "./assets/beta-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./assets/icon-512.png",
+      "src": "./assets/beta-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

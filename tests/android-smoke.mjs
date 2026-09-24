@@ -85,9 +85,9 @@ try {
   await page.getByText("1 份", { exact: true }).waitFor();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.locator('[data-action="export-csv"]').click();
+  await page.locator('[data-action="export-xlsx"]').click();
   const download = await downloadPromise;
-  assert.ok((await download.createReadStream()) !== null, "Android Chrome 未能生成 CSV 下载");
+  assert.ok((await download.createReadStream()) !== null, "Android Chrome 未能生成 Excel 下载");
 
   await page.locator('[data-action="records"]').click();
   const recordRow = page.locator("[data-record-row]");
@@ -119,7 +119,7 @@ try {
   console.log(JSON.stringify({
     passed: true,
     device: "Pixel 7",
-    scenarios: ["manifest-icons", "responsive-home", "form-input", "record-save", "touch-swipe", "record-edit", "persistence", "csv-download", "offline-reload"],
+    scenarios: ["manifest-icons", "responsive-home", "form-input", "record-save", "touch-swipe", "record-edit", "persistence", "xlsx-download", "offline-reload"],
     installabilityErrors: installability.installabilityErrors,
     icons: manifest.icons,
     iconChecks

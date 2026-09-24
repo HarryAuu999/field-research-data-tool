@@ -15,7 +15,7 @@ assert.ok(indexSource.includes(`./js/app.js?v=${appVersion}`), "入口脚本缺�
 assert.ok(indexSource.includes(`./manifest.webmanifest?v=${appVersion}`), "Manifest 引用缺少当前版本参数");
 assert.ok(workerSource.includes(`./manifest.webmanifest?v=${appVersion}`), "Manifest 未按当前版本加入离线缓存");
 
-for (const moduleName of ["db", "default-template", "questionnaire-editor", "questionnaire-schema", "question-reorder", "statistics"]) {
+for (const moduleName of ["db", "default-template", "questionnaire-editor", "questionnaire-schema", "question-reorder", "statistics", "image-range", "image-range-heatmap", "xlsx-export"]) {
   assert.ok(appSource.includes(`./${moduleName}.js?v=${appVersion}`), `${moduleName}.js 导入缺少当前版本参数`);
   assert.ok(workerSource.includes(`./js/${moduleName}.js?v=${appVersion}`), `${moduleName}.js 未按当前版本加入离线缓存`);
 }

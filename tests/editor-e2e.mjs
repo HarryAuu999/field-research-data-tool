@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import fs from "node:fs/promises";
+import JSZip from "jszip";
 import { appVersion } from "./version-consistency.mjs";
 
 const browser = await chromium.launch({
@@ -86,7 +87,8 @@ await noRecordPage.evaluate(() => {
 await noRecordPage.getByRole("button", { name: "佩戴耳厚数据采集", exact: false }).first().click();
 await noRecordPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.1"] .swipe-action').count() === 2, "问卷左滑区域应只有复制和删除两个操作");
-assert(await noRecordPage.locator("[data-template-row]").count() === 1, "新安装不应再内置V1.0问卷");
+assert(await noRecordPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.0"]').count() === 1, "新安装缺少图片标注验收问卷");
+assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').count() === 0, "新安装不应再内置旧耳厚V1.0问卷");
 await openHiddenAction(noRecordPage, "duplicate-template", "ear-anthropometry-survey@1.1");
 const initialCopyData = await databaseSnapshot(noRecordPage);
 const emptySource = initialCopyData.templates.find((item) => item.title === "佩戴耳厚数据采集（副本）");
@@ -263,6 +265,7 @@ await recordedPage.waitForTimeout(100);
 await openHiddenAction(recordedPage, "duplicate-template", "ear-anthropometry-survey@1.2");
 await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 const copyRow = recordedPage.locator('[data-action="open-template"]').filter({ hasText: "副本" }).first();
+await copyRow.waitFor();
 assert(await copyRow.count() === 1, "复制后没有在问卷管理页面生成副本");
 await copyRow.click();
 await recordedPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
@@ -294,12 +297,13 @@ await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropo
 await recordedPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
 await recordedPage.getByText("1 份", { exact: true }).waitFor();
 const oldCsvDownloadPromise = recordedPage.waitForEvent("download");
-await recordedPage.locator('[data-action="export-csv"]').click();
+await recordedPage.locator('[data-action="export-xlsx"]').click();
 const oldCsvDownload = await oldCsvDownloadPromise;
-await oldCsvDownload.saveAs("test-results/editor-old-version.csv");
-const oldCsv = await fs.readFile("test-results/editor-old-version.csv", "utf8");
-assert(oldCsv.includes("偏好原因") && oldCsv.includes("旧版本答案"), "旧版本CSV没有保留旧问题和旧答案");
-assert(!oldCsv.includes("偏好原因（已删除）"), "旧版本CSV错误地把采集时有效的问题标成已删除");
+await oldCsvDownload.saveAs("test-results/editor-old-version.xlsx");
+const oldWorkbook = await JSZip.loadAsync(await fs.readFile("test-results/editor-old-version.xlsx"));
+const oldResponses = await oldWorkbook.file("xl/worksheets/sheet1.xml").async("string");
+assert(oldResponses.includes("偏好原因") && oldResponses.includes("旧版本答案"), "旧版本Excel没有保留旧问题和旧答案");
+assert(!oldResponses.includes("偏好原因（已删除）"), "旧版本Excel错误地把采集时有效的问题标成已删除");
 
 await recordedContext.close();
 
