@@ -1,5 +1,5 @@
-import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.2-beta.3";
-import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.2-beta.3";
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.2-beta.4";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.2-beta.4";
 
 const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);

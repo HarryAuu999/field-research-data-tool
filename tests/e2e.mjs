@@ -9,7 +9,7 @@ await fs.mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  executablePath: process.env.AUNOTE_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import { chromium } from "playwright";
 import JSZip from "jszip";
 
-const browser = await chromium.launch({ headless: true, executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.AUNOTE_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, acceptDownloads: true });
 const page = await context.newPage();
 const errors = [];
@@ -47,6 +47,8 @@ try {
   await page.locator('[data-action="next-question"]').click();
   await page.locator(".form-counter", { hasText: "2/7" }).waitFor();
   await page.locator(".annotation-canvas").waitFor();
+  const sideViewBox = (await page.locator(".annotation-canvas").getAttribute("viewBox")).split(" ").map(Number);
+  assert(Math.abs(sideViewBox[2] / 1149 - 0.73) < 0.001 && Math.abs(sideViewBox[3] / 1368 - 0.78) < 0.001, "侧面耳图没有完整放大到画布内");
   const fullWidthCanvas = await page.locator(".annotation-canvas").boundingBox();
   assert(fullWidthCanvas.x <= 1 && fullWidthCanvas.x + fullWidthCanvas.width >= 389, "标注图片左右仍有页面留白");
   assert.equal(await page.locator("[data-annotation-brush]").evaluate((el) => getComputedStyle(el).borderRadius), "999px", "画笔滑块未使用胶囊跑道");
@@ -75,6 +77,9 @@ try {
   await page.locator("[data-annotation-undo]").click();
   await page.locator('[data-action="next-question"]').click();
   await page.locator(".form-counter", { hasText: "3/7" }).waitFor();
+  const sectionViewBox = (await page.locator(".annotation-canvas").getAttribute("viewBox")).split(" ").map(Number);
+  assert(Math.abs(sectionViewBox[2] / 4788 - 0.73) < 0.001 && Math.abs(sectionViewBox[3] / 5700 - 0.78) < 0.001, "截面耳图没有完整放大到画布内");
+  await page.screenshot({ path: "test-results/image-range-section-mobile.png" });
   assert.equal((await strokes("contactSide")).length, 0, "撤销没有保存");
   await touchStroke();
   await page.locator('[data-action="next-question"]').click();

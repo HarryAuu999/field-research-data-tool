@@ -3,7 +3,7 @@ import { chromium, devices } from "playwright";
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  executablePath: process.env.AUNOTE_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 });
 const context = await browser.newContext({ ...devices["Pixel 7"], locale: "zh-CN", acceptDownloads: true });
 const page = await context.newPage();

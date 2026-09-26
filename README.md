@@ -2,11 +2,11 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 Excel。
 
-当前状态：**正式版 V1.3.8，独立测试版 V1.4.2-beta.3**。正式版本通过 GitHub Pages 发布；Beta 使用独立站点进行手机验收，不覆盖正式版，也不共享本地问卷与记录。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.4.0，独立测试版 V1.4.2-beta.4**。两个版本分别通过 GitHub Pages 发布；Beta 使用独立数据库，不覆盖正式版问卷与记录。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
-Beta 测试站点：<https://aunote-beta.harryxiangyu.chatgpt.site/>。当前仅站点所有者账号可访问；手机端安装与离线体验仍需实机验收。
+Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
 
-新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。默认 `main` 仍是正式版，不含 Beta 功能；Git 不会同步各设备浏览器里的样本和草稿。
+新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。`main` 是正式版，Beta 分支用于后续迭代；Git 不会同步各设备浏览器里的样本和草稿。
 
 ## 手机测试地址
 
@@ -58,9 +58,9 @@ python -m http.server 4173
 http://127.0.0.1:4173/
 ```
 
-验证图片标注时，打开独立 Beta 站点或刷新本地页面，在“问卷管理”选择自动加入的“耳挂耳机接触与疼痛范围验收”，然后返回主页开始填写。它包含姓名、接触范围、疼痛区域3个研究问题，共7个填写页面。其[JSON文件](examples/ear-image-range-test.json)也可单独检查；三张PNG已放在`assets/`并被离线缓存。正式版 GitHub Pages 尚未包含此 Beta 功能。
+验证图片标注时，打开独立 Beta 站点或刷新本地页面，在“问卷管理”选择图片标注示例，然后返回主页开始填写。它包含姓名、接触范围、疼痛区域3个研究问题，共7个填写页面。其[JSON文件](examples/ear-image-range-test.json)也可单独检查；三张PNG已放在`assets/`并被离线缓存。
 
-Beta 版使用黄色应用图标与“AuNote Beta”名称，以免与绿色正式版混淆。标注页仍按上一题／下一题逐图填写；可调画笔大小、撤销上一笔、确认后清除本页所有等级的标记；新笔画使用固定0.3%简化容差。验收问卷明确配置`imageRangeHeatmap`，在“简易分析”中按图片和疼痛等级查看人数热力图。每位参与者在同一区域最多计一次，柔化仅影响显示、不改变真实人数或XLSX中的原始笔画数据。Beta测试数据应与正式站分离，避免将研究样本误存到测试站。
+Beta 版使用黄色应用图标与“AuNote Beta”名称，以免与绿色正式版混淆。标注页仍按上一题／下一题逐图填写；可调画笔大小、撤销上一笔、确认后清除本页所有等级的标记；新笔画使用固定0.15%简化容差。内置侧面与截面耳图去掉画面外侧宽边以放大耳朵，耳朵仍完整位于画布内，保存的坐标继续对应原图。示例问卷明确配置`imageRangeHeatmap`，在“简易分析”中按图片和疼痛等级查看人数热力图。每位参与者在同一区域最多计一次，柔化仅影响显示、不改变真实人数或XLSX中的原始笔画数据。
 
 ## 自动测试
 

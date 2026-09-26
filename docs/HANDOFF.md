@@ -1,16 +1,16 @@
 # AuNote 交接说明
 
-更新日期：2026-09-24。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作红线以根目录 AGENTS.md 为准。
+更新日期：2026-09-27。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | GitHub Pages 上的 V1.3.8；2026-09-24 远端 origin/main 位于 5bc998b，本机 main 仍位于 a2860c4 | https://harryauu999.github.io/field-research-data-tool/ 。远端后续提交增加独立的人因工程演示，不是 Beta；不要把它混进本次 AuNote Beta 分支，也不要将测试改动直接并入正式版。 |
-| Beta 源码 | GitHub 独立分支 codex/aunote-beta-1.4.2，应用版本 V1.4.2-beta.3 | 从 https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2 获取；不要只克隆默认 main 后直接开发。此分支以正式版 a2860c4 为基底，不含后来独立的人因工程演示提交。|
-| Beta 网页 | 已部署到独立测试站点 https://aunote-beta.harryxiangyu.chatgpt.site/ | Codex Sites 站点 ID 为 appgprj_6ab4f840c94481919e80a1b4dad7b22c；部署状态为 succeeded，站点快照提交 89948d4。仅所有者账号可访问；真实 iPhone 安装、触控、离线尚待用户验收。网页部署与 GitHub 源码分支是两件事；推送源码不会自动更新测试网页。 |
+| 正式版 | GitHub Pages 上的 V1.4.0，已包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；仓库 `main` 还包含独立的 `earclip-force-curve-demo/`，Beta 开发不要改动它。 |
+| Beta 源码 | GitHub 独立分支 `codex/aunote-beta-1.4.2`，应用版本 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；相对正式版，笔画简化容差为0.15%，侧面与截面图放大显示。 |
+| Beta 网页 | 独立公开 GitHub Pages 发布仓库 | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后还需单独更新发布仓库。 |
 
-正式版和 Beta 是不同 origin、不同 PWA 安装入口与 Service Worker 作用域，浏览器 IndexedDB 不共享。即便同一站点，Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
+正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、Service Worker 作用域和 IndexedDB 名称；两个入口的问卷与记录不共享。Safari 网页和“添加到主屏幕”的 PWA 也可能有独立本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
 
 ## 项目目标与工作边界
 
@@ -37,7 +37,7 @@ AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的
 
 测试问卷 examples/ear-image-range-test.json 有 3 个研究问题、7 个页面：姓名；接触范围的侧面／截面／背面；疼痛区域的侧面／截面／背面。三张底图在 assets/。首次加载 Beta 会尝试加入这份测试问卷，但不会覆盖同 id + version 的用户自定义问卷。对于未修改字段、缺少 analysis 的旧验收模板，只补入热力图配置；记录和草稿不迁移。
 
-imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；画面左右贴边只是 CSS 布局变化，不改变坐标。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.3% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
+imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；Beta 对内置侧面和截面图使用紧凑 SVG 视框，完整放大耳朵并保留原图坐标。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.15% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
 
 简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。两次 box blur 只用于可视化边缘，不能改变原始人数；色标为 0 到实际样本数，三个视图共用人数尺度。尚未实现高级报告、热力图导出或混合分析类型。
 
@@ -60,18 +60,18 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 | 笔画、触控、画笔 UI | js/image-range.js、js/app.js、styles.css | tests/image-range.mjs、tests/image-range-e2e.mjs |
 | 离线、版本、Android 图标 | sw.js、manifest.webmanifest、index.html、assets/ | tests/version-consistency.mjs、tests/android-smoke.mjs、tests/e2e.mjs |
 
-本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。2026-09-24 的 Beta.3 完整 11 组测试通过：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
+本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。2026-09-27 的 Beta.4 完整 11 组测试通过：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
 
 ## 接手时先做
 
-1. 从 GitHub 的 codex/aunote-beta-1.4.2 分支检出代码，再读 AGENTS.md、本文件、README.md；检查 git status、当前分支和远端。默认 main 仍是 V1.3.8，不能在 main 上假装拥有图片标注／热力图实现。
-2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不自行扩大到另一个站点或把 Beta 公开。Beta 当前仅所有者账号可访问。是否公开需用户明确批准；不要上传真实样本来换取跨设备数据同步。
+1. 从 GitHub 的 `codex/aunote-beta-1.4.2` 分支检出 Beta 源码，再读 AGENTS.md、本文件、README.md；检查 git status、当前分支和远端。`main` 是正式版，Beta 代码与部署站点单独更新。
+2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不要上传真实样本来换取跨设备数据同步。
 3. 只改用户提出的行为，保留旧 schemaVersion 1、问卷版本、IndexedDB 和备份兼容；针对性测试后再按风险跑回归。
 4. 汇报时分开写：本地实现、测试通过、本地 Git 提交、GitHub 推送、Beta 部署成功、真实设备验证。尤其不要把独立 Beta 网页部署误称为 GitHub 正式版升级。
 
 ## 待验证与保留现场
 
-- 待验证：真实 iPhone Safari／主屏幕安装、手指连续绘制、离线重开与热力图可读性；只有站点所有者账号的访问体验。公开访问尚未授权。
-- GitHub 的独立 Beta 分支包含源码和本交接文档；但本机未跟踪材料、浏览器 IndexedDB 样本、Codex Sites 账号权限和未公开的真实研究数据不会随 Git 同步。另一设备开发无需重做功能，现场样本如需迁移须经用户主动使用完整 JSON 备份／恢复。
+- 待验证：真实 iPhone Safari／主屏幕安装、手指连续绘制、离线重开与热力图可读性。
+- GitHub 的独立 Beta 分支包含源码和本交接文档；但本机未跟踪材料、浏览器 IndexedDB 样本和未公开的真实研究数据不会随 Git 同步。另一设备开发无需重做功能，现场样本如需迁移须经用户主动使用完整 JSON 备份／恢复。
 - 不处理：analysis/、demo/、design-qa.md、已有 outputs/ 和研究文件。它们仍留在原位；没有收到删除或归档确认。
 - 不适用：没有获准写入的平台长期记忆；本交接文档就是应共享的知识入口，不另造记忆副本。

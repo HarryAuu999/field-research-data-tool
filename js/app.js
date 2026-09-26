@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.2-beta.3";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.3";
+} from "./db.js?v=1.4.2-beta.4";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.4";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.2-beta.3";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.3";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.3";
-import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.3";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.3";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.3";
+} from "./questionnaire-editor.js?v=1.4.2-beta.4";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.4";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.4";
+import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.4";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.4";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.4";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -42,9 +42,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.2-beta.3";
+} from "./statistics.js?v=1.4.2-beta.4";
 
-const APP_VERSION = "1.4.2-beta.3";
+const APP_VERSION = "1.4.2-beta.4";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -1689,6 +1689,12 @@ function currentFormPage(fields = state.currentTemplate?.fields || []) {
 function renderImageRange(field, answer, fieldIndex) {
   const width = field.image.width;
   const height = field.image.height;
+  // The bundled side views have broad background margins. Frame the entire ear
+  // more closely while keeping SVG drawing coordinates in the original image.
+  const closeFrame = ["./assets/ear-side.png", "./assets/ear-side-section.png"].includes(field.image.src);
+  const viewBox = closeFrame
+    ? `${width * 0.14} ${height * 0.07} ${width * 0.73} ${height * 0.78}`
+    : `0 0 ${width} ${height}`;
   const brushMin = Math.min(0.01, field.brushSize);
   const brushMax = Math.max(0.06, field.brushSize);
   const strokes = imageRangeStrokes(answer);
@@ -1702,7 +1708,7 @@ function renderImageRange(field, answer, fieldIndex) {
   }).join("");
   const overlays = field.levels.map((level, index) => `<rect width="${width}" height="${height}" fill="${index ? "#d34b50" : "#188d9d"}" opacity="0.48" mask="url(#annotation-mask-${fieldIndex}-${level.id})" pointer-events="none" />`).join("");
   return `<div class="annotation-workspace" data-annotation-index="${fieldIndex}">
-    <svg class="annotation-canvas" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(field.image.alt || field.label)}；在图上滑动可涂画范围">
+    <svg class="annotation-canvas" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(field.image.alt || field.label)}；在图上滑动可涂画范围">
       <image href="${escapeHtml(field.image.src)}" width="${width}" height="${height}" />
       <defs>${masks}</defs>${overlays}
       <rect class="annotation-hit-area" width="${width}" height="${height}" fill="transparent" />

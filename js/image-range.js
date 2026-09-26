@@ -44,8 +44,8 @@ export function appendStrokePoint(stroke, point) {
   return true;
 }
 
-// 0.3% of image width, measured in image coordinates so portrait images are not distorted.
-export function simplifyStrokePoints(points, imageWidth, imageHeight, tolerance = 0.003) {
+// 0.15% of image width, measured in image coordinates so portrait images are not distorted.
+export function simplifyStrokePoints(points, imageWidth, imageHeight, tolerance = 0.0015) {
   if (!Array.isArray(points) || points.length < 3) return Array.isArray(points) ? points.slice() : [];
   const aspect = imageHeight / imageWidth;
   const distance = (point, start, end) => {

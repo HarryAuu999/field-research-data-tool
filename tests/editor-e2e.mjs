@@ -5,7 +5,7 @@ import { appVersion } from "./version-consistency.mjs";
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  executablePath: process.env.AUNOTE_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 });
 
 function assert(condition, message) {
