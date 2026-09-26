@@ -158,7 +158,7 @@ function repeatedThicknessField(field, description) {
   };
 }
 
-export const DEFAULT_TEMPLATE = {
+export const PREVIOUS_DEFAULT_TEMPLATE = {
   ...LEGACY_DEFAULT_TEMPLATE,
   version: "1.1",
   description: "由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。",
@@ -185,13 +185,20 @@ export const DEFAULT_TEMPLATE = {
   })
 };
 
+// New installations get the shorter built-in example. Existing 1.1 templates
+// retain their original questions and records in IndexedDB.
+export const DEFAULT_TEMPLATE = {
+  ...PREVIOUS_DEFAULT_TEMPLATE,
+  version: "1.2",
+  fields: PREVIOUS_DEFAULT_TEMPLATE.fields.filter((field) => !["sensitivity", "painLocations"].includes(field.id))
+};
+
 export const BUILT_IN_TEMPLATES = [DEFAULT_TEMPLATE];
 
 // Built-in analysis presets live in the app instead of the stored questionnaire.
 // This lets existing V1.1 questionnaires and records gain read-only analysis
 // without rewriting their saved template or answer data.
-export const ANALYSIS_PRESETS = {
-  "ear-anthropometry-survey@1.1": {
+const THICKNESS_DISTRIBUTION = {
     type: "distribution",
     aggregation: "participantMean",
     percentiles: [20, 50, 80],
@@ -199,7 +206,11 @@ export const ANALYSIS_PRESETS = {
       { id: "horizontalThickness", label: "水平位置耳厚分布", theme: "blue" },
       { id: "tiltedThickness", label: "倾斜位置耳厚分布", theme: "orange" }
     ]
-  }
+};
+
+export const ANALYSIS_PRESETS = {
+  "ear-anthropometry-survey@1.1": THICKNESS_DISTRIBUTION,
+  "ear-anthropometry-survey@1.2": THICKNESS_DISTRIBUTION
 };
 
 export function templateKey(template) {

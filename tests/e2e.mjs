@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
+import JSZip from "jszip";
 import { appVersion } from "./version-consistency.mjs";
 
 const outputDir = path.resolve("test-results");
@@ -8,7 +9,7 @@ await fs.mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  executablePath: process.env.AUNOTE_CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
@@ -70,9 +71,9 @@ const migrationContext = await browser.newContext({ locale: "zh-CN" });
 const migrationPage = await migrationContext.newPage();
 await migrationPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await migrationPage.evaluate(async () => {
-  const { DEFAULT_TEMPLATE } = await import("./js/default-template.js");
-  const latest = structuredClone(DEFAULT_TEMPLATE);
-  const legacy = structuredClone(DEFAULT_TEMPLATE);
+  const { PREVIOUS_DEFAULT_TEMPLATE } = await import("./js/default-template.js");
+  const latest = structuredClone(PREVIOUS_DEFAULT_TEMPLATE);
+  const legacy = structuredClone(PREVIOUS_DEFAULT_TEMPLATE);
   legacy.version = "1.0";
   legacy.fields = legacy.fields.map((field) => ["horizontalThickness", "tiltedThickness"].includes(field.id)
     ? { ...field, type: "number", repeatCount: undefined, minEntries: undefined }
@@ -96,6 +97,7 @@ await migrationPage.evaluate(async () => {
     for (const name of ["templates", "records", "drafts", "settings"]) transaction.objectStore(name).clear();
     transaction.objectStore("templates").put(legacy);
     transaction.objectStore("templates").put(latest);
+    transaction.objectStore("drafts").put({ templateKey: latest.key, answers: { name: { value: "未完成草稿", anonymous: false } } });
     transaction.objectStore("records").put({
       id: "legacy-record",
       recordNumber: "R-LEGACY",
@@ -114,12 +116,12 @@ await migrationPage.evaluate(async () => {
   db.close();
 });
 await migrationPage.reload({ waitUntil: "networkidle" });
-await migrationPage.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
+await migrationPage.getByText("耳部人体数据采集", { exact: true }).waitFor();
 await migrationPage.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 await migrationPage.locator('[data-action="templates"]').click();
-assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').count() === 1, "升级后已有V1.0问卷被删除");
+await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').waitFor();
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
-const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
+const preservedQuestionnaire = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
     const request = indexedDB.open("research-notebook", 1);
     request.onsuccess = () => resolve(request.result);
@@ -131,9 +133,85 @@ const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
     request.onerror = () => reject(request.error);
   });
   db.close();
-  return template.fields.find((field) => field.id === "openEarPreference").options;
+  return { title: template.title, fields: template.fields.map((field) => field.id), options: template.fields.find((field) => field.id === "openEarPreference").options };
 });
-assert(migratedPreferenceOptions.some((option) => option.id === "noPreference" && option.label === "无偏好"), "升级后V1.1缺少无偏好选项");
+assert(preservedQuestionnaire.title === "耳部人体数据采集" && preservedQuestionnaire.fields.includes("sensitivity") && preservedQuestionnaire.fields.includes("painLocations") && !preservedQuestionnaire.options.some((option) => option.id === "noPreference"), "更新不得修改用户已有的V1.1问卷");
+await migrationPage.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const template = await new Promise((resolve) => {
+    const request = db.transaction("templates").objectStore("templates").get("ear-hook-annotation-acceptance@1.0");
+    request.onsuccess = () => resolve(request.result);
+  });
+  delete template.analysis;
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction(["templates", "settings"], "readwrite");
+    transaction.objectStore("templates").put(template);
+    transaction.objectStore("settings").put({ key: "builtInTemplateSeedRevision", value: 5 });
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+});
+await migrationPage.reload({ waitUntil: "networkidle" });
+const upgradedAnnotation = await migrationPage.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const transaction = db.transaction(["templates", "records"]);
+  const read = (store, key) => new Promise((resolve) => {
+    const request = transaction.objectStore(store).get(key);
+    request.onsuccess = () => resolve(request.result);
+  });
+  const [template, record] = await Promise.all([
+    read("templates", "ear-hook-annotation-acceptance@1.0"),
+    read("records", "legacy-record")
+  ]);
+  db.close();
+  return { analysis: template.analysis?.type, record: record?.recordNumber };
+});
+assert(!upgradedAnnotation.analysis && upgradedAnnotation.record === "R-LEGACY", "更新不得补写用户已有问卷或修改历史记录");
+await migrationPage.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const template = await new Promise((resolve) => {
+    const request = db.transaction("templates").objectStore("templates").get("ear-hook-annotation-acceptance@1.0");
+    request.onsuccess = () => resolve(request.result);
+  });
+  template.fields[1].label = "用户修改过的接触题";
+  delete template.analysis;
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction(["templates", "settings"], "readwrite");
+    transaction.objectStore("templates").put(template);
+    transaction.objectStore("settings").put({ key: "builtInTemplateSeedRevision", value: 5 });
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+});
+await migrationPage.reload({ waitUntil: "networkidle" });
+const customizedAnnotation = await migrationPage.evaluate(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("research-notebook", 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const template = await new Promise((resolve) => {
+    const request = db.transaction("templates").objectStore("templates").get("ear-hook-annotation-acceptance@1.0");
+    request.onsuccess = () => resolve(request.result);
+  });
+  db.close();
+  return { label: template.fields[1].label, analysis: template.analysis };
+});
+assert(customizedAnnotation.label === "用户修改过的接触题" && !customizedAnnotation.analysis, "用户改过的验收问卷不得被自动补写分析配置");
 await migrationContext.close();
 
 const analysisContext = await browser.newContext({
@@ -154,7 +232,7 @@ await analysisPage.evaluate(async () => {
     request.onerror = () => reject(request.error);
   });
   const template = await new Promise((resolve, reject) => {
-    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.1");
+    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.2");
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -174,7 +252,7 @@ await analysisPage.evaluate(async () => {
     horizontal.forEach((value, index) => transaction.objectStore("records").put({
       id: `analysis-${index}`,
       recordNumber: `A-${index + 1}`,
-      templateKey: "ear-anthropometry-survey@1.1",
+      templateKey: "ear-anthropometry-survey@1.2",
       answers: {
         horizontalThickness: [String(value - 0.02), String(value), String(value + 0.02)],
         tiltedThickness: [String(tilted[index] - 0.02), String(tilted[index]), String(tilted[index] + 0.02)]
@@ -188,11 +266,11 @@ await analysisPage.evaluate(async () => {
   db.close();
 });
 await analysisPage.reload({ waitUntil: "networkidle" });
-const homeSecondaryBackgrounds = await analysisPage.evaluate(() => ["analysis", "export-csv"].map((action) => {
+const homeSecondaryBackgrounds = await analysisPage.evaluate(() => ["analysis", "export-xlsx"].map((action) => {
   const button = document.querySelector(`[data-action="${action}"]`);
   return button ? getComputedStyle(button).backgroundColor : null;
 }));
-assert(homeSecondaryBackgrounds.every((color) => color === "rgb(255, 255, 255)"), "主页简易分析或导出CSV按钮不是白底");
+assert(homeSecondaryBackgrounds.every((color) => color === "rgb(255, 255, 255)"), "主页简易分析或导出Excel按钮不是白底");
 await analysisPage.getByRole("button", { name: "简易分析", exact: true }).click();
 await analysisPage.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await analysisPage.getByText("KDE 分布曲线", { exact: true }).count() === 2, "29份模拟记录没有绘制KDE分布曲线");
@@ -272,18 +350,6 @@ await choose('[data-action="select-single"][data-option="clip"]');
 await nextTo("偏好原因");
 
 await page.locator("[data-field-input]").fill("不影响眼镜腿，取下更方便");
-await nextTo("耳朵对耳机佩戴不适的敏感程度");
-await choose('[data-action="select-rating"][data-value="4"]');
-await nextTo("一般疼痛位置");
-
-await choose('[data-action="toggle-multi"][data-option="point1"]');
-await choose('[data-action="toggle-multi"][data-option="point2Back"]');
-await page.setViewportSize({ width: 320, height: 667 });
-await assertNoHorizontalOverflow("320px疼痛位置页");
-await page.setViewportSize({ width: 430, height: 932 });
-await assertNoHorizontalOverflow("430px疼痛位置页");
-await page.setViewportSize({ width: 390, height: 844 });
-await page.screenshot({ path: path.join(outputDir, "mobile-pain-question.png"), fullPage: true });
 await clickAction("next-question");
 
 await page.getByText("1 份", { exact: true }).waitFor();
@@ -396,9 +462,7 @@ for (const title of [
   "耳夹佩戴习惯",
   "耳型大小评价",
   "开放式耳机偏好",
-  "偏好原因",
-  "耳朵对耳机佩戴不适的敏感程度",
-  "一般疼痛位置"
+  "偏好原因"
 ]) await nextTo(title);
 await clickAction("next-question");
 await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor();
@@ -408,20 +472,20 @@ await clickAction("home");
 await page.getByText("1 份", { exact: true }).waitFor();
 
 const downloadPromise = page.waitForEvent("download");
-await clickAction("export-csv");
+await clickAction("export-xlsx");
 const download = await downloadPromise;
-const csvPath = path.join(outputDir, "exported.csv");
-await download.saveAs(csvPath);
-const csv = await fs.readFile(csvPath, "utf8");
-assert(csv.charCodeAt(0) === 0xfeff, "CSV缺少UTF-8 BOM");
-assert(csv.includes("一般疼痛位置"), "CSV缺少疼痛位置题目列");
-assert(!csv.includes(",点位1,"), "CSV仍然把一个多选题拆成多个点位列");
-assert(csv.includes("点位1；点位2背面"), "CSV多选答案没有合并在一个单元格");
-assert(csv.includes("左耳水平佩戴位置厚度－第1次（mm）"), "CSV缺少重复测量原始值列");
-assert(csv.includes("左耳水平佩戴位置厚度－平均值（mm）"), "CSV缺少重复测量平均值列");
-assert(csv.includes("左耳水平佩戴位置厚度－最大差值（mm）"), "CSV缺少重复测量最大差值列");
-assert(csv.includes("5.3345") && csv.includes("6.12345") && csv.includes("6.22345"), "CSV没有保留修改后的厚度原始值");
-assert(csv.includes("6.17345") && csv.includes("0.1"), "CSV没有正确导出平均值或最大差值");
+const xlsxPath = path.join(outputDir, "exported.xlsx");
+await download.saveAs(xlsxPath);
+const workbook = await JSZip.loadAsync(await fs.readFile(xlsxPath));
+const responses = await workbook.file("xl/worksheets/sheet1.xml").async("string");
+const annotations = await workbook.file("xl/worksheets/sheet2.xml").async("string");
+assert(!responses.includes("一般疼痛位置") && !responses.includes("耳朵对耳机佩戴不适的敏感程度"), "新版内置问卷仍导出了已删除的Q10/Q11");
+assert(responses.includes("左耳水平佩戴位置厚度－第1次（mm）"), "Responses缺少重复测量原始值列");
+assert(responses.includes("左耳水平佩戴位置厚度－平均值（mm）"), "Responses缺少重复测量平均值列");
+assert(responses.includes("左耳水平佩戴位置厚度－最大差值（mm）"), "Responses缺少重复测量最大差值列");
+assert(responses.includes("5.3345") && responses.includes("6.12345") && responses.includes("6.22345"), "Responses没有保留修改后的厚度原始值");
+assert(responses.includes("6.17345") && responses.includes("0.1"), "Responses没有正确导出平均值或最大差值");
+assert(annotations.includes("normalizedX"), "Annotations工作表不存在");
 
 await clickAction("start-form");
 await page.locator("[data-anonymous]").check();
@@ -460,7 +524,7 @@ const importedTemplate = page.locator('[data-template-row="fixture-template@1.0"
 assert(await importedTemplate.getByText("模板导入测试", { exact: false }).isVisible(), "导入模板名称不正确");
 assert(await importedTemplate.getByText("0份记录", { exact: false }).isVisible(), "导入模板记录数不正确");
 
-await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.1"]').click();
+await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.2"]').click();
 await page.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 assert(await page.getByText("支持简易分析", { exact: true }).isVisible(), "问卷概览没有显示简易分析能力");
 assert(await page.getByRole("button", { name: "选择此问卷", exact: true }).isVisible(), "问卷概览底部缺少选择此问卷按钮");
@@ -481,7 +545,7 @@ const backupPath = path.join(outputDir, "complete-backup.json");
 await backupDownload.saveAs(backupPath);
 const backup = JSON.parse(await fs.readFile(backupPath, "utf8"));
 assert(backup.format === "research-notebook-backup", "完整备份格式标识不正确");
-assert(backup.data.templates.length === 2, "完整备份没有包含V1.1和导入问卷模板");
+assert(["ear-anthropometry-survey@1.2", "fixture-template@1.0", "ear-hook-annotation-acceptance@1.0"].every((key) => backup.data.templates.some((template) => template.key === key)), "完整备份没有包含内置问卷、导入问卷和图片标注示例");
 assert(backup.data.records.length === 1, "完整备份没有包含已保存记录");
 
 await clickAction("home");
@@ -586,5 +650,5 @@ const expectedDiagnosticIndex = errors.findIndex((message) => message.includes("
 if (expectedDiagnosticIndex >= 0) errors.splice(expectedDiagnosticIndex, 1);
 
 if (errors.length) throw new Error(`浏览器错误：\n${errors.join("\n")}`);
-console.log(JSON.stringify({ passed: true, csvPath, backupPath, screenshots: ["mobile-repeated-measurement.png", "mobile-record-detail.png", "mobile-template-management.png", "mobile-pain-question.png", "mobile-home-offline.png"] }, null, 2));
+console.log(JSON.stringify({ passed: true, xlsxPath, backupPath, screenshots: ["mobile-repeated-measurement.png", "mobile-record-detail.png", "mobile-template-management.png", "mobile-pain-question.png", "mobile-home-offline.png"] }, null, 2));
 await browser.close();

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { normalizeTemplateImport, validateTemplate } from "../js/questionnaire-schema.js";
 
 const fixedTime = "2026-09-14T00:00:00.000Z";
@@ -29,6 +30,23 @@ layoutTemplate.recordLabelField = "name";
 layoutTemplate.fields.push({ id: "age", type: "number", label: "年龄", page: "profile" });
 layoutTemplate.fields[0].page = "profile";
 assert.equal(validateTemplate(layoutTemplate, { importedAt: fixedTime }).fields[1].page, "profile");
+const imageRangeTemplate = JSON.parse(fs.readFileSync(new URL("../examples/ear-image-range-test.json", import.meta.url), "utf8"));
+assert.equal(validateTemplate(imageRangeTemplate, { importedAt: fixedTime }).fields.length, 7, "图片标注测试问卷无效");
+assert.equal(validateTemplate(imageRangeTemplate, { importedAt: fixedTime }).analysis.type, "imageRangeHeatmap");
+assert.equal(imageRangeTemplate.recordLabelField, "name", "验收问卷未用姓名命名样本");
+expectInvalid((template) => {
+  template.fields = [{ id: "area", type: "imageRange", label: "区域", image: { src: "./assets/ear-side.png" }, view: "side", annotationType: "pain", brushSize: 0.03, levels: [{ id: 1, label: "疼痛" }] }];
+}, /正数宽高/);
+expectInvalid((template) => {
+  template.fields = [{ id: "area", type: "imageRange", label: "区域", image: { src: "./assets/ear-side.png", width: 1149, height: 1368 }, view: "side", annotationType: "pain", brushSize: 0.03, levels: [{ id: 2, label: "疼痛" }] }];
+}, /连续等级/);
+expectInvalid((template) => {
+  template.fields = [{ id: "area", type: "imageRange", label: "区域", questionNumber: 0, image: { src: "./assets/ear-side.png", width: 1149, height: 1368 }, view: "side", annotationType: "pain", brushSize: 0.03, levels: [{ id: 1, label: "疼痛" }] }];
+}, /questionNumber/);
+expectInvalid((template) => {
+  template.fields = [imageRangeTemplate.fields[1]];
+  template.analysis = { type: "imageRangeHeatmap", fields: [{ id: "name" }] };
+}, /热力图字段无效/);
 
 expectInvalid((template) => { template.schemaVersion = 2; }, /schemaVersion/);
 expectInvalid((template) => { template.fields.push({ ...template.fields[0] }); }, /题目ID重复/);
@@ -73,4 +91,4 @@ expectInvalid((template) => {
   template.analysis = { type: "descriptiveDistribution", aggregation: "participantMean", fields: [{ id: "score", theme: "green" }] };
 }, /主题色无效/);
 
-console.log(JSON.stringify({ passed: true, scenarios: 17 }, null, 2));
+console.log(JSON.stringify({ passed: true, scenarios: 21 }, null, 2));

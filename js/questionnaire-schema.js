@@ -1,7 +1,7 @@
-import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.3.8";
-import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.3.8";
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.0";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.0";
 
-const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution"]);
+const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);
 
 function deepClone(value) {
@@ -23,7 +23,19 @@ export function normalizeTemplateImport(input) {
 
 function validateAnalysisConfig(config, fields) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
-  if (!ANALYSIS_TYPES.has(config.type)) throw new Error("目前只支持 distribution 或 descriptiveDistribution 分析");
+  if (!ANALYSIS_TYPES.has(config.type)) throw new Error("不支持的简易分析类型");
+  if (config.type === "imageRangeHeatmap") {
+    if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("图片热力图至少需要一道图片标注题");
+    const fieldMap = new Map(fields.map((field) => [field.id, field]));
+    const seen = new Set();
+    for (const item of config.fields) {
+      const field = fieldMap.get(item?.id);
+      if (!field || field.type !== "imageRange" || seen.has(item.id)) throw new Error(`热力图字段无效或重复：${item?.id || "未命名"}`);
+      if (item.label !== undefined && (typeof item.label !== "string" || !item.label.trim())) throw new Error(`热力图字段 ${item.id} 的标题无效`);
+      seen.add(item.id);
+    }
+    return;
+  }
   if (config.aggregation !== "participantMean") throw new Error("分布分析必须按参与者平均值汇总");
   if (config.binWidth !== undefined && (!Number.isFinite(config.binWidth) || config.binWidth <= 0)) {
     throw new Error("分布分析的固定区间宽度必须大于0；不填写时将自动分箱");
@@ -93,6 +105,25 @@ export function validateTemplate(input, { importedAt = new Date().toISOString() 
       if (!Number.isInteger(minEntries) || minEntries < 0 || minEntries > field.repeatCount) {
         throw new Error(`重复数字题 ${field.label} 的最少填写数量无效`);
       }
+    }
+
+    if (field.type === "imageRange") {
+      if (field.questionNumber !== undefined && (!Number.isInteger(field.questionNumber) || field.questionNumber < 1)) {
+        throw new Error(`图片范围标注题 ${field.label} 的 questionNumber 必须是正整数`);
+      }
+      if (!field.image?.src || !Number.isFinite(field.image.width) || field.image.width <= 0 || !Number.isFinite(field.image.height) || field.image.height <= 0) {
+        throw new Error(`图片范围标注题 ${field.label} 需要图片及正数宽高`);
+      }
+      if (typeof field.view !== "string" || !field.view.trim() || typeof field.annotationType !== "string" || !field.annotationType.trim()) {
+        throw new Error(`图片范围标注题 ${field.label} 需要 view 和 annotationType`);
+      }
+      if (!Number.isFinite(field.brushSize) || field.brushSize <= 0 || field.brushSize > 0.2) {
+        throw new Error(`图片范围标注题 ${field.label} 的 brushSize 必须大于0且不超过0.2`);
+      }
+      if (!Array.isArray(field.levels) || field.levels.length < 1 || field.levels.length > 2 || field.levels.some((level, i) => level?.id !== i + 1 || typeof level.label !== "string" || !level.label.trim())) {
+        throw new Error(`图片范围标注题 ${field.label} 需要1至2个连续等级`);
+      }
+      if (field.page !== undefined) throw new Error(`图片范围标注题 ${field.label} 必须独占一页`);
     }
 
     if (field.image?.src) {

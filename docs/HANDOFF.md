@@ -1,119 +1,77 @@
-# AuNote 项目交接说明
+# AuNote 交接说明
 
-更新日期：2026-09-14
+更新日期：2026-09-27。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
-当前正式版本：V1.3.7
+## 先分清三种状态
 
-## 项目与地址
+| 对象 | 当前状态 | 证据与限制 |
+| --- | --- | --- |
+| 正式版 | V1.4.0，包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，从 V1.4.2-beta.3 继续迭代 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；调整容差和图片显示面积先在这里验证。 |
+| Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
-- 本地目录：`D:\Harry\Research tool`
-- GitHub仓库：<https://github.com/HarryAuu999/field-research-data-tool>
-- GitHub Pages：<https://harryauu999.github.io/field-research-data-tool/>
-- 产品定位：主要在iPhone上使用的本地离线PWA，供研究人员逐题记录调查数据，导出CSV，并用完整JSON备份或恢复整个工具。
+正式版和 Beta 是不同 origin、不同 PWA 安装入口与 Service Worker 作用域，浏览器 IndexedDB 不共享。即便同一站点，Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
 
-## 必须遵守的边界
+## 项目目标与工作边界
 
-- 先阅读根目录 `AGENTS.md`，再修改代码。
-- 程序更新不得清空、覆盖或迁移已有问卷、草稿和记录。
-- 问卷以 `id + version` 区分版本，不得静默覆盖已有的同名版本。
-- 研究CSV、完整备份及含参与者信息的文件不得提交到公开仓库。
-- 删除、重命名、清理文件前，必须先取得用户明确确认。
-- 不要修改或混入独立项目 `earclip-force-curve-tool` 的文件。
-- “已编码、已测试、已提交、已推送、已部署、iPhone实机验证”是不同状态，交接时必须分开说明。
+AuNote 是面向现场用户研究的轻量、离线优先 PWA，主要在 iPhone 上逐题记录本地样本，并导出 XLSX 或完整 JSON 备份。原生 HTML、CSS、ES modules；没有构建步骤或大型框架。用户重视简洁、速度、低维护成本；不要为小功能引入重型工程体系。
 
-## V1.3.7 已实现
+程序更新不得清空或静默覆盖问卷、草稿、记录。问卷以 id + version 为独立版本。未经用户明确要求，不推送或发布 GitHub；先按任务范围修改并让用户验证。删除、重命名或清理文件前先征得明确确认。不得提交研究表格、完整备份或参与者信息，也不得混入独立项目 earclip-force-curve-tool。工作区的 analysis/、demo/、design-qa.md 是未跟踪的既有材料；未经确认不要加入提交、移动或删除。
 
-- 新安装只内置一份“佩戴耳厚数据采集 V1.1”示例问卷；更新旧设备时，不主动删除其已有V1.0或其他问卷。
-- 问卷管理支持复制和删除。复制后留在管理页，用户自行打开副本。
-- 点击问卷进入概览，底部固定按钮为“选择此问卷”；选择后回到主页，不会直接开始填写。
-- 概览页可编辑问卷标题、背景信息和问题；支持新增、删除及长按拖动排序。拖动时使用跟手浮动卡片、原位占位和相邻问题让位动画；浮起后由触摸事件接管手势，避免iOS继续拖动页面，并抑制长按文字选择。
-- 点击问题卡片进入问题编辑。题型在锚定气泡中选择；输入控件会按题型调用文字、整数或小数键盘。
-- 调整问题顺序后概览底部操作会立即变为“保存问卷”；题型选择气泡不再显示“取消”，点击气泡外部或按Esc即可关闭。
-- 从问题编辑完成返回或放弃修改返回时，问卷概览恢复进入问题前的滚动位置；手机编辑输入框避免触发iOS自动缩放。
-- 问题修改只有点击“完成”才写入问卷编辑草稿。直接返回时提示“放弃更改／继续编辑”，再次进入编辑页时临时界面状态会重置并回到页面顶部。
-- 离开有未保存改动的问卷概览时也会提示“放弃更改／继续编辑”。
-- 无记录且无草稿的问卷保存编辑后替换原空模板，并更新版本号；已有记录或草稿的问卷保存后生成新版本，旧问卷和旧数据完整保留，新版本自动成为当前问卷。
-- 主页显示当前问卷背景；支持草稿、记录查看与修改、CSV导出、完整JSON备份和恢复。
-- 首页记录入口使用“已记录样本”，避免把一份参与者记录误称为一份问卷。
-- 样本列表页标题统一为“已记录样本”；列表左滑只显示删除垃圾桶，不提供复制。记录详情无需“编辑记录”按钮，直接点击问题修改；已有样本修改不写入问卷草稿，返回时依次回到记录详情、样本列表和主页。
-- 样本列表恢复为紧凑行式布局，左滑后垃圾桶显示在移动内容框外；主页与返回页顶部栏尺寸统一，并放大返回图标。
-- 问卷概览保存成功提示显示在底部操作栏上方，不遮挡按钮；其他Toast仍使用默认位置。
-- 特定问卷可配置简易分析；当前示例包含水平和倾斜耳厚的直方图、KDE曲线、正态参考曲线、P20/P50/P80及触摸查看P值。
-- `distribution`继续兼容；新增通用`descriptiveDistribution`配置与描述性统计摘要，并提供AI转换指南、JSON Schema和两份示例问卷。
-- 应用图标改用`assets/App-icon2.svg`，并生成180、192和512像素PNG图标。
-- Android安装清单使用192和512像素PNG普通图标并提供稳定PWA ID；SVG继续作为网页favicon。新增Pixel 7核心流程测试，覆盖填写、保存、修改、触摸左滑、CSV和离线重开。
-- 更新提示包含版本概况，并提供“立即更新”“此次不更新”“跳过此版本”。
-- 入口样式、主模块及其依赖使用随版本变化的URL；即使设备仍由V1.0.0等旧Service Worker控制，也不会继续命中过期的静态资源缓存。
-- 问卷JSON校验已从主应用拆到独立模块；统计、问卷编辑、校验、版本、基础UI和Android均有可单独运行的快速测试，开发时按改动范围选择最小测试集。
-- AI转换普通问卷时只需读取`docs/questionnaire-ai-guide.md`，不必扫描整个仓库或主应用代码；新增`tools/validate-questionnaire.mjs`，可用与PWA一致的校验逻辑快速预检JSON。
-- 问卷导入兼容常见AI输出中的字符串`"1"`和单层`questionnaire`/`template`包装；无效JSON或结构错误会显示文件名、实际schemaVersion类型和顶层字段，标准问卷规范仍要求数字`schemaVersion: 1`。
-- 顶层可选`recordLabelField`用于明确指定样本列表名称字段；旧问卷未配置时兼容识别`name`、`participantName`、姓名类短文字或第一道短文字题，不迁移记录数据。
-- 相邻题目可在JSON中设置相同`page`值实现多题同页；未配置的旧问卷继续一页一题。该配置只影响填写布局，不改变答案、IndexedDB或CSV，手机问卷编辑器不提供配置入口但会保留现有值。
-- 新增多题同页与样本名称的独立浏览器测试；AI指南、完整模板规范、JSON Schema和示例问卷已同步上述规则。
-- AI转换任何来源问卷前必须执行通用能力差距检查，覆盖布局、交互、输入校验和分析要求；部分支持、不支持或信息不足时先向用户说明降级差异，不能把Schema通过等同于原问卷完整实现。
-- 问卷概览的问题和说明支持左滑显示单个删除垃圾桶；删除先进入问卷修改稿，仍需点击“保存问卷”才生成新版本或替换无记录模板。横向手势确认后阻止纵向页面滚动，点击已展开行之外的空白区域会收起操作；问卷和样本列表共用相同的外部收起规则。
+## 用户操作与状态流
 
-## 代码结构
+- 首页展示当前问卷、背景、该问卷的已记录样本数。无草稿时“开始填写”，有草稿时“继续填写／废弃草稿”。“简易分析”只在问卷配置了 analysis 时出现；“导出数据”仍生成 XLSX，按当前问卷导出，不是整个数据库。完整 JSON 备份在“数据备份/恢复”。
+- 问卷管理可导入 JSON、切换问卷；左滑问卷出现复制和删除。打开问卷进入概览。未修改时底部为“选择此问卷”；有修改时为蓝色“保存问卷”和白色“另存为副本”。问题可左滑删除、长按跟手排序。点击问题编辑后只有“完成”才把改动写入问卷修改稿；返回会提示放弃或继续，并恢复概览滚动位置。问卷修改稿保存在 settings，而不是填写草稿。已有填写草稿时不允许编辑该问卷。
+- “保存问卷”递增同一 id 的 version，并设为当前；如果旧版本没有记录和填写草稿，可原子替换该空版本；否则保留旧问卷和样本，生成独立新版本。“另存为副本”产生新 id、不带旧样本或草稿，并设为当前。保存成功提示出现在底部按钮上方。删除问卷会级联删除对应记录和草稿，必须经确认。
+- 填写时默认每题一页。相邻题设置相同 page 才会同页；section 保留为说明页；imageRange 必须独占一页。前进会校验本页，结束时校验全部字段并保存一条记录。新填写的草稿按当前问卷写入 IndexedDB；返回首页保留草稿，完成后删除草稿。
+- “已记录样本”列表左滑只提供删除；点击样本进入记录详情，再点击问题直接修改。编辑模式使用内存中的现有答案，不创建新样本或问卷填写草稿；返回或保存后应先回记录详情，再回样本列表，不可跳到首页并提示废弃草稿。样本标题优先取 recordLabelField，旧问卷有姓名字段的兼容兜底见 js/app.js 的 recordName。
+- 横向滑动确认后应由对应手势接管，避免页面随手指上下滑动；点击展开行之外的页面区域应收起操作。不要重新引入大外框、内嵌垃圾桶或 iOS 长按放大镜。
 
-- `index.html`：应用入口和通用弹窗。
-- `styles.css`：全局界面与手机响应式样式。
-- `js/app.js`：页面路由、填写、记录、CSV、备份、更新提示和简易分析。
-- `js/db.js`：IndexedDB数据读写。
-- `js/default-template.js`：内置V1.1示例问卷和分析预设。
-- `js/questionnaire-editor.js`：问卷复制、编辑、题型与版本处理。
-- `js/questionnaire-schema.js`：schemaVersion 1问卷与分析配置校验。
-- `js/question-reorder.js`：手机端长按拖动问题排序。
-- `sw.js`：离线缓存、应用版本及更新概况。
-- `docs/questionnaire-template.md`：问卷JSON格式说明。
-- `tests/e2e.mjs`：主要填写、数据与离线回归测试。
-- `tests/editor-e2e.mjs`：问卷复制、编辑、排序和版本规则测试。
-- `tests/statistics.mjs`、`tests/questionnaire-editor.mjs`、`tests/questionnaire-schema.mjs`：纯逻辑快速测试。
-- `tests/version-consistency.mjs`、`tests/ui-smoke.mjs`、`tests/android-smoke.mjs`：版本缓存、基础手机UI和Android核心流程测试。
+## 问卷 JSON 与 AI 转换
 
-## 本地运行与测试
+规范维持 schemaVersion 数字 1。普通问卷转换首先读 docs/questionnaire-ai-guide.md，再按需读 docs/questionnaire-template.md、docs/questionnaire.schema.json 和 examples/；不要为了普通转换重读整个 135 KB 的 js/app.js。运行 node tools/validate-questionnaire.mjs 问卷.json 做与 PWA 一致的校验。导入兼容字符串 "1" 和单层 questionnaire/template 包装，但规范输出仍应是顶层数字 1 的单个 JSON 对象。
 
-在项目根目录启动：
+AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的要求，不得静默降级、猜必填、发明字段或研究统计方法。1–5 分允许小数时用 number 而非整数 rating。recordLabelField 指向样本名称字段；page 仅在明确要求同页时配置。当前一份问卷的 analysis 只能选择一个类型：旧 distribution、descriptiveDistribution 或 imageRangeHeatmap；不能假定数字分析和热力图可同时配置。
 
-```powershell
-python -m http.server 4173
-```
+## 图片范围标注：真实实现
 
-浏览器打开 `http://127.0.0.1:4173/`。
+内置问卷“耳挂耳机接触与疼痛范围记录”（`examples/ear-image-range-test.json`）有 3 个研究问题、7 个页面：姓名；接触范围的侧面／截面／背面；疼痛区域的侧面／截面／背面。三张底图在 `assets/`。正式版 V1.4.0 会把这份问卷加入现有用户的问卷库，不覆盖任何现有问卷、草稿和记录。全新安装另外获得九题的“佩戴耳厚数据采集 V1.2”；旧版 V1.1 保留原有 Q10、Q11，不做迁移。
 
-小修改先只检查受影响模块；正式发布前运行完整测试：
+imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；画面左右贴边只是 CSS 布局变化，不改变坐标。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.3% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
 
-```powershell
-node tests/statistics.mjs
-node tests/questionnaire-editor.mjs
-node tests/questionnaire-schema.mjs
-node tests/version-consistency.mjs
-node tests/ui-smoke.mjs
-node tests/questionnaire-layout-e2e.mjs
-node tests/android-smoke.mjs
-node tests/e2e.mjs
-node tests/editor-e2e.mjs
-```
+简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。两次 box blur 只用于可视化边缘，不能改变原始人数；色标为 0 到实际样本数，三个视图共用人数尺度。尚未实现高级报告、热力图导出或混合分析类型。
 
-发布前还必须确认 `js/app.js` 和 `sw.js` 中的应用版本一致。提交时应逐项指定文件，禁止把研究CSV或完整备份一起加入。
+## 数据、导出与恢复
 
-## 当前数据与版本规则
+IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 templates、records、drafts、settings。记录保留 templateKey、answers、首次保存与最后修改时间。新增 imageRange 是旧答案对象中的增量字段，旧问卷和旧记录不需要迁移。
 
-- IndexedDB中的本地数据与程序静态文件分开保存，正常更新Service Worker不会清空调查数据。
-- 新安装只创建内置V1.1示例；旧设备若已有V1.0，升级后仍会保留，用户可以在界面中自行决定是否删除。
-- 一名参与者的一条记录只占一次统计权重；同一测量位置的1至3次测量会先在参与者内部计算平均值。
-- CSV用于人工审查和电脑分析；完整JSON用于换机或数据丢失风险下的低频恢复。
+“导出数据”生成单个 XLSX：Responses 为一条样本一行；重复数字题另有每次原值、均值和最大差值列；图片题在 Responses 给出笔数摘要。Annotations 为逐点长表，包含 sampleId、recordNumber、questionId、view、annotationType、level、strokeId、pointOrder、normalizedX/Y、brushSize、imageSrc、imageWidth/Height。不是 mask 展开表；后续电脑分析可从原始笔画重新栅格化。没有 CSV 导出入口。
 
-## 工作区中未纳入公开仓库的内容
+完整 JSON 备份涵盖全部 templates、records、drafts、settings；恢复会替换本入口的整个数据库，必须确认，且程序先生成“恢复前自动备份”。不要把“导出数据”误当作完整备份。任何公开提交之前检查 assets/*.csv、outputs/ 与其他参与者数据未被加入。Beta 部署包只包含应用运行文件；本机 .beta-site/ 是被忽略的独立发布暂存目录，不是 GitHub 项目源码的一部分，里面也不应加入个人数据。
 
-- `analysis/`：历次阶段分析报告和脚本，不属于本次PWA发布。
-- `assets/*.csv`：含研究数据，已通过 `.gitignore` 防止误提交，文件本身没有被删除。
-- `design-qa.md`：早期检查记录，部分内容已经过时；目前仅列为后续确认的归档或删除候选，未经用户确认不要处理。
+## 代码地图与最小测试
 
-## 下一任务建议先做什么
+| 功能 | 主要文件 | 优先测试 |
+| --- | --- | --- |
+| 页面、导航、记录、问卷编辑、导出 | js/app.js、styles.css | tests/ui-smoke.mjs、tests/editor-e2e.mjs、tests/e2e.mjs |
+| IndexedDB、备份 | js/db.js、js/app.js | tests/e2e.mjs；发布前全套 |
+| 问卷规范与预检 | js/questionnaire-schema.js、docs/questionnaire.schema.json、tools/validate-questionnaire.mjs | tests/questionnaire-schema.mjs |
+| 统计与热力图 | js/statistics.js、js/image-range-heatmap.js | tests/statistics.mjs、tests/image-range.mjs、tests/image-range-e2e.mjs |
+| 笔画、触控、画笔 UI | js/image-range.js、js/app.js、styles.css | tests/image-range.mjs、tests/image-range-e2e.mjs |
+| 离线、版本、Android 图标 | sw.js、manifest.webmanifest、index.html、assets/ | tests/version-consistency.mjs、tests/android-smoke.mjs、tests/e2e.mjs |
 
-1. 读取 `AGENTS.md`、本文件、`README.md` 和当前 `git status`。
-2. 让用户报告V1.3.7在iPhone及Android主屏幕PWA中的更新结果与具体问题。
-3. 只修改用户明确提出的部分；未变化模块做针对性而非重复性测试。
-4. 每次正式发布前仍执行两套完整回归测试，并核对GitHub Pages真实访问版本。
+本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。2026-09-27 的正式版 V1.4.0 完整 11 组测试通过：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
 
-当前代码已完成本地自动化验证、Git提交和GitHub Pages部署；iPhone实机验证仍由用户在本次发布后进行。
+## 接手时先做
+
+1. 先读 AGENTS.md、本文件、README.md，并检查当前分支与远端差异。正式版从 `main` 开始；Beta 迭代从 `codex/aunote-beta-1.4.2` 开始。不要把两个发布仓库或本地数据库混用。
+2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不要上传真实样本来换取跨设备数据同步。
+3. 只改用户提出的行为，保留旧 schemaVersion 1、问卷版本、IndexedDB 和备份兼容；针对性测试后再按风险跑回归。
+4. 汇报时分开写：本地实现、测试通过、本地 Git 提交、GitHub 推送、Beta 部署成功、真实设备验证。尤其不要把独立 Beta 网页部署误称为 GitHub 正式版升级。
+
+## 待验证与保留现场
+
+- 待验证：真实 iPhone Safari／主屏幕安装、手指连续绘制、离线重开与热力图可读性。
+- GitHub 的独立 Beta 分支包含源码和本交接文档；但本机未跟踪材料、浏览器 IndexedDB 样本、Codex Sites 账号权限和未公开的真实研究数据不会随 Git 同步。另一设备开发无需重做功能，现场样本如需迁移须经用户主动使用完整 JSON 备份／恢复。
+- 不处理：analysis/、demo/、design-qa.md、已有 outputs/ 和研究文件。它们仍留在原位；没有收到删除或归档确认。
+- 不适用：没有获准写入的平台长期记忆；本交接文档就是应共享的知识入口，不另造记忆副本。
