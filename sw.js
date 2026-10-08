@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.0";
-const UPDATE_SUMMARY = "新增图片范围标注与人数热力图，并加入耳挂耳机演示问卷；已有问卷、草稿和记录保留。";
+const APP_VERSION = "1.4.2";
+const UPDATE_SUMMARY = "图片标注更精细，侧面与截面耳图放大；新增V1.1演示问卷，旧问卷和记录保留。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.0",
-  "./manifest.webmanifest?v=1.4.0",
+  "./styles.css?v=1.4.2",
+  "./manifest.webmanifest?v=1.4.2",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,16 +21,16 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.0",
-  "./js/db.js?v=1.4.0",
-  "./js/default-template.js?v=1.4.0",
-  "./js/questionnaire-editor.js?v=1.4.0",
-  "./js/questionnaire-schema.js?v=1.4.0",
-  "./js/question-reorder.js?v=1.4.0",
-  "./js/statistics.js?v=1.4.0",
-  "./js/image-range.js?v=1.4.0",
-  "./js/image-range-heatmap.js?v=1.4.0",
-  "./js/xlsx-export.js?v=1.4.0"
+  "./js/app.js?v=1.4.2",
+  "./js/db.js?v=1.4.2",
+  "./js/default-template.js?v=1.4.2",
+  "./js/questionnaire-editor.js?v=1.4.2",
+  "./js/questionnaire-schema.js?v=1.4.2",
+  "./js/question-reorder.js?v=1.4.2",
+  "./js/statistics.js?v=1.4.2",
+  "./js/image-range.js?v=1.4.2",
+  "./js/image-range-heatmap.js?v=1.4.2",
+  "./js/xlsx-export.js?v=1.4.2"
 ];
 
 self.addEventListener("install", (event) => {

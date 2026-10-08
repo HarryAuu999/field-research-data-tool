@@ -87,6 +87,11 @@ await migrationPage.evaluate(async () => {
   latest.key = `${latest.id}@${latest.version}`;
   legacy.importedAt = new Date().toISOString();
   latest.importedAt = new Date().toISOString();
+  const previousImage = await (await fetch("./examples/ear-image-range-test.json")).json();
+  previousImage.version = "1.0";
+  previousImage.title = "耳挂耳机接触与疼痛范围记录";
+  previousImage.key = `${previousImage.id}@${previousImage.version}`;
+  previousImage.importedAt = new Date().toISOString();
   const db = await new Promise((resolve, reject) => {
     const request = indexedDB.open("research-notebook", 1);
     request.onsuccess = () => resolve(request.result);
@@ -97,6 +102,7 @@ await migrationPage.evaluate(async () => {
     for (const name of ["templates", "records", "drafts", "settings"]) transaction.objectStore(name).clear();
     transaction.objectStore("templates").put(legacy);
     transaction.objectStore("templates").put(latest);
+    transaction.objectStore("templates").put(previousImage);
     transaction.objectStore("drafts").put({ templateKey: latest.key, answers: { name: { value: "未完成草稿", anonymous: false } } });
     transaction.objectStore("records").put({
       id: "legacy-record",
@@ -120,6 +126,8 @@ await migrationPage.getByText("耳部人体数据采集", { exact: true }).waitF
 await migrationPage.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 await migrationPage.locator('[data-action="templates"]').click();
 await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').waitFor();
+await migrationPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.0"]').waitFor();
+await migrationPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.1"]').waitFor();
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
 const preservedQuestionnaire = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
@@ -545,7 +553,7 @@ const backupPath = path.join(outputDir, "complete-backup.json");
 await backupDownload.saveAs(backupPath);
 const backup = JSON.parse(await fs.readFile(backupPath, "utf8"));
 assert(backup.format === "research-notebook-backup", "完整备份格式标识不正确");
-assert(["ear-anthropometry-survey@1.2", "fixture-template@1.0", "ear-hook-annotation-acceptance@1.0"].every((key) => backup.data.templates.some((template) => template.key === key)), "完整备份没有包含内置问卷、导入问卷和图片标注示例");
+assert(["ear-anthropometry-survey@1.2", "fixture-template@1.0", "ear-hook-annotation-acceptance@1.1"].every((key) => backup.data.templates.some((template) => template.key === key)), "完整备份没有包含内置问卷、导入问卷和新版图片标注示例");
 assert(backup.data.records.length === 1, "完整备份没有包含已保存记录");
 
 await clickAction("home");

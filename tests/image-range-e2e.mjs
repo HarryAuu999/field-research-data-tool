@@ -17,7 +17,7 @@ async function strokes(questionId) {
       request.onerror = () => reject(request.error);
     });
     const draft = await new Promise((resolve) => {
-      const request = db.transaction("drafts").objectStore("drafts").get("ear-hook-annotation-acceptance@1.0");
+      const request = db.transaction("drafts").objectStore("drafts").get("ear-hook-annotation-acceptance@1.1");
       request.onsuccess = () => resolve(request.result);
     });
     db.close();
@@ -39,7 +39,7 @@ async function touchStroke() {
 try {
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await page.locator('[data-action="templates"]').click();
-  await page.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.0"]').click();
+  await page.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.1"]').click();
   await page.locator('[data-action="select-template"]').click();
   await page.locator('[data-action="start-form"]').click();
   assert.equal(await page.locator(".form-counter").textContent(), "1/7");
@@ -47,6 +47,8 @@ try {
   await page.locator('[data-action="next-question"]').click();
   await page.locator(".form-counter", { hasText: "2/7" }).waitFor();
   await page.locator(".annotation-canvas").waitFor();
+  const sideViewBox = (await page.locator(".annotation-canvas").getAttribute("viewBox")).split(" ").map(Number);
+  assert(Math.abs(sideViewBox[2] / 1149 - 0.73) < 0.001 && Math.abs(sideViewBox[3] / 1368 - 0.78) < 0.001, "侧面耳图没有放大到画布内");
   const fullWidthCanvas = await page.locator(".annotation-canvas").boundingBox();
   assert(fullWidthCanvas.x <= 1 && fullWidthCanvas.x + fullWidthCanvas.width >= 389, "标注图片左右仍有页面留白");
   assert.equal(await page.locator("[data-annotation-brush]").evaluate((el) => getComputedStyle(el).borderRadius), "999px", "画笔滑块未使用胶囊跑道");
@@ -75,6 +77,8 @@ try {
   await page.locator("[data-annotation-undo]").click();
   await page.locator('[data-action="next-question"]').click();
   await page.locator(".form-counter", { hasText: "3/7" }).waitFor();
+  const sectionViewBox = (await page.locator(".annotation-canvas").getAttribute("viewBox")).split(" ").map(Number);
+  assert(Math.abs(sectionViewBox[2] / 4788 - 0.73) < 0.001 && Math.abs(sectionViewBox[3] / 5700 - 0.78) < 0.001, "截面耳图没有放大到画布内");
   assert.equal((await strokes("contactSide")).length, 0, "撤销没有保存");
   await touchStroke();
   await page.locator('[data-action="next-question"]').click();
@@ -155,7 +159,7 @@ try {
   const desktopPage = await desktop.newPage();
   await desktopPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await desktopPage.locator('[data-action="templates"]').click();
-  await desktopPage.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.0"]').click();
+  await desktopPage.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.1"]').click();
   await desktopPage.locator('[data-action="select-template"]').click();
   await desktopPage.locator('[data-action="start-form"]').click();
   await desktopPage.locator('[data-field-input]').fill("桌面测试");

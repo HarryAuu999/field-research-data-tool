@@ -1,16 +1,16 @@
 # AuNote 交接说明
 
-更新日期：2026-09-27。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-08。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.0，包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
-| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，从 V1.4.2-beta.3 继续迭代 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；调整容差和图片显示面积先在这里验证。 |
+| 正式版 | V1.4.2，包含图片范围标注、人数热力图、侧面／截面图紧凑视框及0.15%笔画简化容差 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，已验证的 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
-正式版和 Beta 是不同 origin、不同 PWA 安装入口与 Service Worker 作用域，浏览器 IndexedDB 不共享。即便同一站点，Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
+正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、PWA 安装入口、Service Worker 作用域和 IndexedDB 名称；浏览器数据不共享。发布 Beta 副本时必须保留 `research-notebook-beta-github` 数据库名，正式版保持 `research-notebook`。Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
 
 ## 项目目标与工作边界
 
@@ -35,9 +35,9 @@ AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的
 
 ## 图片范围标注：真实实现
 
-内置问卷“耳挂耳机接触与疼痛范围记录”（`examples/ear-image-range-test.json`）有 3 个研究问题、7 个页面：姓名；接触范围的侧面／截面／背面；疼痛区域的侧面／截面／背面。三张底图在 `assets/`。正式版 V1.4.0 会把这份问卷加入现有用户的问卷库，不覆盖任何现有问卷、草稿和记录。全新安装另外获得九题的“佩戴耳厚数据采集 V1.2”；旧版 V1.1 保留原有 Q10、Q11，不做迁移。
+内置问卷“耳挂耳机接触与疼痛范围验收 V1.1”（`examples/ear-image-range-test.json`）有 3 个研究问题、7 个页面：姓名；接触范围的侧面／截面／背面；疼痛区域的侧面／截面／背面。三张底图在 `assets/`。正式版 V1.4.2 会以同一 id 的新问卷版本加入现有用户的问卷库，不覆盖 V1.0 问卷、草稿和记录，也不改变当前选择。全新安装另外获得九题的“佩戴耳厚数据采集 V1.2”；旧版 V1.1 保留原有 Q10、Q11，不做迁移。
 
-imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；画面左右贴边只是 CSS 布局变化，不改变坐标。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.3% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
+imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；内置侧面和截面耳图采用紧凑 SVG 视框放大显示，归一化坐标不变。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.15% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
 
 简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。两次 box blur 只用于可视化边缘，不能改变原始人数；色标为 0 到实际样本数，三个视图共用人数尺度。尚未实现高级报告、热力图导出或混合分析类型。
 
@@ -60,7 +60,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 | 笔画、触控、画笔 UI | js/image-range.js、js/app.js、styles.css | tests/image-range.mjs、tests/image-range-e2e.mjs |
 | 离线、版本、Android 图标 | sw.js、manifest.webmanifest、index.html、assets/ | tests/version-consistency.mjs、tests/android-smoke.mjs、tests/e2e.mjs |
 
-本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。2026-09-27 的正式版 V1.4.0 完整 11 组测试通过：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
+本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。正式版发布前必须运行完整 11 组测试：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
 
 ## 接手时先做
 

@@ -2,7 +2,7 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 Excel。
 
-当前状态：**正式版 V1.4.0，独立 Beta 测试版**。两个版本分别通过 GitHub Pages 发布，使用不同的安装地址和本地数据库。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.4.2，独立 Beta 测试版 V1.4.2-beta.4**。两个版本分别通过 GitHub Pages 发布，使用不同的安装地址和本地数据库。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
 Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
 
@@ -17,7 +17,7 @@ Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
 
 ## 已实现
 
-- 新安装内置“佩戴耳厚数据采集 V1.2”（九题，不含原 Q10、Q11）和“耳挂耳机接触与疼痛范围记录”；旧用户更新后会自动获得后一份展示问卷，已有问卷、草稿和记录不会被修改；耳厚问卷支持每个位置填写1至3次最小接触厚度，并保留原始值、平均值和最大差值；
+- 新安装内置“佩戴耳厚数据采集 V1.2”（九题，不含原 Q10、Q11）和“耳挂耳机接触与疼痛范围验收 V1.1”；旧用户更新后会获得新版演示问卷，原 V1.0 问卷、草稿和记录不会被修改；耳厚问卷支持每个位置填写1至3次最小接触厚度，并保留原始值、平均值和最大差值；
 - 通过 JSON 导入、切换和删除不同问卷版本；
 - 在问卷管理中复制问卷，并在问卷概览中直接打开标题、背景、基础问题和选项进行编辑；
 - 问卷概览底部使用“选择此问卷”，选择后返回主页，不会直接开始填写；
@@ -58,9 +58,9 @@ python -m http.server 4173
 http://127.0.0.1:4173/
 ```
 
-验证图片标注时，在“问卷管理”选择自动加入的“耳挂耳机接触与疼痛范围记录”，然后返回主页开始填写。它包含姓名、接触范围、疼痛区域3个研究问题，共7个填写页面。其[JSON文件](examples/ear-image-range-test.json)也可单独检查；三张PNG已放在`assets/`并被离线缓存。
+验证图片标注时，在“问卷管理”选择自动加入的“耳挂耳机接触与疼痛范围验收 V1.1”，然后返回主页开始填写。它包含姓名、接触范围、疼痛区域3个研究问题，共7个填写页面。其[JSON文件](examples/ear-image-range-test.json)也可单独检查；三张PNG已放在`assets/`并被离线缓存。
 
-Beta 版使用黄色应用图标与“AuNote Beta”名称，以免与绿色正式版混淆。标注页按上一题／下一题逐图填写；可调画笔大小、撤销上一笔、确认后清除本页所有等级的标记。正式版 V1.4.0 的新笔画使用固定0.3%简化容差；Beta 后续迭代可独立调整。展示问卷明确配置`imageRangeHeatmap`，在“简易分析”中按图片和疼痛等级查看人数热力图。每位参与者在同一区域最多计一次，柔化仅影响显示、不改变真实人数或XLSX中的原始笔画数据。
+Beta 版继续使用黄色应用图标与“AuNote Beta”名称，以免与绿色正式版混淆。标注页按上一题／下一题逐图填写；可调画笔大小、撤销上一笔、确认后清除本页所有等级的标记。正式版 V1.4.2 使用固定0.15%笔画简化容差，侧面和截面耳图采用紧凑视框放大显示，底图和归一化坐标不变。演示问卷配置`imageRangeHeatmap`，在“简易分析”中按图片和疼痛等级查看人数热力图。每位参与者在同一区域最多计一次，柔化仅影响显示、不改变真实人数或XLSX中的原始笔画数据。
 
 ## 自动测试
 
@@ -111,7 +111,7 @@ AI必须先执行能力差距检查。JSON Schema通过只表示JSON结构合法
 - [AI问卷转换指南](docs/questionnaire-ai-guide.md)：Word、PDF、Markdown或自然语言问卷的转换规则；
 - [JSON Schema](docs/questionnaire.schema.json)：导入前的机器校验；
 - [基础示例](examples/basic-questionnaire.json)与[完整功能示例](examples/full-feature-questionnaire.json)；
-- [耳挂耳机接触与疼痛范围记录](examples/ear-image-range-test.json)：姓名1页、三张底图的接触与疼痛范围各3页；
+- [耳挂耳机接触与疼痛范围验收 V1.1](examples/ear-image-range-test.json)：姓名1页、三张底图的接触与疼痛范围各3页；
 - [问卷JSON模板说明](docs/questionnaire-template.md)：字段、默认行为与Excel Responses规则的完整参考。
 
 导入时AuNote仍会通过JavaScript检查基本结构、题型和字段配置；JSON Schema是额外的预检来源，不替代PWA内置验证。导入前仍需由研究人员预览题目、选项、必填状态、单位、评分和Excel Responses列是否符合原问卷。

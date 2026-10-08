@@ -87,7 +87,7 @@ await noRecordPage.evaluate(() => {
 await noRecordPage.getByRole("button", { name: "佩戴耳厚数据采集", exact: false }).first().click();
 await noRecordPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.2"] .swipe-action').count() === 2, "问卷左滑区域应只有复制和删除两个操作");
-assert(await noRecordPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.0"]').count() === 1, "新安装缺少图片标注验收问卷");
+assert(await noRecordPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.1"]').count() === 1, "新安装缺少V1.1图片标注演示问卷");
 assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').count() === 0, "新安装不应再内置旧耳厚V1.0问卷");
 await openHiddenAction(noRecordPage, "duplicate-template", "ear-anthropometry-survey@1.2");
 const initialCopyData = await databaseSnapshot(noRecordPage);
