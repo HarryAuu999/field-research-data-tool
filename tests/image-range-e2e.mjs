@@ -37,7 +37,7 @@ async function touchStroke() {
 }
 
 try {
-  await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await page.locator('[data-action="templates"]').click();
   await page.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.1"]').click();
   await page.locator('[data-action="select-template"]').click();
@@ -157,7 +157,7 @@ try {
   assert(annotationXml.includes("normalizedX") && annotationXml.includes("brushSize"), "标注数据列不完整");
   const desktop = await browser.newContext({ viewport: { width: 1000, height: 760 } });
   const desktopPage = await desktop.newPage();
-  await desktopPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await desktopPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await desktopPage.locator('[data-action="templates"]').click();
   await desktopPage.locator('[data-action="open-template"][data-key="ear-hook-annotation-acceptance@1.1"]').click();
   await desktopPage.locator('[data-action="select-template"]').click();

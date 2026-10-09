@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import JSZip from "jszip";
 import { appendStrokePoint, blankImageRangeAnswer, clampNormalized, imageRangeStrokes, simplifyStrokePoints, strokePath } from "../js/image-range.js";
-import { addBinaryMask, boxBlur } from "../js/image-range-heatmap.js";
+import { addBinaryMask, boxBlur, heatAlpha, heatColor, heatmapBlurRadius } from "../js/image-range-heatmap.js";
 import { createXlsxBlob } from "../js/xlsx-export.js";
 
 assert.deepEqual(blankImageRangeAnswer(), { version: 1, strokes: [] });
@@ -22,6 +22,12 @@ addBinaryMask(counts, new Uint8ClampedArray([0, 0, 0, 255, 0, 0, 0, 0]));
 addBinaryMask(counts, new Uint8ClampedArray([0, 0, 0, 255, 0, 0, 0, 255]));
 assert.deepEqual([...counts], [2, 1], "重复笔画应先在参与者内合并，再累计人数");
 assert.deepEqual([...boxBlur(counts, 2, 1, 1)], [1.5, 1.5]);
+assert.equal(heatmapBlurRadius(520), 4, "B方案应使用图宽约0.7%的羽化半径");
+assert.deepEqual(heatColor(0), [255, 255, 255]);
+assert.deepEqual(heatColor(0.2), [102, 202, 204]);
+assert.deepEqual(heatColor(1), [170, 45, 122]);
+assert.equal(heatAlpha(0.04), 0, "极低边缘值应透明");
+assert(heatAlpha(1) < heatAlpha(2), "柔化边缘的透明度应随人数增加");
 
 const blob = createXlsxBlob([
   { name: "Responses", rows: [["姓名", "评分"], ["=1+1", 3.5]] },

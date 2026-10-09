@@ -10,7 +10,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 - 快速测试：统计改动运行 `node tests/statistics.mjs`；图片标注数据与XLSX运行 `node tests/image-range.mjs`；问卷编辑纯数据逻辑运行 `node tests/questionnaire-editor.mjs`；问卷 JSON 校验运行 `node tests/questionnaire-schema.mjs`；版本与缓存资源引用运行 `node tests/version-consistency.mjs`。
 - 浏览器测试：顶部栏、基础手机布局和样本左滑运行 `node tests/ui-smoke.mjs`；JSON配置的多题同页和样本名称运行 `node tests/questionnaire-layout-e2e.mjs`；图片标注与XLSX运行 `node tests/image-range-e2e.mjs`；Android Manifest、图标资源和 Pixel 视口运行 `node tests/android-smoke.mjs`；问卷编辑界面与排序运行 `node tests/editor-e2e.mjs`；完整填写、样本、分析、Excel导出、备份和离线运行 `node tests/e2e.mjs`。测试需要本机 Chrome及已启动的本地预览服务。
 - 开发过程中优先运行与改动范围对应的最小测试集；除非改动影响跨模块行为，不要在每个小编辑后反复运行完整 E2E。
-- 修改 `js/db.js`、数据迁移、备份恢复、Service Worker、离线逻辑或跨模块状态时，必须运行全部测试。正式发布前也必须运行全部测试。
+- 修改 `js/db.js`、数据迁移、备份恢复、Service Worker 的运行逻辑、离线逻辑或跨模块状态时，运行完整回归。仅显示层、图片资源、文档或独立纯函数的更新，优先运行对应单元测试、相关浏览器测试及版本检查；正式发布也按实际风险决定，不因单纯版本号或缓存清单更新重复跑所有无关用例。
 - 发布前核对 `js/app.js` 与 `sw.js` 的应用版本号一致。
 - 未经用户明确要求，不得推送或发布到 GitHub；先保留本地版本供用户网页验证。
 
@@ -24,6 +24,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 - `js/questionnaire-schema.js`：schemaVersion 1 问卷与分析配置校验。
 - `js/question-reorder.js`：手机端长按拖动排序。
 - `tools/validate-questionnaire.mjs`：用与PWA一致的校验逻辑预检AI生成问卷。
+- `docs/image-range-heatmap-analysis.md` 与 `tools/render-image-range-heatmaps.py`：从导出XLSX离线复现人数热力图；不要提交参与者数据或输出图。
 - `docs/questionnaire-template.md`：现役问卷 JSON 格式说明。
 - `tests/e2e.mjs`：手机尺寸端到端回归测试。
 
@@ -44,6 +45,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 当前正式应用版本：V1.4.2；独立测试 PWA 为 V1.4.2-beta.4。Beta 与正式版使用不同路径和数据库，不共享浏览器本地数据。
+- 当前正式应用版本：V1.4.3；独立测试 PWA 为 V1.4.2-beta.4。Beta 与正式版使用不同路径和数据库，不共享浏览器本地数据。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。

@@ -1,12 +1,12 @@
 # AuNote 交接说明
 
-更新日期：2026-10-08。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-09。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.2，包含图片范围标注、人数热力图、侧面／截面图紧凑视框及0.15%笔画简化容差 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| 正式版 | V1.4.3，包含图片范围标注、连续人数热力图、B收紧羽化、黑色截面曲线、侧面／截面图紧凑视框及0.15%笔画简化容差 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
 | Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，已验证的 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
@@ -39,7 +39,7 @@ AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的
 
 imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；内置侧面和截面耳图采用紧凑 SVG 视框放大显示，归一化坐标不变。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.15% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
 
-简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。两次 box blur 只用于可视化边缘，不能改变原始人数；色标为 0 到实际样本数，三个视图共用人数尺度。尚未实现高级报告、热力图导出或混合分析类型。
+简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。V1.4.3 使用连续人数色阶与图宽0.7%半径的双次 box blur（B收紧羽化），只柔化显示边缘，不改变原始人数；三个视图共用0至最多已标注样本数的尺度。截面底图 `assets/ear-side-section.png` 已换成同尺寸黑线版本，旧归一化坐标不迁移。导出XLSX后给其他AI分析的最短路径见 `docs/image-range-heatmap-analysis.md`，可直接运行 `tools/render-image-range-heatmaps.py`。PWA内仍未实现高级报告、热力图导出或混合分析类型。
 
 ## 数据、导出与恢复
 
@@ -60,7 +60,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 | 笔画、触控、画笔 UI | js/image-range.js、js/app.js、styles.css | tests/image-range.mjs、tests/image-range-e2e.mjs |
 | 离线、版本、Android 图标 | sw.js、manifest.webmanifest、index.html、assets/ | tests/version-consistency.mjs、tests/android-smoke.mjs、tests/e2e.mjs |
 
-本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。正式版发布前必须运行完整 11 组测试：statistics、image-range、questionnaire-editor、questionnaire-schema、version-consistency、ui-smoke、questionnaire-layout-e2e、image-range-e2e、android-smoke、editor-e2e、e2e。后续小改优先跑受影响测试；DB、备份、SW、离线、跨模块状态或正式发布必须跑全套。测试通过不等于真实 iPhone 已验收。
+本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。开发与发布都先按变更范围选最小相关测试：本次热力图显示标准运行 image-range、image-range-e2e、version-consistency，并用导出XLSX复现图像；没有运行无关的问卷编辑与完整E2E。DB、备份恢复、Service Worker运行逻辑、离线逻辑或跨模块状态变更仍跑完整回归。单纯版本号和缓存清单更新要检查一致性，但不自动触发全部测试。测试通过不等于真实 iPhone 已验收。
 
 ## 接手时先做
 

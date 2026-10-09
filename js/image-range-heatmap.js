@@ -97,12 +97,14 @@ export function countImageRangeParticipants(field, records, levelId, maxWidth = 
   return { width, height, counts, participantCount, levelCount, maxCount };
 }
 
-function heatColor(value) {
+export function heatColor(value) {
   const stops = [
-    [0, 42, 161, 215],
-    [0.35, 35, 111, 211],
-    [0.7, 91, 65, 191],
-    [1, 174, 45, 144]
+    [0, 255, 255, 255],
+    [0.2, 102, 202, 204],
+    [0.4, 39, 158, 194],
+    [0.6, 51, 105, 187],
+    [0.8, 112, 70, 164],
+    [1, 170, 45, 122]
   ];
   for (let i = 1; i < stops.length; i += 1) {
     if (value <= stops[i][0]) {
@@ -115,12 +117,20 @@ function heatColor(value) {
   return stops.at(-1).slice(1);
 }
 
+export function heatmapBlurRadius(width) {
+  return Math.max(1, Math.round(width * 0.007));
+}
+
+export function heatAlpha(count) {
+  return count < 0.05 ? 0 : Math.round(205 * Math.min(1, count / 1.2) ** 1.35);
+}
+
 export function paintHeatmap(canvas, result, scaleMaximum) {
   canvas.width = result.width;
   canvas.height = result.height;
   const ctx = canvas.getContext("2d");
   const image = ctx.createImageData(result.width, result.height);
-  const blurRadius = Math.max(2, Math.round(result.width * 0.012));
+  const blurRadius = heatmapBlurRadius(result.width);
   const softened = boxBlur(boxBlur(result.counts, result.width, result.height, blurRadius), result.width, result.height, blurRadius);
   const scale = Math.max(1, scaleMaximum);
   for (let i = 0; i < softened.length; i += 1) {
@@ -132,7 +142,7 @@ export function paintHeatmap(canvas, result, scaleMaximum) {
     image.data[offset] = color[0];
     image.data[offset + 1] = color[1];
     image.data[offset + 2] = color[2];
-    image.data[offset + 3] = Math.round(225 * Math.min(1, count / 0.65));
+    image.data[offset + 3] = heatAlpha(count);
   }
   ctx.putImageData(image, 0, 0);
 }
