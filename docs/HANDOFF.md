@@ -6,8 +6,8 @@
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | GitHub Pages 上的 V1.4.0，已包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；仓库 `main` 还包含独立的 `earclip-force-curve-demo/`，Beta 开发不要改动它。 |
-| Beta 源码 | GitHub 独立分支 `codex/aunote-beta-1.4.2`，应用版本 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；相对正式版，笔画简化容差为0.15%，侧面与截面图放大显示。 |
+| 正式版 | GitHub Pages 上的 V1.4.4，已包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；仓库 `main` 还包含独立的 `earclip-force-curve-demo/`，Beta 开发不要改动它。 |
+| Beta 源码 | GitHub 独立分支 `codex/aunote-beta-1.4.2`，应用版本 V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；相对正式版，笔画简化容差为0.15%，侧面与截面图放大显示；父子页面加入滑入／返回动效，功能页和问卷相邻题不做转场。 |
 | Beta 网页 | 独立公开 GitHub Pages 发布仓库 | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后还需单独更新发布仓库。 |
 
 正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、Service Worker 作用域和 IndexedDB 名称；两个入口的问卷与记录不共享。Safari 网页和“添加到主屏幕”的 PWA 也可能有独立本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。

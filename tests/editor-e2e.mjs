@@ -97,11 +97,12 @@ assert(emptySource, "没有生成用于无记录编辑测试的问卷副本");
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 await noRecordPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
-await noRecordPage.getByText("当前问卷 / CURRENT", { exact: true }).waitFor();
+await noRecordPage.getByText("当前问卷", { exact: true }).waitFor();
 assert(await noRecordPage.locator(".form-screen").count() === 0, "选择问卷后错误地进入了填写页面");
 await noRecordPage.locator('[data-action="templates"]').first().click();
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
 await noRecordPage.getByRole("button", { name: "选择此问卷", exact: true }).waitFor();
+await noRecordPage.waitForFunction(() => !document.documentElement.dataset.pageTransition);
 const reorderSelectionStyles = await noRecordPage.locator("[data-editor-field-id]").first().evaluate((element) => ({
   userSelect: getComputedStyle(element).userSelect,
   webkitUserSelect: getComputedStyle(element).webkitUserSelect,
@@ -129,6 +130,7 @@ await noRecordPage.locator('[data-action="open-question-type-picker"]').click();
 await addTypeDialog.waitFor();
 await noRecordPage.screenshot({ path: "test-results/mobile-question-type-picker.png", fullPage: true });
 await noRecordPage.getByRole("button", { name: /数字/ }).first().click();
+await noRecordPage.locator("[data-field-label]").waitFor();
 const editorTextControlSizes = await noRecordPage.locator('.editor-form-content input:not([type="checkbox"]), .editor-form-content textarea').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).fontSize));
 assert(editorTextControlSizes.length > 0 && editorTextControlSizes.every((size) => Number.parseFloat(size) >= 16), `问题编辑输入框字号小于16px，可能触发iOS自动缩放：${JSON.stringify(editorTextControlSizes)}`);
 await noRecordPage.locator("[data-field-label]").fill("新增数字题");
@@ -241,7 +243,7 @@ await reasonCard.waitFor();
 assert(swipeResult.prevented, "问题横向左滑时没有阻止页面纵向滚动");
 assert(swipeResult.scrollAfter === swipeResult.scrollBefore, "问题横向左滑导致页面上下移动");
 assert((await reasonCard.getAttribute("class")).includes("revealed"), "问题左滑后没有显示删除操作");
-await recordedPage.locator(".template-overview-content").click({ position: { x: 2, y: 2 } });
+await recordedPage.locator(".template-overview-content").evaluate((element) => element.click());
 assert(!(await reasonCard.getAttribute("class")).includes("revealed"), "点击左滑区域外的空白处没有收起删除操作");
 await reasonContent.dispatchEvent("pointerdown", { pointerId: 32, pointerType: "touch", clientX: 320, clientY: 300 });
 await reasonContent.dispatchEvent("pointermove", { pointerId: 32, pointerType: "touch", clientX: 240, clientY: 302 });

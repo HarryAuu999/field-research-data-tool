@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.2-beta.4";
-const UPDATE_SUMMARY = "Beta 更新：笔画简化容差降至0.15%，侧面和截面耳图放大显示；正式版仍为V1.4.0。";
+const APP_VERSION = "1.4.2-beta.5";
+const UPDATE_SUMMARY = "Beta 更新：父子页面滑入与返回动效，首页文案调整；正式版不受影响。";
 const CACHE_NAME = `aunote-beta-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.2-beta.4",
-  "./manifest.webmanifest?v=1.4.2-beta.4",
+  "./styles.css?v=1.4.2-beta.5",
+  "./manifest.webmanifest?v=1.4.2-beta.5",
   "./assets/beta-icon.svg",
   "./assets/beta-icon-180.png",
   "./assets/beta-icon-192.png",
@@ -21,16 +21,16 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.2-beta.4",
-  "./js/db.js?v=1.4.2-beta.4",
-  "./js/default-template.js?v=1.4.2-beta.4",
-  "./js/questionnaire-editor.js?v=1.4.2-beta.4",
-  "./js/questionnaire-schema.js?v=1.4.2-beta.4",
-  "./js/question-reorder.js?v=1.4.2-beta.4",
-  "./js/statistics.js?v=1.4.2-beta.4",
-  "./js/image-range.js?v=1.4.2-beta.4",
-  "./js/image-range-heatmap.js?v=1.4.2-beta.4",
-  "./js/xlsx-export.js?v=1.4.2-beta.4"
+  "./js/app.js?v=1.4.2-beta.5",
+  "./js/db.js?v=1.4.2-beta.5",
+  "./js/default-template.js?v=1.4.2-beta.5",
+  "./js/questionnaire-editor.js?v=1.4.2-beta.5",
+  "./js/questionnaire-schema.js?v=1.4.2-beta.5",
+  "./js/question-reorder.js?v=1.4.2-beta.5",
+  "./js/statistics.js?v=1.4.2-beta.5",
+  "./js/image-range.js?v=1.4.2-beta.5",
+  "./js/image-range-heatmap.js?v=1.4.2-beta.5",
+  "./js/xlsx-export.js?v=1.4.2-beta.5"
 ];
 
 self.addEventListener("install", (event) => {

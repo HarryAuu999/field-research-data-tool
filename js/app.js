@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.2-beta.4";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.4";
+} from "./db.js?v=1.4.2-beta.5";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.5";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.2-beta.4";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.4";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.4";
-import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.4";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.4";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.4";
+} from "./questionnaire-editor.js?v=1.4.2-beta.5";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.5";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.5";
+import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.5";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.5";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.5";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -42,9 +42,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.2-beta.4";
+} from "./statistics.js?v=1.4.2-beta.5";
 
-const APP_VERSION = "1.4.2-beta.4";
+const APP_VERSION = "1.4.2-beta.5";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -315,7 +315,45 @@ function pageHeader(title, backAction = "home") {
     </header>`;
 }
 
+let renderedView = null;
+let activePageTransition = null;
+let awaitingPageRender = false;
+let pendingScrollTop = null;
+
+function pageTransitionDirection(nextView) {
+  const parent = {
+    templateOverview: "templates",
+    templateMetaEditor: "templateOverview",
+    questionEditor: "templateOverview",
+    recordDetail: "records"
+  };
+  if (parent[nextView] === renderedView) return "forward";
+  if (parent[renderedView] === nextView) return "back";
+  if (renderedView === "recordDetail" && nextView === "form" && state.draft?.mode === "edit") return "forward";
+  if (renderedView === "form" && nextView === "recordDetail") return "back";
+  return null;
+}
+
 function render() {
+  const direction = pageTransitionDirection(state.view);
+  const canAnimate = direction && document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  activePageTransition?.skipTransition();
+  if (!canAnimate) {
+    renderNow();
+    return;
+  }
+  document.documentElement.dataset.pageTransition = direction;
+  awaitingPageRender = true;
+  const transition = document.startViewTransition(() => renderNow());
+  activePageTransition = transition;
+  transition.finished.catch(() => {}).finally(() => {
+    if (activePageTransition !== transition) return;
+    activePageTransition = null;
+    delete document.documentElement.dataset.pageTransition;
+  });
+}
+
+function renderNow() {
   document.documentElement.classList.remove("annotation-page");
   state.analysisResizeObserver?.disconnect();
   state.analysisResizeObserver = null;
@@ -333,10 +371,20 @@ function render() {
     case "backup": renderBackup(); break;
     default: renderHome();
   }
+  renderedView = state.view;
+  awaitingPageRender = false;
+  if (Number.isFinite(pendingScrollTop)) {
+    window.scrollTo({ top: pendingScrollTop, left: 0, behavior: "auto" });
+    pendingScrollTop = null;
+  }
 }
 
 function restoreWindowScroll(top) {
   if (!Number.isFinite(top)) return;
+  if (awaitingPageRender) {
+    pendingScrollTop = top;
+    return;
+  }
   requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: "auto" }));
 }
 
@@ -350,7 +398,7 @@ function renderHome() {
         </header>
         <div class="home-content">
           <button class="hero" type="button" data-action="templates">
-            <span class="hero-heading"><span class="eyebrow">当前问卷 / CURRENT</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
+            <span class="hero-heading"><span class="eyebrow">当前问卷</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
             <span class="hero-title">尚未导入问卷</span>
             <span class="hero-version">点击进入问卷管理</span>
           </button>
@@ -374,7 +422,7 @@ function renderHome() {
 
   const heroEyebrow = state.draft
     ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿 / DRAFT</span>'
-    : '<span class="eyebrow">当前问卷 / CURRENT</span>';
+    : '<span class="eyebrow">当前问卷</span>';
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
@@ -885,7 +933,7 @@ async function leaveTemplateOverview() {
   if (!state.editorDirty) {
     clearTemplateEditorState();
     state.view = "templates";
-    renderTemplates();
+    render();
     return;
   }
   const confirmed = await showConfirm({
@@ -898,7 +946,7 @@ async function leaveTemplateOverview() {
   await deleteSetting(editorDraftSettingKey(state.editorSourceKey));
   clearTemplateEditorState();
   state.view = "templates";
-  renderTemplates();
+  render();
 }
 
 async function leaveQuestionEditor() {
