@@ -1,12 +1,12 @@
 # AuNote 交接说明
 
-更新日期：2026-10-09。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-12。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.3，包含图片范围标注、连续人数热力图、B收紧羽化、黑色截面曲线、侧面／截面图紧凑视框及0.15%笔画简化容差 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| 正式版 | V1.4.4，包含图片范围标注、连续人数热力图、B收紧羽化、黑色截面曲线、侧面／截面图紧凑视框、0.15%笔画简化容差及跨图片／刷新／样本的画笔大小记忆 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
 | Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，已验证的 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 

@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.3";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.3";
+} from "./db.js?v=1.4.4";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.4";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.3";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.3";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.3";
-import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.3";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.3";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.3";
+} from "./questionnaire-editor.js?v=1.4.4";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.4";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.4";
+import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.4";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.4";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.4";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -42,9 +42,10 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.3";
+} from "./statistics.js?v=1.4.4";
 
-const APP_VERSION = "1.4.3";
+const APP_VERSION = "1.4.4";
+const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -80,6 +81,7 @@ const state = {
   currentTemplate: null,
   records: [],
   draft: null,
+  imageRangeBrushSize: null,
   selectedRecord: null,
   selectedTemplate: null,
   selectedTemplateDraft: null,
@@ -1643,6 +1645,9 @@ function renderImageRange(field, answer, fieldIndex) {
     : `0 0 ${width} ${height}`;
   const brushMin = Math.min(0.01, field.brushSize);
   const brushMax = Math.max(0.06, field.brushSize);
+  const preferredBrush = Number(state.imageRangeBrushSize);
+  const brushSize = Number.isFinite(preferredBrush) && preferredBrush > 0
+    ? Math.max(brushMin, Math.min(brushMax, preferredBrush)) : field.brushSize;
   const strokes = imageRangeStrokes(answer);
   const masks = field.levels.map((level) => {
     const levelPaths = strokes.filter((stroke) => stroke.level === level.id).map((stroke) =>
@@ -1661,7 +1666,7 @@ function renderImageRange(field, answer, fieldIndex) {
     </svg>
     <div class="annotation-tools">
       ${field.levels.length === 2 ? `<div class="annotation-segment" data-active-level="1" role="group" aria-label="疼痛等级">${field.levels.map((level) => `<button type="button" data-annotation-level="${level.id}" aria-pressed="${level.id === 1}">${escapeHtml(level.label)}</button>`).join("")}</div>` : `<span class="annotation-level-name">${escapeHtml(field.levels[0].label)}</span>`}
-      <label class="annotation-brush">画笔 <input type="range" data-annotation-brush min="${brushMin}" max="${brushMax}" step="any" value="${field.brushSize}" aria-label="画笔大小" /><span data-annotation-brush-value></span></label>
+      <label class="annotation-brush">画笔 <input type="range" data-annotation-brush min="${brushMin}" max="${brushMax}" step="any" value="${brushSize}" aria-label="画笔大小" /><span data-annotation-brush-value></span></label>
       <div class="annotation-edit-tools"><button type="button" data-annotation-undo>撤销上一笔</button><button type="button" data-annotation-clear>清除所有标记</button></div>
     </div>
   </div>`;
@@ -1685,7 +1690,13 @@ function bindImageRange(field, fieldIndex) {
     const progress = range ? (Number(brushInput.value) - Number(brushInput.min)) / range : 0;
     brushInput.style.setProperty("--brush-progress", `${Math.max(0, Math.min(100, progress * 100))}%`);
   };
-  brushInput.addEventListener("input", updateBrushLabel);
+  brushInput.addEventListener("input", () => {
+    state.imageRangeBrushSize = Number(brushInput.value);
+    updateBrushLabel();
+  });
+  brushInput.addEventListener("change", () => {
+    setSetting(IMAGE_RANGE_BRUSH_SETTING, state.imageRangeBrushSize).catch(console.error);
+  });
   updateBrushLabel();
   const updateMasks = () => field.levels.forEach((item) => {
     const mask = svg.querySelector(`#annotation-mask-${fieldIndex}-${item.id}`);
@@ -2581,6 +2592,7 @@ app.addEventListener("click", async (event) => {
 });
 
 app.addEventListener("input", (event) => {
+  if (event.target.matches("[data-annotation-brush]")) return;
   if (state.view === "templateMetaEditor") {
     captureTemplateMetaEditor();
     persistTemplateEditorDraft().catch(console.error);
@@ -2753,6 +2765,7 @@ updateButton.addEventListener("click", () => {
 
 async function initialize() {
   await openDatabase();
+  state.imageRangeBrushSize = await getSetting(IMAGE_RANGE_BRUSH_SETTING, null);
   await seedDefaultTemplate();
   await refreshContext();
   render();

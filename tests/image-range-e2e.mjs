@@ -77,6 +77,11 @@ try {
   await page.locator("[data-annotation-undo]").click();
   await page.locator('[data-action="next-question"]').click();
   await page.locator(".form-counter", { hasText: "3/7" }).waitFor();
+  assert.equal(await page.locator("[data-annotation-brush]").inputValue(), "0.04", "换图后画笔大小被重置");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator('[data-action="continue-draft"]').click();
+  await page.locator(".form-counter", { hasText: "3/7" }).waitFor();
+  assert.equal(await page.locator("[data-annotation-brush]").inputValue(), "0.04", "刷新后画笔大小被重置");
   const sectionViewBox = (await page.locator(".annotation-canvas").getAttribute("viewBox")).split(" ").map(Number);
   assert(Math.abs(sectionViewBox[2] / 4788 - 0.73) < 0.001 && Math.abs(sectionViewBox[3] / 5700 - 0.78) < 0.001, "截面耳图没有放大到画布内");
   assert.equal((await strokes("contactSide")).length, 0, "撤销没有保存");
@@ -155,6 +160,10 @@ try {
   const annotationXml = await workbook.file("xl/worksheets/sheet2.xml").async("string");
   assert(annotationXml.includes("painSide") && annotationXml.includes("contactSection"), "标注数据未完整导出");
   assert(annotationXml.includes("normalizedX") && annotationXml.includes("brushSize"), "标注数据列不完整");
+  await page.locator('[data-action="start-form"]').click();
+  await page.locator('[data-field-input]').fill("下一位样本");
+  await page.locator('[data-action="next-question"]').click();
+  assert.equal(await page.locator("[data-annotation-brush]").inputValue(), "0.04", "新样本的画笔大小被重置");
   const desktop = await browser.newContext({ viewport: { width: 1000, height: 760 } });
   const desktopPage = await desktop.newPage();
   await desktopPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
