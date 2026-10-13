@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AuNote 图片范围热力图 · 可调色报告</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; color: #17212d; background: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1120px; margin: auto; padding: 32px 20px 48px; }
+    h1 { font-size: clamp(22px, 4vw, 30px); margin: 0 0 8px; letter-spacing: -.02em; }
+    .intro, .method { color: #566373; line-height: 1.6; margin: 0; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin: 25px 0; padding: 17px 20px; background: white; border: 1px solid #e2e7ec; border-radius: 14px; }
+    .controls label { font-weight: 650; white-space: nowrap; }
+    input[type=range] { flex: 1 1 240px; accent-color: #2676c8; cursor: pointer; }
+    output { color: #1464b0; font-variant-numeric: tabular-nums; min-width: 125px; }
+    .palette-editor { background: white; border: 1px solid #e2e7ec; border-radius: 14px; padding: 15px 20px; margin: 20px 0 0; }
+    .palette-editor h2 { font-size: 18px; margin: 0 0 4px; }
+    .palette-editor p { color: #5c6876; font-size: 13px; line-height: 1.5; margin: 0 0 13px; }
+    .palette-nodes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+    .palette-node { border: 1px solid #e2e7ec; border-radius: 10px; padding: 10px; min-width: 0; }
+    .palette-node strong { display: block; font-size: 13px; margin-bottom: 8px; }
+    .palette-node .swatch-row { display: flex; align-items: center; gap: 6px; }
+    .palette-node input[type=color] { width: 40px; height: 34px; padding: 2px; border: 1px solid #d5dce4; border-radius: 6px; background: white; cursor: pointer; }
+    .palette-node code { font-size: 12px; color: #49586a; }
+    .rgb-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+    .rgb-fields label { color: #5c6876; font-size: 11px; }
+    .rgb-fields input { display: block; width: 100%; min-width: 0; margin-top: 2px; padding: 5px 3px; border: 1px solid #d5dce4; border-radius: 5px; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .palette-editor button { margin-top: 11px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .card { min-width: 0; background: white; border: 1px solid #e2e7ec; border-radius: 16px; padding: 19px; }
+    .card h2 { font-size: 20px; margin: 0 0 4px; }
+    .meta { color: #5c6876; font-size: 14px; margin: 0 0 14px; }
+    .map { position: relative; width: 100%; overflow: hidden; background: white; }
+    .map img, .map canvas { display: block; width: 100%; height: 100%; }
+    .map canvas { position: absolute; inset: 0; pointer-events: none; }
+    .legend { margin: 19px 2px 0; }
+    .legend-bar { height: 13px; border-radius: 99px; border: 1px solid #e2e7ec; }
+    .legend-ticks { display: flex; justify-content: space-between; margin-top: 7px; color: #5c6876; font-size: 13px; font-variant-numeric: tabular-nums; }
+    .legend-label { color: #5c6876; font-size: 13px; margin-top: 7px; }
+    button { background: #f3f7fb; color: #1767b2; border: 1px solid #c9dcee; border-radius: 9px; padding: 8px 12px; margin-top: 13px; font: inherit; cursor: pointer; }
+    button:hover { background: #e7f1fa; }
+    .method { font-size: 13px; margin-top: 19px; }
+    @media (max-width: 760px) { main { padding: 20px 12px 32px; } .grid { grid-template-columns: 1fr; gap: 13px; } .card { padding: 14px; } .palette-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+<main>
+  <h1 id="report-title">AuNote 图片范围热力图</h1>
+  <p class="intro" id="scope"></p>
+  <div class="controls">
+    <label for="feather">边缘羽化</label>
+    <input id="feather" type="range" min="0" max="3" step="0.1" value="0.7" aria-label="边缘羽化半径">
+    <output id="feather-value" for="feather"></output>
+  </div>
+  <div class="grid" id="maps"></div>
+  <section class="palette-editor" aria-labelledby="palette-title">
+    <h2 id="palette-title">人数色标 · RGB 调色</h2>
+    <p>点击色块打开系统取色器，也可直接输入 R / G / B（0–255）。修改会同步作用于所有图片和色标；0 人区域始终透明。</p>
+    <div class="palette-nodes" id="palette-nodes"></div>
+    <button type="button" id="reset-palette">恢复默认颜色</button>
+  </section>
+  <p class="method">统计口径：每位样本在同一位置最多计 1 人，重复涂画不会叠加权重。默认配色、透明度与 0.7% 羽化按 AuNote 当前规则；滑块与 RGB 仅改变显示，不改变原始人数。各图片／等级分别统计，不跨视角叠加。报告应只包含汇总人数，不包含姓名或个人笔画。</p>
+</main>
+<script>
+  const DATA = __HEATMAP_DATA__;
+  const slider = document.querySelector('#feather');
+  const output = document.querySelector('#feather-value');
+  const maps = document.querySelector('#maps');
+  const clamp = (x, low, high) => Math.max(low, Math.min(high, x));
+  // Five continuous ratio stops match the user-approved AuNote heatmap palette.
+  const officialStops = [[0, 172, 208, 241], [.25, 84, 145, 201], [.5, 37, 203, 117], [.75, 216, 211, 44], [1, 225, 55, 55]];
+  const editablePositions = [0, .25, .5, .75, 1];
+
+  function officialHeatColor(value) {
+    for (let i = 1; i < officialStops.length; i++) {
+      if (value <= officialStops[i][0]) {
+        const a = officialStops[i - 1], b = officialStops[i];
+        const t = clamp((value - a[0]) / (b[0] - a[0]), 0, 1);
+        return [1, 2, 3].map(c => Math.round(a[c] + (b[c] - a[c]) * t));
+      }
+    }
+    return officialStops.at(-1).slice(1);
+  }
+  const originalNodeColors = editablePositions.map(officialHeatColor);
+  const nodeColors = originalNodeColors.map(color => color.slice());
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('内嵌图片未能加载'));
+      image.src = src;
+    });
+  }
+
+  function boxBlur(values, width, height, radius) {
+    if (radius === 0) return Float32Array.from(values);
+    const horizontal = new Float32Array(values.length);
+    const result = new Float32Array(values.length);
+    for (let y = 0; y < height; y++) {
+      let sum = 0;
+      for (let x = 0; x < Math.min(width, radius + 1); x++) sum += values[y * width + x];
+      for (let x = 0; x < width; x++) {
+        if (x > 0) {
+          if (x + radius < width) sum += values[y * width + x + radius];
+          if (x - radius - 1 >= 0) sum -= values[y * width + x - radius - 1];
+        }
+        horizontal[y * width + x] = sum / (Math.min(width - 1, x + radius) - Math.max(0, x - radius) + 1);
+      }
+    }
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      for (let y = 0; y < Math.min(height, radius + 1); y++) sum += horizontal[y * width + x];
+      for (let y = 0; y < height; y++) {
+        if (y > 0) {
+          if (y + radius < height) sum += horizontal[(y + radius) * width + x];
+          if (y - radius - 1 >= 0) sum -= horizontal[(y - radius - 1) * width + x];
+        }
+        result[y * width + x] = sum / (Math.min(height - 1, y + radius) - Math.max(0, y - radius) + 1);
+      }
+    }
+    return result;
+  }
+
+  function heatColor(value) {
+    const base = officialHeatColor(value);
+    const right = Math.min(editablePositions.length - 1, Math.max(1, editablePositions.findIndex(at => value <= at)));
+    const left = right - 1;
+    const t = clamp((value - editablePositions[left]) / (editablePositions[right] - editablePositions[left]), 0, 1);
+    return base.map((channel, c) => clamp(Math.round(channel +
+      (nodeColors[left][c] - originalNodeColors[left][c]) * (1 - t) +
+      (nodeColors[right][c] - originalNodeColors[right][c]) * t), 0, 255));
+  }
+
+  function hex(color) {
+    return '#' + color.map(channel => channel.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  function updateLegend() {
+    const gradient = Array.from({ length: 41 }, (_, i) => `${hex(heatColor(i / 40))} ${i * 2.5}%`).join(', ');
+    document.querySelectorAll('.legend-bar').forEach(bar => { bar.style.background = `linear-gradient(90deg, ${gradient})`; });
+  }
+
+  function setupPaletteEditor(redraw) {
+    const container = document.querySelector('#palette-nodes');
+    const controls = editablePositions.map((at, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'palette-node';
+      wrapper.innerHTML = `<strong>${Math.round(at * DATA.sample_total)} 人</strong><div class="swatch-row"><input type="color" aria-label="${Math.round(at * DATA.sample_total)} 人颜色"><code></code></div><div class="rgb-fields">${['R', 'G', 'B'].map(channel => `<label>${channel}<input type="number" min="0" max="255" step="1" inputmode="numeric" aria-label="${Math.round(at * DATA.sample_total)} 人 ${channel}"></label>`).join('')}</div>`;
+      container.append(wrapper);
+      return { picker: wrapper.querySelector('input[type=color]'), code: wrapper.querySelector('code'), rgb: [...wrapper.querySelectorAll('input[type=number]')] };
+    });
+
+    function reflect(index) {
+      const control = controls[index];
+      control.picker.value = hex(nodeColors[index]).toLowerCase();
+      control.code.textContent = hex(nodeColors[index]);
+      control.rgb.forEach((input, channel) => { input.value = nodeColors[index][channel]; });
+    }
+    function setColor(index, color) {
+      nodeColors[index] = color;
+      reflect(index);
+      updateLegend();
+      redraw();
+    }
+    controls.forEach((control, index) => {
+      reflect(index);
+      control.picker.addEventListener('input', () => {
+        const color = [1, 3, 5].map(start => parseInt(control.picker.value.slice(start, start + 2), 16));
+        setColor(index, color);
+      });
+      control.rgb.forEach((input, channel) => {
+        input.addEventListener('change', () => {
+          const value = Number(input.value);
+          if (!Number.isFinite(value)) { reflect(index); return; }
+          const color = nodeColors[index].slice();
+          color[channel] = clamp(Math.round(value), 0, 255);
+          setColor(index, color);
+        });
+      });
+    });
+    document.querySelector('#reset-palette').addEventListener('click', () => {
+      originalNodeColors.forEach((color, index) => { nodeColors[index] = color.slice(); reflect(index); });
+      updateLegend();
+      redraw();
+    });
+    updateLegend();
+  }
+
+  function draw(field, feather) {
+    const canvas = field.canvas;
+    const context = canvas.getContext('2d');
+    const pixels = context.createImageData(field.width, field.height);
+    const radius = Math.max(feather > 0 ? 1 : 0, Math.round(field.width * feather / 100));
+    const softened = boxBlur(boxBlur(field.counts, field.width, field.height, radius), field.width, field.height, radius);
+    for (let i = 0; i < softened.length; i++) {
+      const count = softened[i];
+      if (count < .05) continue;
+      const color = heatColor(clamp(count / DATA.sample_total, 0, 1));
+      const offset = i * 4;
+      pixels.data[offset] = color[0];
+      pixels.data[offset + 1] = color[1];
+      pixels.data[offset + 2] = color[2];
+      pixels.data[offset + 3] = Math.round(205 * Math.min(1, count / 1.2) ** 1.35);
+    }
+    context.putImageData(pixels, 0, 0);
+  }
+
+  async function setup() {
+    document.querySelector('#report-title').textContent = DATA.title || 'AuNote 图片范围热力图';
+    document.querySelector('#scope').textContent = DATA.description || `${DATA.sample_total} 份记录 · ${DATA.fields.length} 张热力图`;
+    if (!Number.isInteger(DATA.sample_total) || DATA.sample_total < 1 || !Array.isArray(DATA.fields) || !DATA.fields.length) throw new Error('报告缺少有效样本数或热力图');
+    for (const field of DATA.fields) {
+      const card = document.createElement('section');
+      card.className = 'card';
+      card.innerHTML = `<h2></h2><p class="meta"></p><div class="map"><img alt=""><canvas aria-hidden="true"></canvas></div><div class="legend"><div class="legend-bar"></div><div class="legend-ticks"><span>0</span><span>${Math.round(DATA.sample_total / 4)}</span><span>${Math.round(DATA.sample_total / 2)}</span><span>${Math.round(DATA.sample_total * 3 / 4)}</span><span>${DATA.sample_total}</span></div><div class="legend-label">同一位置的标注人数（人）</div></div><button type="button">保存当前图片 PNG</button>`;
+      card.querySelector('h2').textContent = field.label;
+      card.querySelector('.meta').textContent = `${field.participants} 份有标注 · ${field.stroke_count} 笔 · 最高重合 ${field.max_count} 人`;
+      const image = card.querySelector('img');
+      const canvas = card.querySelector('canvas');
+      const map = card.querySelector('.map');
+      map.style.aspectRatio = `${field.width} / ${field.height}`;
+      canvas.width = field.width;
+      canvas.height = field.height;
+      maps.append(card);
+      const [base, mask] = await Promise.all([loadImage(field.image), loadImage(field.count_mask)]);
+      image.src = field.image;
+      image.alt = field.label + '底图及叠加热区';
+      const holder = document.createElement('canvas');
+      holder.width = field.width;
+      holder.height = field.height;
+      const context = holder.getContext('2d', { willReadFrequently: true });
+      context.drawImage(mask, 0, 0);
+      const pixelData = context.getImageData(0, 0, field.width, field.height).data;
+      field.counts = new Uint16Array(field.width * field.height);
+      for (let i = 0; i < field.counts.length; i++) field.counts[i] = field.countEncoding === 'rg16' ? pixelData[i * 4] + 256 * pixelData[i * 4 + 1] : pixelData[i * 4];
+      field.canvas = canvas;
+      field.base = base;
+      card.querySelector('button').addEventListener('click', () => {
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = field.width;
+        exportCanvas.height = field.height;
+        const exportContext = exportCanvas.getContext('2d');
+        exportContext.drawImage(field.base, 0, 0, field.width, field.height);
+        exportContext.drawImage(field.canvas, 0, 0);
+        const link = document.createElement('a');
+        link.download = `${String(field.id || 'heatmap').replace(/[^a-zA-Z0-9_-]/g, '_')}-热力图.png`;
+        link.href = exportCanvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+    let scheduled = false;
+    function redraw() {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        const feather = Number(slider.value);
+        output.textContent = `${feather.toFixed(1)}% · 约 ${Math.round(DATA.fields[0].width * feather / 100)} px`;
+        DATA.fields.forEach(field => draw(field, feather));
+      });
+    }
+    slider.addEventListener('input', redraw);
+    setupPaletteEditor(redraw);
+    redraw();
+  }
+  setup().catch(error => { document.querySelector('#scope').textContent = `热力图读取失败：${error.message}`; });
+</script>
+</body>
+</html>

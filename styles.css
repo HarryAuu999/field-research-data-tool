@@ -32,6 +32,22 @@ button { touch-action: manipulation; }
   min-height: 100vh;
   min-height: 100dvh;
   padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+  view-transition-name: aunote-screen;
+}
+
+@keyframes aunote-push-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes aunote-push-out { from { transform: translateX(0); } to { transform: translateX(-18%); } }
+@keyframes aunote-pop-in { from { transform: translateX(-18%); } to { transform: translateX(0); } }
+@keyframes aunote-pop-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+html[data-page-transition="forward"]::view-transition-old(aunote-screen) { animation: 320ms ease-out both aunote-push-out; z-index: 1; }
+html[data-page-transition="forward"]::view-transition-new(aunote-screen) { animation: 320ms cubic-bezier(.2, .7, .2, 1) both aunote-push-in; z-index: 2; }
+html[data-page-transition="back"]::view-transition-old(aunote-screen) { animation: 320ms cubic-bezier(.2, .7, .2, 1) both aunote-pop-out; z-index: 2; }
+html[data-page-transition="back"]::view-transition-new(aunote-screen) { animation: 320ms ease-out both aunote-pop-in; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-page-transition]::view-transition-old(aunote-screen),
+  html[data-page-transition]::view-transition-new(aunote-screen) { animation: none; }
 }
 
 .screen { width: min(100%, 720px); margin: 0 auto; }

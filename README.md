@@ -90,6 +90,10 @@ node tests/editor-e2e.mjs
 - Excel 用于电脑审查和分析；完整 JSON 用于恢复整个工具；
 - 删除问卷会同时删除该问卷的本地记录和草稿。
 
+## 导出后制作可调热力图
+
+把 AuNote 导出的 XLSX 和对应原始底图交给 AI 分析时，先让它阅读[热力图制作说明](docs/heatmap-ai-guide.md)，再使用[独立 HTML 模板](tools/heatmap-report-template.html)生成可离线查看、调整羽化与人数色标 RGB、保存 PNG 的报告。模板不在 AuNote 简易分析中打开，也不包含研究样本；生成的个人研究报告请勿提交公开仓库。
+
 ## 问卷JSON
 
 ### 给AI的最省时转换方式

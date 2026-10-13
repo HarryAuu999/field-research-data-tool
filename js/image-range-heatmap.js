@@ -99,12 +99,11 @@ export function countImageRangeParticipants(field, records, levelId, maxWidth = 
 
 export function heatColor(value) {
   const stops = [
-    [0, 255, 255, 255],
-    [0.2, 102, 202, 204],
-    [0.4, 39, 158, 194],
-    [0.6, 51, 105, 187],
-    [0.8, 112, 70, 164],
-    [1, 170, 45, 122]
+    [0, 172, 208, 241],
+    [0.25, 84, 145, 201],
+    [0.5, 37, 203, 117],
+    [0.75, 216, 211, 44],
+    [1, 225, 55, 55]
   ];
   for (let i = 1; i < stops.length; i += 1) {
     if (value <= stops[i][0]) {

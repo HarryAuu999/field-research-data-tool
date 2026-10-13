@@ -263,7 +263,47 @@ function pageHeader(title, backAction = "home") {
     </header>`;
 }
 
+let renderedView = null;
+let activePageTransition = null;
+let awaitingPageRender = false;
+let pendingScrollTop = null;
+
+function pageTransitionDirection(nextView) {
+  const parent = {
+    templates: "home",
+    records: "home",
+    templateOverview: "templates",
+    templateMetaEditor: "templateOverview",
+    questionEditor: "templateOverview",
+    recordDetail: "records"
+  };
+  if (parent[nextView] === renderedView) return "forward";
+  if (parent[renderedView] === nextView) return "back";
+  if (renderedView === "recordDetail" && nextView === "form" && state.draft?.mode === "edit") return "forward";
+  if (renderedView === "form" && nextView === "recordDetail") return "back";
+  return null;
+}
+
 function render() {
+  const direction = pageTransitionDirection(state.view);
+  const canAnimate = direction && document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  activePageTransition?.skipTransition();
+  if (!canAnimate) {
+    renderNow();
+    return;
+  }
+  document.documentElement.dataset.pageTransition = direction;
+  awaitingPageRender = true;
+  const transition = document.startViewTransition(() => renderNow());
+  activePageTransition = transition;
+  transition.finished.catch(() => {}).finally(() => {
+    if (activePageTransition !== transition) return;
+    activePageTransition = null;
+    delete document.documentElement.dataset.pageTransition;
+  });
+}
+
+function renderNow() {
   document.documentElement.classList.remove("annotation-page");
   state.analysisResizeObserver?.disconnect();
   state.analysisResizeObserver = null;
@@ -281,10 +321,20 @@ function render() {
     case "backup": renderBackup(); break;
     default: renderHome();
   }
+  renderedView = state.view;
+  awaitingPageRender = false;
+  if (Number.isFinite(pendingScrollTop)) {
+    window.scrollTo({ top: pendingScrollTop, left: 0, behavior: "auto" });
+    pendingScrollTop = null;
+  }
 }
 
 function restoreWindowScroll(top) {
   if (!Number.isFinite(top)) return;
+  if (awaitingPageRender) {
+    pendingScrollTop = top;
+    return;
+  }
   requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: "auto" }));
 }
 
@@ -833,7 +883,7 @@ async function leaveTemplateOverview() {
   if (!state.editorDirty) {
     clearTemplateEditorState();
     state.view = "templates";
-    renderTemplates();
+    render();
     return;
   }
   const confirmed = await showConfirm({
@@ -846,7 +896,7 @@ async function leaveTemplateOverview() {
   await deleteSetting(editorDraftSettingKey(state.editorSourceKey));
   clearTemplateEditorState();
   state.view = "templates";
-  renderTemplates();
+  render();
 }
 
 async function leaveQuestionEditor() {
