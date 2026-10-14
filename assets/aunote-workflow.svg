@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 760 1048" width="760" height="1048" role="img" aria-labelledby="title desc">
+  <title id="title">AuNote 工作流程：AI 协作设计、现场数据采集、研究过程可视化、导出深入分析</title>
+  <desc id="desc">四个从上至下连接的步骤。1 通过自然语言与 AI 完善问卷、底图与分析方案；2 导入问卷，在现场离线采集数据；3 查看统计分布及标注热力图；4 导出 Excel 做深入分析。</desc>
+  <defs>
+    <filter id="shadow" x="-5%" y="-15%" width="110%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="7" flood-color="#2a4137" flood-opacity=".045"/>
+    </filter>
+    <style>
+      .font {font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;}
+      .title {font-size:39px; font-weight:700; fill:#25372f; letter-spacing:0.3px;}
+      .sub {font-size:21px; fill:#708077; font-weight:400;}
+      .stepTitle {font-size:30px; font-weight:650; fill:#293a32;}
+      .detail {font-size:20px; fill:#64756c;}
+      .num {font-size:25px; font-weight:700; fill:#56766a;}
+      .icon {fill:none; stroke:#668478; stroke-width:3.1; stroke-linecap:round; stroke-linejoin:round;}
+    </style>
+  </defs>
+  <rect width="760" height="1048" rx="22" fill="#f8faf8"/>
+  <g class="font">
+    <text x="54" y="61" font-size="17" font-weight="750" letter-spacing="3" fill="#789085">AUNOTE WORKFLOW</text>
+    <text x="54" y="116" class="title">从研究想法，到数据洞察</text>
+    <text x="54" y="153" class="sub">一套由 AI、研究人员与 AuNote 共同完成的工作流</text>
+
+    <path d="M380 371 V394" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round"/>
+    <path d="M372 387 L380 396 L388 387" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M380 583 V606" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round"/>
+    <path d="M372 599 L380 608 L388 599" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M380 795 V818" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round"/>
+    <path d="M372 811 L380 820 L388 811" stroke="#b0c6ba" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+    <g filter="url(#shadow)">
+      <rect x="54" y="193" width="652" height="178" rx="20" fill="#ffffff" stroke="#e4ebe6"/>
+      <rect x="54" y="405" width="652" height="178" rx="20" fill="#ffffff" stroke="#e4ebe6"/>
+      <rect x="54" y="617" width="652" height="178" rx="20" fill="#ffffff" stroke="#e4ebe6"/>
+      <rect x="54" y="829" width="652" height="178" rx="20" fill="#ffffff" stroke="#e4ebe6"/>
+    </g>
+
+    <circle cx="106" cy="256" r="29" fill="#edf4ef"/>
+    <circle cx="106" cy="468" r="29" fill="#edf4ef"/>
+    <circle cx="106" cy="680" r="29" fill="#edf4ef"/>
+    <circle cx="106" cy="892" r="29" fill="#edf4ef"/>
+    <text x="106" y="265" class="num" text-anchor="middle">01</text>
+    <text x="106" y="477" class="num" text-anchor="middle">02</text>
+    <text x="106" y="689" class="num" text-anchor="middle">03</text>
+    <text x="106" y="901" class="num" text-anchor="middle">04</text>
+
+    <text x="155" y="262" class="stepTitle">AI 协作设计研究</text>
+    <text x="155" y="309" class="detail">自然语言或文档描述研究目标</text>
+    <text x="155" y="342" class="detail">与 AI 完善问卷、底图及分析方案</text>
+
+    <text x="155" y="474" class="stepTitle">现场数据采集</text>
+    <text x="155" y="521" class="detail">导入问卷，逐题完成现场记录</text>
+    <text x="155" y="554" class="detail">离线采集样本、点位与接触范围</text>
+
+    <text x="155" y="686" class="stepTitle">研究过程可视化</text>
+    <text x="155" y="733" class="detail">随时查看当前样本的统计与分布</text>
+    <text x="155" y="766" class="detail">通过热力图观察研究进展和趋势</text>
+
+    <text x="155" y="898" class="stepTitle">导出与深入分析</text>
+    <text x="155" y="945" class="detail">导出结构化 Excel 研究数据</text>
+    <text x="155" y="978" class="detail">结合 AI 与专业工具继续分析和制图</text>
+  </g>
+
+  <g>
+    <circle cx="633" cy="272" r="35" fill="#f1f6f2"/>
+    <g class="icon" transform="translate(611 252)">
+      <path d="M5 4 H36 A8 8 0 0 1 44 12 V27 A8 8 0 0 1 36 35 H21 L11 43 V35 H10 A8 8 0 0 1 2 27 V12 A8 8 0 0 1 10 4"/>
+      <circle cx="15" cy="20" r="1.4" fill="#668478" stroke="none"/>
+      <circle cx="25" cy="20" r="1.4" fill="#668478" stroke="none"/>
+      <circle cx="35" cy="20" r="1.4" fill="#668478" stroke="none"/>
+    </g>
+    <circle cx="633" cy="484" r="35" fill="#f1f6f2"/>
+    <g class="icon" transform="translate(615 463)">
+      <rect x="3" y="6" width="34" height="40" rx="5"/>
+      <path d="M13 6 V3 H27 V6 M12 18 H28 M12 27 H28 M12 36 H23"/>
+    </g>
+    <circle cx="633" cy="696" r="35" fill="#f1f6f2"/>
+    <g class="icon" transform="translate(611 675)">
+      <path d="M2 40 H47 M7 32 L19 19 L27 26 L43 8"/>
+      <path d="M31 8 H43 V20"/>
+    </g>
+    <circle cx="633" cy="908" r="35" fill="#f1f6f2"/>
+    <g class="icon" transform="translate(610 887)">
+      <path d="M5 3 H30 L40 13 V42 H5 Z"/>
+      <path d="M30 3 V13 H40 M13 21 H31 M13 29 H23 M24 35 H43 M36 29 L43 35 L36 41"/>
+    </g>
+  </g>
+</svg>
