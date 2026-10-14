@@ -6,7 +6,7 @@
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.5，包含图片范围标注、用户确认的五节点连续人数色阶、B收紧羽化、父子页面 320ms 过渡，以及既有的画笔大小记忆和历史数据兼容 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| 正式版 | V1.4.6，包含图片范围标注、用户确认的五节点连续人数色阶、B收紧羽化、父子页面 320ms 过渡；热力图人数标尺现与图像共用配色，检查更新不再锁住其他操作且有超时提示。保留画笔大小记忆和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
 | Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 

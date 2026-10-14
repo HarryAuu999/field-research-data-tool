@@ -124,6 +124,19 @@ export function heatAlpha(count) {
   return count < 0.05 ? 0 : Math.round(205 * Math.min(1, count / 1.2) ** 1.35);
 }
 
+export function heatmapScaleGradient(scaleMaximum, steps = 20) {
+  const scale = Math.max(1, scaleMaximum);
+  const stops = [];
+  for (let index = 0; index <= steps; index += 1) {
+    const ratio = index / steps;
+    const color = heatColor(ratio);
+    const alpha = heatAlpha(ratio * scale) / 255;
+    const displayed = color.map((channel) => Math.round(255 + (channel - 255) * alpha));
+    stops.push(`rgb(${displayed.join(", ")}) ${ratio * 100}%`);
+  }
+  return `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+
 export function paintHeatmap(canvas, result, scaleMaximum) {
   canvas.width = result.width;
   canvas.height = result.height;

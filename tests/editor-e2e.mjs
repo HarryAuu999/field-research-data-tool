@@ -130,6 +130,7 @@ await noRecordPage.locator('[data-action="open-question-type-picker"]').click();
 await addTypeDialog.waitFor();
 await noRecordPage.screenshot({ path: "test-results/mobile-question-type-picker.png", fullPage: true });
 await noRecordPage.getByRole("button", { name: /数字/ }).first().click();
+await noRecordPage.locator('.editor-form-content input:not([type="checkbox"]), .editor-form-content textarea').first().waitFor();
 const editorTextControlSizes = await noRecordPage.locator('.editor-form-content input:not([type="checkbox"]), .editor-form-content textarea').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).fontSize));
 assert(editorTextControlSizes.length > 0 && editorTextControlSizes.every((size) => Number.parseFloat(size) >= 16), `问题编辑输入框字号小于16px，可能触发iOS自动缩放：${JSON.stringify(editorTextControlSizes)}`);
 await noRecordPage.locator("[data-field-label]").fill("新增数字题");

@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.5";
-const UPDATE_SUMMARY = "热力图采用新的连续人数配色，页面层级切换加入轻量过渡；已有问卷、记录与草稿保留。";
+const APP_VERSION = "1.4.6";
+const UPDATE_SUMMARY = "检查更新不再锁住其他操作，并在网络超时后恢复；热力图人数标尺与图像颜色一致。已有问卷、记录与草稿保留。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.5",
-  "./manifest.webmanifest?v=1.4.5",
+  "./styles.css?v=1.4.6",
+  "./manifest.webmanifest?v=1.4.6",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,16 +21,16 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.5",
-  "./js/db.js?v=1.4.5",
-  "./js/default-template.js?v=1.4.5",
-  "./js/questionnaire-editor.js?v=1.4.5",
-  "./js/questionnaire-schema.js?v=1.4.5",
-  "./js/question-reorder.js?v=1.4.5",
-  "./js/statistics.js?v=1.4.5",
-  "./js/image-range.js?v=1.4.5",
-  "./js/image-range-heatmap.js?v=1.4.5",
-  "./js/xlsx-export.js?v=1.4.5"
+  "./js/app.js?v=1.4.6",
+  "./js/db.js?v=1.4.6",
+  "./js/default-template.js?v=1.4.6",
+  "./js/questionnaire-editor.js?v=1.4.6",
+  "./js/questionnaire-schema.js?v=1.4.6",
+  "./js/question-reorder.js?v=1.4.6",
+  "./js/statistics.js?v=1.4.6",
+  "./js/image-range.js?v=1.4.6",
+  "./js/image-range-heatmap.js?v=1.4.6",
+  "./js/xlsx-export.js?v=1.4.6"
 ];
 
 self.addEventListener("install", (event) => {

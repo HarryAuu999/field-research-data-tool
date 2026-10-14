@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.5";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.5";
+} from "./db.js?v=1.4.6";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.6";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.5";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.5";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.5";
-import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.5";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.5";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.5";
+} from "./questionnaire-editor.js?v=1.4.6";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.6";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.6";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.6";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.6";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.6";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -42,9 +42,10 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.5";
+} from "./statistics.js?v=1.4.6";
 
-const APP_VERSION = "1.4.5";
+const APP_VERSION = "1.4.6";
+const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
@@ -105,6 +106,7 @@ const state = {
   deferredUpdate: null,
   toastTimer: null,
   actionBusy: false,
+  updateCheckInProgress: false,
   analysisResizeObserver: null
 };
 
@@ -1525,7 +1527,7 @@ function renderImageRangeAnalysis(config) {
           <div class="heatmap-levels" data-heatmap-levels></div>
           <p class="heatmap-sample-count" data-heatmap-count></p>
           <div class="heatmap-image-wrap"><img data-heatmap-image alt="" /><canvas data-heatmap-overlay aria-hidden="true"></canvas></div>
-          <div class="heatmap-scale" role="img" aria-label="热力图色标，0至${scaleMaximum}人"><div class="heatmap-scale-bar"></div><div class="heatmap-scale-ticks">${scaleTicks.map((count) => `<span>${count}</span>`).join("")}</div></div>
+          <div class="heatmap-scale" role="img" aria-label="热力图色标，0至${scaleMaximum}人"><div class="heatmap-scale-bar" style="background: ${heatmapScaleGradient(scaleMaximum)}"></div><div class="heatmap-scale-ticks">${scaleTicks.map((count) => `<span>${count}</span>`).join("")}</div></div>
           <p class="heatmap-scale-note">色标：同一区域的标注人数（0–${scaleMaximum} 人）</p>
         </section>
       </div>
@@ -2553,7 +2555,6 @@ async function handleAction(action, element) {
     case "delete-record": await removeSelectedRecord(); break;
     case "delete-record-by-id": await removeRecord(element.dataset.id); break;
     case "export-xlsx": await exportXlsx(); break;
-    case "check-update": await checkForUpdates(); break;
     case "export-backup": await exportBackup(); break;
     case "import-backup": backupFileInput.click(); break;
     case "select-single": await selectSingle(element.dataset.option, Number(element.dataset.fieldIndex)); break;
@@ -2628,6 +2629,19 @@ app.addEventListener("click", async (event) => {
   }
   if (element.closest("[data-editor-field-id]")?.dataset.suppressClick === "true") {
     event.preventDefault();
+    return;
+  }
+  if (element.dataset.action === "check-update") {
+    if (state.updateCheckInProgress) return;
+    state.updateCheckInProgress = true;
+    element.disabled = true;
+    void checkForUpdates().catch((error) => {
+      console.error(error);
+      showToast("无法检查更新，请稍后重试");
+    }).finally(() => {
+      state.updateCheckInProgress = false;
+      if (element.isConnected) element.disabled = false;
+    });
     return;
   }
   state.actionBusy = true;
@@ -2749,14 +2763,27 @@ async function checkForUpdates() {
     showToast("当前环境不支持程序更新检查");
     return;
   }
+  if (!navigator.onLine) {
+    showToast("当前处于离线状态，请联网后再检查更新");
+    return;
+  }
 
-  showToast("正在检查更新…");
+  showToast("正在检查更新…", UPDATE_CHECK_TIMEOUT_MS);
+  let timeoutId;
   try {
-    const registration = state.serviceWorkerRegistration
-      || await navigator.serviceWorker.getRegistration("./")
-      || await navigator.serviceWorker.register("./sw.js");
-    state.serviceWorkerRegistration = registration;
-    await registration.update();
+    const registration = await Promise.race([
+      (async () => {
+        const current = state.serviceWorkerRegistration
+          || await navigator.serviceWorker.getRegistration("./")
+          || await navigator.serviceWorker.register("./sw.js");
+        state.serviceWorkerRegistration = current;
+        await current.update();
+        return current;
+      })(),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("UPDATE_CHECK_TIMEOUT")), UPDATE_CHECK_TIMEOUT_MS);
+      })
+    ]);
 
     if (registration.waiting) {
       await showUpdate(registration.waiting, { manual: true });
@@ -2769,7 +2796,11 @@ async function checkForUpdates() {
     showToast(`当前已是最新版本 V${APP_VERSION}`);
   } catch (error) {
     console.error(error);
-    showToast("无法检查更新，请确认网络连接后重试");
+    showToast(error.message === "UPDATE_CHECK_TIMEOUT"
+      ? "检查更新超时，仍可继续使用；请稍后重试"
+      : "无法检查更新，请确认网络连接后重试");
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

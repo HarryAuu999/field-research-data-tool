@@ -127,6 +127,15 @@ try {
   await page.locator('[data-action="home"]').click();
   await page.locator('[data-action="analysis"]').click();
   await page.locator("[data-heatmap-overlay]").waitFor();
+  const scaleMatchesHeatmap = await page.evaluate(async () => {
+    const { heatmapScaleGradient } = await import("./js/image-range-heatmap.js");
+    const bar = document.querySelector(".heatmap-scale-bar");
+    const scale = Number(document.querySelector(".heatmap-scale").getAttribute("aria-label").match(/至(\d+)人/)?.[1]);
+    const expected = document.createElement("div");
+    expected.style.backgroundImage = heatmapScaleGradient(scale);
+    return bar.style.backgroundImage === expected.style.backgroundImage;
+  });
+  assert(scaleMatchesHeatmap, "热力图人数标尺必须与图像使用同一颜色映射");
   await page.locator("[data-heatmap-field]").selectOption("contactSection");
   assert.match(await page.locator("[data-heatmap-count]").textContent(), /1 份已标注样本/);
   await page.locator("[data-heatmap-field]").selectOption("painSide");

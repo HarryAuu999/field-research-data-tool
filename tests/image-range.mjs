@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import JSZip from "jszip";
 import { appendStrokePoint, blankImageRangeAnswer, clampNormalized, imageRangeStrokes, simplifyStrokePoints, strokePath } from "../js/image-range.js";
-import { addBinaryMask, boxBlur, heatAlpha, heatColor, heatmapBlurRadius } from "../js/image-range-heatmap.js";
+import { addBinaryMask, boxBlur, heatAlpha, heatColor, heatmapBlurRadius, heatmapScaleGradient } from "../js/image-range-heatmap.js";
 import { createXlsxBlob } from "../js/xlsx-export.js";
 
 assert.deepEqual(blankImageRangeAnswer(), { version: 1, strokes: [] });
@@ -31,6 +31,14 @@ assert.deepEqual(heatColor(1), [225, 55, 55]);
 assert.deepEqual(heatColor(0.125), [128, 177, 221], "人数比例之间应连续插值");
 assert.equal(heatAlpha(0.04), 0, "极低边缘值应透明");
 assert(heatAlpha(1) < heatAlpha(2), "柔化边缘的透明度应随人数增加");
+const scaleGradient = heatmapScaleGradient(4, 4);
+assert(scaleGradient.startsWith("linear-gradient(90deg, rgb(255, 255, 255) 0%"), "零人应显示透明底图对应的白色");
+for (let index = 1; index <= 4; index += 1) {
+  const color = heatColor(index / 4);
+  const alpha = heatAlpha(index) / 255;
+  const displayed = color.map((channel) => Math.round(255 + (channel - 255) * alpha));
+  assert(scaleGradient.includes(`rgb(${displayed.join(", ")}) ${index * 25}%`), "色标必须使用实际热力图颜色及透明度");
+}
 
 const blob = createXlsxBlob([
   { name: "Responses", rows: [["姓名", "评分"], ["=1+1", 3.5]] },

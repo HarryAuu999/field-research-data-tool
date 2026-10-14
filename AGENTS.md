@@ -8,6 +8,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 
 - 本地预览：在项目根目录运行 `python -m http.server 4173`，打开 `http://127.0.0.1:4173/`。
 - 快速测试：统计改动运行 `node tests/statistics.mjs`；图片标注数据与XLSX运行 `node tests/image-range.mjs`；问卷编辑纯数据逻辑运行 `node tests/questionnaire-editor.mjs`；问卷 JSON 校验运行 `node tests/questionnaire-schema.mjs`；版本与缓存资源引用运行 `node tests/version-consistency.mjs`。
+- 更新检查交互与网络超时运行 `node tests/update-check-e2e.mjs`（需要本地预览服务和 Chrome）。
 - 浏览器测试：顶部栏、基础手机布局和样本左滑运行 `node tests/ui-smoke.mjs`；JSON配置的多题同页和样本名称运行 `node tests/questionnaire-layout-e2e.mjs`；图片标注与XLSX运行 `node tests/image-range-e2e.mjs`；Android Manifest、图标资源和 Pixel 视口运行 `node tests/android-smoke.mjs`；问卷编辑界面与排序运行 `node tests/editor-e2e.mjs`；完整填写、样本、分析、Excel导出、备份和离线运行 `node tests/e2e.mjs`。测试需要本机 Chrome及已启动的本地预览服务。
 - 开发过程中优先运行与改动范围对应的最小测试集；除非改动影响跨模块行为，不要在每个小编辑后反复运行完整 E2E。
 - 修改 `js/db.js`、数据迁移、备份恢复、Service Worker 的运行逻辑、离线逻辑或跨模块状态时，运行完整回归。仅显示层、图片资源、文档或独立纯函数的更新，优先运行对应单元测试、相关浏览器测试及版本检查；正式发布也按实际风险决定，不因单纯版本号或缓存清单更新重复跑所有无关用例。
@@ -45,6 +46,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 当前正式应用版本：V1.4.5；独立测试 PWA 为 V1.4.2-beta.5。Beta 与正式版使用不同路径和数据库，不共享浏览器本地数据。
+- 当前正式应用版本：V1.4.6；独立测试 PWA 为 V1.4.2-beta.5。Beta 与正式版使用不同路径和数据库，不共享浏览器本地数据。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。
