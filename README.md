@@ -2,7 +2,7 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 Excel。
 
-当前状态：**正式版 V1.4.4，独立 Beta 测试版 V1.4.2-beta.4**。两个版本分别通过 GitHub Pages 发布，使用不同的安装地址和本地数据库。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.4.5，独立 Beta 测试版 V1.4.2-beta.5**。两个版本分别通过 GitHub Pages 发布，使用不同的安装地址和本地数据库。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
 Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
 

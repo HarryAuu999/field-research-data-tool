@@ -1,13 +1,13 @@
 # AuNote 交接说明
 
-更新日期：2026-10-12。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-14。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.4，包含图片范围标注、连续人数热力图、B收紧羽化、黑色截面曲线、侧面／截面图紧凑视框、0.15%笔画简化容差及跨图片／刷新／样本的画笔大小记忆 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
-| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，已验证的 V1.4.2-beta.4 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
+| 正式版 | V1.4.5，包含图片范围标注、用户确认的五节点连续人数色阶、B收紧羽化、父子页面 320ms 过渡，以及既有的画笔大小记忆和历史数据兼容 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
 正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、PWA 安装入口、Service Worker 作用域和 IndexedDB 名称；浏览器数据不共享。发布 Beta 副本时必须保留 `research-notebook-beta-github` 数据库名，正式版保持 `research-notebook`。Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。

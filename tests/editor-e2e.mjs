@@ -46,6 +46,7 @@ async function confirm(page, label) {
 }
 
 async function longPressReorder(page, fromIndex = 0, toIndex = 2) {
+  await page.waitForFunction(() => !document.documentElement.dataset.pageTransition);
   const sourceCard = page.locator("[data-editor-field-id]").nth(fromIndex);
   const targetCard = page.locator("[data-editor-field-id]").nth(toIndex);
   const sourceBox = await sourceCard.evaluate((element) => element.getBoundingClientRect().toJSON());
@@ -71,7 +72,7 @@ async function longPressReorder(page, fromIndex = 0, toIndex = 2) {
 
 const noRecordContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "zh-CN" });
 const noRecordPage = await noRecordContext.newPage();
-await noRecordPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await noRecordPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 assert(await noRecordPage.locator("#update-skip").count() === 1 && await noRecordPage.locator("#update-later").count() === 1, "更新提示缺少跳过或此次不更新操作");
 await noRecordPage.evaluate((version) => {
   document.querySelector("#update-title").textContent = `发现新版本 V${version}`;
@@ -201,7 +202,7 @@ await noRecordContext.close();
 
 const recordedContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "zh-CN" });
 const recordedPage = await recordedContext.newPage();
-await recordedPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await recordedPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await recordedPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
     const request = indexedDB.open("research-notebook", 1);
@@ -241,7 +242,7 @@ await reasonCard.waitFor();
 assert(swipeResult.prevented, "问题横向左滑时没有阻止页面纵向滚动");
 assert(swipeResult.scrollAfter === swipeResult.scrollBefore, "问题横向左滑导致页面上下移动");
 assert((await reasonCard.getAttribute("class")).includes("revealed"), "问题左滑后没有显示删除操作");
-await recordedPage.locator(".template-overview-content").click({ position: { x: 2, y: 2 } });
+await recordedPage.locator(".template-overview-content").dispatchEvent("click");
 assert(!(await reasonCard.getAttribute("class")).includes("revealed"), "点击左滑区域外的空白处没有收起删除操作");
 await reasonContent.dispatchEvent("pointerdown", { pointerId: 32, pointerType: "touch", clientX: 320, clientY: 300 });
 await reasonContent.dispatchEvent("pointermove", { pointerId: 32, pointerType: "touch", clientX: 240, clientY: 302 });

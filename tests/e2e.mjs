@@ -69,7 +69,7 @@ async function assertNoHorizontalOverflow(label) {
 
 const migrationContext = await browser.newContext({ locale: "zh-CN" });
 const migrationPage = await migrationContext.newPage();
-await migrationPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await migrationPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await migrationPage.evaluate(async () => {
   const { PREVIOUS_DEFAULT_TEMPLATE } = await import("./js/default-template.js");
   const latest = structuredClone(PREVIOUS_DEFAULT_TEMPLATE);
@@ -230,7 +230,7 @@ const analysisContext = await browser.newContext({
   locale: "zh-CN"
 });
 const analysisPage = await analysisContext.newPage();
-await analysisPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await analysisPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await analysisPage.evaluate(async () => {
   const horizontal = [2.72, 2.88, 3.02, 3.14, 3.2, 3.29, 3.34, 3.41, 3.49, 3.55, 3.59, 3.62, 3.66, 3.71, 3.76, 3.82, 3.91, 4.01, 4.08, 4.15, 4.22, 4.31, 4.39, 4.52, 4.66, 4.82, 5.01, 5.32, 5.76];
   const tilted = [3.08, 3.22, 3.35, 3.49, 3.58, 3.64, 3.72, 3.81, 3.96, 4.08, 4.19, 4.31, 4.43, 4.51, 4.58, 4.66, 4.75, 4.83, 4.92, 5.03, 5.12, 5.21, 5.34, 5.47, 5.63, 5.79, 6.02, 6.28, 6.66];
@@ -311,7 +311,7 @@ const landscapeOverflow = await analysisPage.evaluate(() => document.documentEle
 assert(!landscapeOverflow, "横屏简易分析页面出现横向溢出");
 await analysisContext.close();
 
-await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await page.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
 await page.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 assert(await page.getByText("0 份", { exact: true }).isVisible(), "首页初始记录数不是0");

@@ -9,7 +9,7 @@ const context = await browser.newContext({ viewport: { width: 390, height: 844 }
 const page = await context.newPage();
 
 try {
-  await page.goto(process.env.AUNOTE_BASE_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 
   await page.locator('[data-action="templates"]').first().click();
   await page.waitForFunction(() => document.documentElement.dataset.pageTransition === "forward");

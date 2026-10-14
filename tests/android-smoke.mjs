@@ -13,7 +13,7 @@ page.on("console", (message) => {
 });
 
 try {
-  await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   const client = await context.newCDPSession(page);
   const [{ data, errors = [] }, installability] = await Promise.all([
     client.send("Page.getAppManifest"),
