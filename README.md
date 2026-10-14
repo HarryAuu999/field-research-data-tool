@@ -1,124 +1,75 @@
 # AuNote
 
-AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 Excel。
+**从研究想法到数据洞察，让用户研究更简单。**
 
-当前状态：**正式版 V1.4.6，独立 Beta 测试版 V1.4.2-beta.5**。两个版本分别通过 GitHub Pages 发布，使用不同的安装地址和本地数据库。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+AuNote 是一款面向用户研究的轻量级 PWA 工具。你可以用自然语言或现有研究文档与 AI 协作设计问卷，再用 AuNote 在现场采集数据、随时查看简易分析，并导出 Excel 开展后续研究。
 
-Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
+无需编程基础或自己部署服务器；支持添加到手机主屏幕，离线记录。**研究数据保存在本地设备，不通过 AuNote 的后端服务器上传。**
 
-新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。`main` 是正式版，Beta 分支用于后续迭代；Git 不会同步各设备浏览器里的样本和草稿。
+**[开始使用 AuNote ↗](https://harryauu999.github.io/field-research-data-tool/)** · [AI 问卷协作指南](docs/questionnaire-ai-guide.md) · [图片标注研究指南](docs/image-annotation-ai-guide.md)
 
-## 手机测试地址
+> **功能展示图即将补充。** 目前可以先在应用中体验内置的耳挂式耳机接触与疼痛区域示例问卷。
 
-- PWA：<https://harryauu999.github.io/field-research-data-tool/>
-- GitHub仓库：<https://github.com/HarryAuu999/field-research-data-tool>
+## 从想法到分析
 
-首次使用时请保持联网打开地址，确认页面正常后再添加到iPhone主屏幕。添加后应始终从同一个主屏幕图标进入，以免把数据记录在不同的本地存储空间中。
+**AI 协作设计研究 → 现场采集 → 研究过程可视化 → 导出深入分析**
 
-## 已实现
+1. **描述研究目标**：用自然语言或 Word、PDF 等文档和 AI 讨论研究问题、记录方式、图片底图及需要的分析。
+2. **生成并导入问卷**：AI 将确认后的方案转为 AuNote 可导入的 JSON；研究者检查题目和分析配置后开始使用。
+3. **现场采集与观察趋势**：逐题记录、管理样本，并随时查看已经采集到的数据分布、统计指标和热力图（取决于问卷配置）。
+4. **导出后继续研究**：将结构化数据导出为 Excel，交给 AI、Python 或其他分析工具进一步探索与制图。
 
-- 新安装内置“佩戴耳厚数据采集 V1.2”（九题，不含原 Q10、Q11）和“耳挂耳机接触与疼痛范围验收 V1.1”；旧用户更新后会获得新版演示问卷，原 V1.0 问卷、草稿和记录不会被修改；耳厚问卷支持每个位置填写1至3次最小接触厚度，并保留原始值、平均值和最大差值；
-- 通过 JSON 导入、切换和删除不同问卷版本；
-- 在问卷管理中复制问卷，并在问卷概览中直接打开标题、背景、基础问题和选项进行编辑；
-- 问卷概览底部使用“选择此问卷”，选择后返回主页，不会直接开始填写；
-- 问题修改只有点击“完成”才生效；直接返回可选择放弃更改或继续编辑，离开含未保存修改的问卷概览时也会提醒；
-- 调整问题顺序后概览页会立即切换为“保存问卷”；题型选择器可点击外部关闭；问题编辑完成或放弃后会恢复概览页原来的阅读位置；
-- 首页问卷背景保留原始换行；问卷编辑后可保存为同一问卷的新版本，或另存为不包含样本的独立副本；
-- 问卷概览中的问题支持左滑显示垃圾桶并加入删除修改稿；横向滑动成立后阻止页面上下滚动，点击左滑行之外的空白区域会收起操作；
-- 手机编辑输入框使用不触发iOS自动放大的字号；
-- 无记录且无草稿的问卷修改后替换原空模板；已有记录的问卷修改后保留旧版本，并将新版本设为当前问卷；
-- 长按问题卡片后以浮动卡片跟随手指调整顺序，其他问题平滑让位；浮起后接管当前触摸，避免iOS继续拖动页面，靠近页面上下边缘时由工具自动滚动，并抑制文字选择放大镜；
-- 按题逐项填写，并根据字段调用文字、整数或小数键盘；
-- 问卷JSON可用`recordLabelField`指定样本列表名称字段，并可用相邻题目的相同`page`值按需实现多题同页；这两项配置不由手机问卷编辑器修改；
-- 每份问卷保存一份草稿，可继续填写或废弃；
-- 使用 IndexedDB 在本机保存问卷、草稿和记录；
-- 查看、修改和删除已保存记录；
-- “已记录样本”列表支持左滑显示垃圾桶并删除样本，不显示复制操作；从记录详情直接点击问题即可修改，不产生问卷草稿，返回时逐级回到记录详情和样本列表；
-- 问卷管理的左滑操作只保留复制和删除，复制后停留在管理页；
-- 新版本提示包含更新概况，并支持“此次不更新”和“跳过此版本”；
-- “佩戴耳厚数据采集”支持水平、倾斜两组耳厚分布简易分析，按参与者计算重复测量平均值，并以SVG矢量图显示实际人数、KDE曲线及P20/P50/P80；可在图表上移动查看P值，不锁定触摸方向或阻止页面滚动；
-- 数字题和重复数字题可通过问卷JSON配置通用描述性统计，包括样本数、平均数、中位数、众数、极值、样本标准差和四分位数；
-- 导出单个 XLSX：Responses 一名参与者一行，Annotations 逐点记录图片笔画；
-- 多选答案在一个单元格中用中文分号连接；
-- 导出和恢复完整 JSON 备份；
-- Service Worker 离线缓存和非强制版本更新提示。
-- 使用自定义App-icon2应用图标，并生成iPhone与PWA所需的PNG尺寸。
+## 核心功能
 
-## 本地打开
+### 灵活问卷：从自然语言开始
 
-不能直接双击 `index.html`，需要用一个简单的本地网页服务打开。例如在本目录运行：
+你不需要先学习 AuNote 的 JSON 格式。只需向 AI 说明研究目的，或提供已有问卷文档，就可以共同推敲研究问题、作答方式与适合的简易分析，再生成可导入问卷。
 
-```powershell
-python -m http.server 4173
-```
+AuNote 支持导入、编辑与复用问卷。**AI 负责协作设计与生成文件；研究人员负责确认研究口径。** 并非所有特殊交互都已支持，AI 应先检查[当前能力边界](docs/questionnaire-template.md#当前能力边界)。
 
-然后访问：
+### 为现场采集设计
 
-```text
-http://127.0.0.1:4173/
-```
+采用面向手机的逐题填写流程，支持离线使用、草稿保存、问卷版本管理，以及历史样本查看与修改。
 
-验证图片标注时，在“问卷管理”选择自动加入的“耳挂耳机接触与疼痛范围验收 V1.1”，然后返回主页开始填写。它包含姓名、接触范围、疼痛区域3个研究问题，共7个填写页面。其[JSON文件](examples/ear-image-range-test.json)也可单独检查；三张PNG已放在`assets/`并被离线缓存。
+### 图片点位、范围与热力图
 
-Beta 版继续使用黄色应用图标与“AuNote Beta”名称，以免与绿色正式版混淆。标注页按上一题／下一题逐图填写；可调画笔大小、撤销上一笔、确认后清除本页所有等级的标记。V1.4.4 会记住画笔大小，切换图片、刷新页面和采集下一份样本时不重置；每笔仍保存绘制时自己的画笔大小。正式版使用固定0.15%笔画简化容差，侧面和截面耳图采用紧凑视框放大显示，底图和归一化坐标不变。演示问卷配置`imageRangeHeatmap`，在“简易分析”中按图片和疼痛等级查看人数热力图。V1.4.3 使用连续人数色阶、B收紧羽化与黑色截面曲线；每位参与者在同一区域最多计一次，柔化仅影响显示，不改变真实人数或XLSX中的原始笔画数据。
+在自定义底图上点选或涂画位置，记录接触范围、疼痛区域、主观压力感分布等空间信息；支持连续补画和可选的双等级标注。
 
-让其他 AI 从导出的 Excel 直接复现热力图时，先读[图片范围热力图分析指南](docs/image-range-heatmap-analysis.md)，再运行其中的离线出图脚本。三张内置耳图已在 `assets/`；不要提交参与者 Excel 或分析输出。
+AuNote 可以把不同参与者在相同底图上的标注叠加为**人数热力图**，展示哪些区域被更多人标记，而不是把同一个人重复画的笔数算作多个人。
 
-## 自动测试
+没有合适的底图？可以提供已有图片，也可以与外部 AI 协作设计、生成适合标注的底图。可参考[AI 图片标注研究指南](docs/image-annotation-ai-guide.md)和项目内置的[耳挂式耳机示例](examples/ear-image-range-test.json)。
 
-测试脚本会使用本机 Chrome 模拟 iPhone 尺寸，完整走一遍填写、保存、修改、草稿、模板、导出、删除、备份恢复和离线流程：
+### 研究过程中随时查看分析
 
-```powershell
-node tests/statistics.mjs
-node tests/image-range.mjs
-node tests/questionnaire-editor.mjs
-node tests/questionnaire-schema.mjs
-node tests/version-consistency.mjs
-node tests/ui-smoke.mjs
-node tests/questionnaire-layout-e2e.mjs
-node tests/image-range-e2e.mjs
-node tests/android-smoke.mjs
-node tests/e2e.mjs
-node tests/editor-e2e.mjs
-node tests/update-check-e2e.mjs
-```
+不必等收集完全部样本：可以随时打开已配置的简易分析，查看样本数、数值分布、描述性统计、百分位，或图片标注人数热力图，辅助观察研究进展。
 
-## 重要的数据说明
+Excel 导出保留结构化原始标注数据；可用[离线热力图分析工具](docs/image-range-heatmap-analysis.md)重新生成可视化，并按需要进一步调整分析与出图。
 
-- 问卷和记录保存在打开该 PWA 的设备及入口中；
-- Safari 页面与添加到主屏幕后的 PWA 可能拥有彼此独立的本地数据；
-- 正式采集前，应先添加到主屏幕，并始终从同一个图标打开；
-- Excel 用于电脑审查和分析；完整 JSON 用于恢复整个工具；
-- 删除问卷会同时删除该问卷的本地记录和草稿。
+### 本地优先，数据由你掌控
 
-## 导出后制作可调热力图
+AuNote 不要求账户，也不依赖后端业务服务器保存问卷数据。问卷、草稿、样本和简易分析在设备本地处理；支持导出单个 Excel 文件与完整 JSON 备份。
 
-把 AuNote 导出的 XLSX 和对应原始底图交给 AI 分析时，先让它阅读[热力图制作说明](docs/heatmap-ai-guide.md)，再使用[独立 HTML 模板](tools/heatmap-report-template.html)生成可离线查看、调整羽化与人数色标 RGB、保存 PNG 的报告。模板不在 AuNote 简易分析中打开，也不包含研究样本；生成的个人研究报告请勿提交公开仓库。
+**重要提醒：** 不同设备不会自动同步；Safari 页面与安装到主屏幕后的 PWA 可能有独立的存储空间。请始终从同一个入口记录，并定期导出备份。通过外部 AI 处理问卷资料时，仍应遵守相应服务的隐私要求。
 
-## 问卷JSON
+## 快速开始
 
-### 给AI的最省时转换方式
+1. 在手机打开 **[AuNote](https://harryauu999.github.io/field-research-data-tool/)**。首次使用请联网加载；建议添加到主屏幕。
+2. 使用内置示例问卷，或者根据[AI 问卷转换指南](docs/questionnaire-ai-guide.md)生成并导入自己的 JSON。
+3. 开始采集，按需保存草稿、检查样本及查看简易分析。
+4. 导出 Excel 进行后续分析；定期导出完整 JSON 用于备份与恢复。
 
-普通问卷无需研究整个项目或`js/app.js`。让AI只阅读[AI问卷转换指南](docs/questionnaire-ai-guide.md)，生成JSON后运行：
+## 指南与示例
 
-```powershell
-node tools/validate-questionnaire.mjs "问卷.json"
-```
+| 我想做什么 | 从这里开始 |
+| --- | --- |
+| 向 AI 描述研究目标，生成 AuNote 问卷 | [AI 问卷转换指南](docs/questionnaire-ai-guide.md) |
+| 研究接触、疼痛、压力感等区域，需要底图或图片标注 | [AI 图片标注研究指南](docs/image-annotation-ai-guide.md) |
+| 生成冷静、清晰、适合标注的灰度底图 | [底图设计规范与生成 Prompt](prompts/annotation-base-image.md) |
+| 了解题型、JSON 字段和当前限制 | [问卷格式说明](docs/questionnaire-template.md) |
+| 参考完整的耳挂式耳机接触/疼痛标注研究 | [示例问卷](examples/ear-image-range-test.json) |
+| 使用导出 Excel 重现或进一步处理人数热力图 | [离线热力图分析指南](docs/image-range-heatmap-analysis.md) |
+| 在本机开发、测试或继续维护项目 | [开发交接说明](docs/HANDOFF.md) · [协作规则](AGENTS.md) |
 
-可直接提供给网页版AI的原始指南地址：<https://raw.githubusercontent.com/HarryAuu999/field-research-data-tool/main/docs/questionnaire-ai-guide.md>。
+---
 
-推荐直接复制这句给AI，避免它扫描整个仓库：
-
-> 只读取上述AI问卷转换指南和我提供的原问卷，不要研究整个GitHub项目。先检查题目之外的布局、交互、校验和分析要求是否被AuNote完全支持；发现部分支持、不支持或信息不足时，必须在JSON之前说明差异、降级处理并必要时询问我，不能静默忽略或发明字段。没有能力差距时只需一句确认，然后生成一个不带代码围栏的AuNote JSON对象。严格保留原题意和顺序，不猜必填或分析方法；用recordLabelField指定样本名称字段，仅在原问卷明确要求多题同页时使用page。输出前核对schemaVersion必须是数字1。
-
-AI必须先执行能力差距检查。JSON Schema通过只表示JSON结构合法，不代表原问卷的布局、交互、输入限制和研究分析要求已全部实现；能力边界以[问卷JSON模板说明](docs/questionnaire-template.md#当前能力边界)为准。
-
-创建或由AI转换AuNote问卷时，请优先阅读：
-
-- [AI问卷转换指南](docs/questionnaire-ai-guide.md)：Word、PDF、Markdown或自然语言问卷的转换规则；
-- [JSON Schema](docs/questionnaire.schema.json)：导入前的机器校验；
-- [基础示例](examples/basic-questionnaire.json)与[完整功能示例](examples/full-feature-questionnaire.json)；
-- [耳挂耳机接触与疼痛范围验收 V1.1](examples/ear-image-range-test.json)：姓名1页、三张底图的接触与疼痛范围各3页；
-- [问卷JSON模板说明](docs/questionnaire-template.md)：字段、默认行为与Excel Responses规则的完整参考。
-
-导入时AuNote仍会通过JavaScript检查基本结构、题型和字段配置；JSON Schema是额外的预检来源，不替代PWA内置验证。导入前仍需由研究人员预览题目、选项、必填状态、单位、评分和Excel Responses列是否符合原问卷。
+*AuNote · Field Research Data Tool*
