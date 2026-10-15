@@ -32,7 +32,7 @@
 - `imageRange` 用 `image.src` 加载静态底图，记录归一化笔画点和随笔画保存的 `brushSize`；支持反复补画、撤销。
 - `view` 标识观察视角，`annotationType` 标识接触/疼痛等主题，`levels` 允许 **1–2 级**。每张底图独占一页。
 - `analysis.type: "imageRangeHeatmap"` 可以在研究中按题、按等级查看多人叠加人数热力图；不同图片、朝向不自动融合。
-- 当前同一份问卷 `analysis` **一次只能是一种分析类型**，不应同时声称数字分布与图片热力图可一起配置。
+- 旧字段 `analysis` 一次只能使用一种类型；新版 `analyses` 可以在同一份问卷中同时配置数值统计、选择题频数与图片热力图。
 - 原始结果随问卷保存，导出为 XLSX `Responses` 与 `Annotations`；可用 [离线 Python 工具](image-range-heatmap-analysis.md)进一步制图。
 
 **图片不是只放文件名就能导入：** 普通自定义问卷中的外部底图，应以内嵌 `data:image/...;base64,...` 放进 JSON；随 AuNote 应用正式发布、已被离线缓存的内置图片才可引用 `./assets/...`。不要写手机本地路径，也不要写在线 URL 或猜测某资源已经部署。使用图片编码时应保留正确的原始 `width`/`height`，让坐标可恢复。
