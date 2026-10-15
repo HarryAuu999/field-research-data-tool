@@ -1518,18 +1518,14 @@ function analysisStatisticsHtml(config, values, field) {
     ${detailKeys.length ? `<details class="analysis-more"><summary>更多统计</summary>${statisticGridHtml(detailKeys, stats, values, field, "analysis-detail-stats")}</details>` : ""}`;
 }
 
-function renderImageRangeAnalysis(config) {
+function imageRangeAnalysisCard(config) {
   const fields = config.fields.map((item) => ({
     item,
     field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
   }));
   const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
   const scaleTicks = scaleMaximum === 0 ? [0] : Array.from(new Set(Array.from({ length: Math.min(6, scaleMaximum + 1) }, (_, index) => Math.round(index * scaleMaximum / Math.min(5, scaleMaximum)))));
-  app.innerHTML = `
-    <section class="screen analysis-screen">
-      ${pageHeader("简易分析")}
-      <div class="page-content analysis-content">
-        <p class="analysis-help">每位参与者在同一位置最多计 1 人；颜色边缘仅为显示柔化，人数累计不被改变。三张视图使用相同的人数色标。</p>
+  return `
         <section class="analysis-chart-card heatmap-card">
           <label class="heatmap-picker-label">查看图片
             <select data-heatmap-field>${fields.map(({ item, field }) => `<option value="${escapeHtml(field.id)}">${escapeHtml(item.label || field.label)}</option>`).join("")}</select>
@@ -1540,13 +1536,21 @@ function renderImageRangeAnalysis(config) {
           <div class="heatmap-scale" role="img" aria-label="热力图色标，0至${scaleMaximum}人"><div class="heatmap-scale-bar" style="background: ${heatmapScaleGradient(scaleMaximum)}"></div><div class="heatmap-scale-ticks">${scaleTicks.map((count) => `<span>${count}</span>`).join("")}</div></div>
           <p class="heatmap-scale-note">色标：同一区域的标注人数（0–${scaleMaximum} 人）</p>
         </section>
-      </div>
-    </section>`;
-  const picker = app.querySelector("[data-heatmap-field]");
-  const levels = app.querySelector("[data-heatmap-levels]");
-  const count = app.querySelector("[data-heatmap-count]");
-  const image = app.querySelector("[data-heatmap-image]");
-  const overlay = app.querySelector("[data-heatmap-overlay]");
+      `;
+}
+
+function initializeImageRangeAnalysis(config, mount) {
+  const fields = config.fields.map((item) => ({
+    item,
+    field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
+  }));
+  const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
+  const scaleTicks = scaleMaximum === 0 ? [0] : Array.from(new Set(Array.from({ length: Math.min(6, scaleMaximum + 1) }, (_, index) => Math.round(index * scaleMaximum / Math.min(5, scaleMaximum)))));
+  const picker = mount.querySelector("[data-heatmap-field]");
+  const levels = mount.querySelector("[data-heatmap-levels]");
+  const count = mount.querySelector("[data-heatmap-count]");
+  const image = mount.querySelector("[data-heatmap-image]");
+  const overlay = mount.querySelector("[data-heatmap-overlay]");
   let activeLevel = 1;
   const draw = () => {
     if (!overlay.isConnected) return;
@@ -1566,6 +1570,18 @@ function renderImageRangeAnalysis(config) {
     draw();
   });
   requestAnimationFrame(draw);
+}
+
+function renderImageRangeAnalysis(config) {
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">每位参与者在同一位置最多计 1 人；颜色边缘仅为显示柔化，人数累计不被改变。</p>
+        ${imageRangeAnalysisCard(config)}
+      </div>
+    </section>`;
+  initializeImageRangeAnalysis(config, app);
 }
 
 function distributionAnalysisCards(config, moduleIndex = 0) {
