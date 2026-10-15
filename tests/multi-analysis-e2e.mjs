@@ -73,7 +73,7 @@ try {
   assert.deepEqual(pageErrors, [], "多类型分析页面发生运行错误");
 
   // Legacy templates must still open their original single heatmap view.
-  await page.evaluate(async ({ template }) => {
+  await page.evaluate(async ({ template, records }) => {
     const db = await import("./js/db.js?v=1.5.0");
     const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.5.0");
     const valid = validateTemplate(template);
