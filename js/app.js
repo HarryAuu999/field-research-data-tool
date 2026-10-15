@@ -1612,14 +1612,77 @@ function distributionAnalysisCards(config, moduleIndex = 0) {
   return charts;
 }
 
+function categoricalAnalysisCards(config) {
+  return config.fields.map((item) => {
+    const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
+    const result = categoricalFrequencies(field, state.records);
+    const rows = result.options.map((option) => {
+      const ratio = Number(option.percentage.toFixed(1));
+      return `
+        <div class="frequency-row">
+          <div class="frequency-label"><span>${escapeHtml(option.label)}</span><strong>${option.count} 人 · ${ratio}%</strong></div>
+          <div class="frequency-track" role="img" aria-label="${escapeHtml(option.label)}，${option.count}人，占有效答题人数${ratio}%">
+            <span class="frequency-fill" style="width:${ratio}%"></span>
+          </div>
+        </div>`;
+    }).join("");
+    const note = result.multiple
+      ? "多选题：每个选项按选择它的参与者计数，因此比例相加可能超过 100%。"
+      : "比例以这道题的有效作答人数为分母。";
+    return `
+      <section class="analysis-chart-card">
+        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2>
+          <p>有效作答 ${result.respondentCount} 人。 ${note}</p></div>
+        ${result.respondentCount ? `<div class="frequency-results">${rows}</div>` : '<div class="analysis-empty">还没有可用于分析的数据</div>'}
+      </section>`;
+  }).join("");
+}
+
+function renderCombinedAnalysis(configs) {
+  const contents = configs.map((config, index) => {
+    const title = config.type === "imageRangeHeatmap" ? "图片区域热力图"
+      : config.type === "categoricalFrequency" ? "评分与选项分布"
+      : "数值统计与分布";
+    const cards = config.type === "imageRangeHeatmap" ? imageRangeAnalysisCard(config)
+      : config.type === "categoricalFrequency" ? categoricalAnalysisCards(config)
+      : distributionAnalysisCards(config, index);
+    return `
+      <section class="analysis-module" data-analysis-module-section="${index}">
+        <h2 class="analysis-module-title">${title}</h2>
+        ${cards}
+      </section>`;
+  }).join("");
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">以下展示当前已采集样本的描述性结果，不代表研究结论。不同题目按照各自的有效样本数统计。</p>
+        ${contents}
+      </div>
+    </section>`;
+  configs.forEach((config, index) => {
+    if (config.type === "imageRangeHeatmap") {
+      initializeImageRangeAnalysis(config, app.querySelector(`[data-analysis-module-section="${index}"]`));
+    }
+  });
+  if (configs.some((config) => ["distribution", "descriptiveDistribution"].includes(config.type))) {
+    requestAnimationFrame(() => initializeAnalysisCharts(configs));
+  }
+}
+
 function renderAnalysis() {
-  const config = analysisConfig(state.currentTemplate);
-  if (!config) {
+  const configs = analysisConfigs(state.currentTemplate);
+  if (!configs.length) {
     state.view = "home";
     renderHome();
     showToast("当前问卷没有配置简易分析");
     return;
   }
+  if (configs.length > 1 || configs[0].type === "categoricalFrequency") {
+    renderCombinedAnalysis(configs);
+    return;
+  }
+  const config = configs[0];
   if (config.type === "imageRangeHeatmap") {
     renderImageRangeAnalysis(config);
     return;
