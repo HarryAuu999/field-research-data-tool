@@ -6,7 +6,7 @@
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.6，包含图片范围标注、用户确认的五节点连续人数色阶、B收紧羽化、父子页面 320ms 过渡；热力图人数标尺现与图像共用配色，检查更新不再锁住其他操作且有超时提示。保留画笔大小记忆和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| 正式版 | V1.4.7，简易分析可在同一问卷中组合数值统计、评分／选择题频数及图片热力图；继续保留图片标注、五节点连续人数色阶、B收紧羽化、父子页面过渡和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
 | Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
@@ -20,7 +20,7 @@ AuNote 是面向现场用户研究的轻量、离线优先 PWA，主要在 iPhon
 
 ## 用户操作与状态流
 
-- 首页展示当前问卷、背景、该问卷的已记录样本数。无草稿时“开始填写”，有草稿时“继续填写／废弃草稿”。“简易分析”只在问卷配置了 analysis 时出现；“导出数据”仍生成 XLSX，按当前问卷导出，不是整个数据库。完整 JSON 备份在“数据备份/恢复”。
+- 首页展示当前问卷、背景、该问卷的已记录样本数。无草稿时“开始填写”，有草稿时“继续填写／废弃草稿”。“简易分析”只在问卷配置了 `analysis` 或 `analyses` 时出现；“导出数据”仍生成 XLSX，按当前问卷导出，不是整个数据库。完整 JSON 备份在“数据备份/恢复”。
 - 问卷管理可导入 JSON、切换问卷；左滑问卷出现复制和删除。打开问卷进入概览。未修改时底部为“选择此问卷”；有修改时为蓝色“保存问卷”和白色“另存为副本”。问题可左滑删除、长按跟手排序。点击问题编辑后只有“完成”才把改动写入问卷修改稿；返回会提示放弃或继续，并恢复概览滚动位置。问卷修改稿保存在 settings，而不是填写草稿。已有填写草稿时不允许编辑该问卷。
 - “保存问卷”递增同一 id 的 version，并设为当前；如果旧版本没有记录和填写草稿，可原子替换该空版本；否则保留旧问卷和样本，生成独立新版本。“另存为副本”产生新 id、不带旧样本或草稿，并设为当前。保存成功提示出现在底部按钮上方。删除问卷会级联删除对应记录和草稿，必须经确认。
 - 填写时默认每题一页。相邻题设置相同 page 才会同页；section 保留为说明页；imageRange 必须独占一页。前进会校验本页，结束时校验全部字段并保存一条记录。新填写的草稿按当前问卷写入 IndexedDB；返回首页保留草稿，完成后删除草稿。
@@ -31,7 +31,7 @@ AuNote 是面向现场用户研究的轻量、离线优先 PWA，主要在 iPhon
 
 规范维持 schemaVersion 数字 1。普通问卷转换首先读 docs/questionnaire-ai-guide.md，再按需读 docs/questionnaire-template.md、docs/questionnaire.schema.json 和 examples/；不要为了普通转换重读整个 135 KB 的 js/app.js。运行 node tools/validate-questionnaire.mjs 问卷.json 做与 PWA 一致的校验。导入兼容字符串 "1" 和单层 questionnaire/template 包装，但规范输出仍应是顶层数字 1 的单个 JSON 对象。
 
-AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的要求，不得静默降级、猜必填、发明字段或研究统计方法。1–5 分允许小数时用 number 而非整数 rating。recordLabelField 指向样本名称字段；page 仅在明确要求同页时配置。当前一份问卷的 analysis 只能选择一个类型：旧 distribution、descriptiveDistribution 或 imageRangeHeatmap；不能假定数字分析和热力图可同时配置。
+AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的要求，不得静默降级、猜必填、发明字段或研究统计方法。1–5 分允许小数时用 number 而非整数 rating。recordLabelField 指向样本名称字段；page 仅在明确要求同页时配置。旧 `analysis` 单对象继续兼容；新版非空 `analyses` 数组可组合 `descriptiveDistribution`、`categoricalFrequency`、`imageRangeHeatmap` 等模块，两字段不可同时配置。混合示例见 `examples/ear-mixed-analysis-test.json`。
 
 ## 图片范围标注：真实实现
 
@@ -39,7 +39,7 @@ AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的
 
 imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, strokes: [...] }；每笔包含 id、annotationType、level、brushSize、points，其中 points 是相对于原图宽高的 [x,y] 归一化坐标。原图文件没有被裁切；内置侧面和截面耳图采用紧凑 SVG 视框放大显示，归一化坐标不变。Pointer Events、pointer capture 和 touch-action: none 确保手指画线时页面不滚动。默认新笔在结束时以原图宽度 0.15% 的容差简化并做平滑路径显示；画笔大小可调，保存到每笔。支持撤销上一笔，以及确认后清除当前图片的全部等级。切换疼痛等级不会删除已有笔画，Level 2 在重叠处优先显示。
 
-简易分析由问卷 analysis.type = imageRangeHeatmap 驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。V1.4.3 使用连续人数色阶与图宽0.7%半径的双次 box blur（B收紧羽化），只柔化显示边缘，不改变原始人数；三个视图共用0至最多已标注样本数的尺度。截面底图 `assets/ear-side-section.png` 已换成同尺寸黑线版本，旧归一化坐标不迁移。导出XLSX后给其他AI分析的最短路径见 `docs/image-range-heatmap-analysis.md`，可直接运行 `tools/render-image-range-heatmaps.py`。PWA内仍未实现高级报告、热力图导出或混合分析类型。
+图片热力图由问卷 `analysis` 或 `analyses` 中的 `imageRangeHeatmap` 配置驱动；js/image-range-heatmap.js 将每名参与者的同级笔画栅格化为二值 mask，每个位置每人最多计 1 次，再累计真实人数。Level 2 区域从同人 Level 1 中扣除。连续人数色阶与图宽0.7%半径的双次 box blur（B收紧羽化）只柔化显示边缘，不改变原始人数；同模块内图片共用0至最多已标注样本数的尺度。截面底图 `assets/ear-side-section.png` 已换成同尺寸黑线版本，旧归一化坐标不迁移。导出XLSX后给其他AI分析的最短路径见 `docs/image-range-heatmap-analysis.md`，可直接运行 `tools/render-image-range-heatmaps.py`。PWA内仍未实现高级报告或热力图导出。
 
 ## 数据、导出与恢复
 
@@ -60,7 +60,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 | 笔画、触控、画笔 UI | js/image-range.js、js/app.js、styles.css | tests/image-range.mjs、tests/image-range-e2e.mjs |
 | 离线、版本、Android 图标 | sw.js、manifest.webmanifest、index.html、assets/ | tests/version-consistency.mjs、tests/android-smoke.mjs、tests/e2e.mjs |
 
-本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。开发与发布都先按变更范围选最小相关测试：本次热力图显示标准运行 image-range、image-range-e2e、version-consistency，并用导出XLSX复现图像；没有运行无关的问卷编辑与完整E2E。DB、备份恢复、Service Worker运行逻辑、离线逻辑或跨模块状态变更仍跑完整回归。单纯版本号和缓存清单更新要检查一致性，但不自动触发全部测试。测试通过不等于真实 iPhone 已验收。
+本地在项目根目录运行 python -m http.server 4173，再打开 http://127.0.0.1:4173/ 。浏览器测试需要本机 Chrome。混合分析优先跑 `tests/statistics.mjs`、`tests/questionnaire-schema.mjs`、`tests/questionnaire-editor.mjs`、`tests/multi-analysis-e2e.mjs`；正式发布还须跑完整回归。浏览器测试使用独立 context，不读取或清空用户设备中的真实数据。DB、备份恢复、Service Worker运行逻辑、离线逻辑或跨模块状态变更仍跑完整回归。测试通过不等于真实 iPhone 已验收。
 
 ## 接手时先做
 

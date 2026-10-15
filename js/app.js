@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.5.0";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.5.0";
+} from "./db.js?v=1.4.7";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.7";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.5.0";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.5.0";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.5.0";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.5.0";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.5.0";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.5.0";
+} from "./questionnaire-editor.js?v=1.4.7";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.7";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.7";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.7";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.7";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.7";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.5.0";
+} from "./statistics.js?v=1.4.7";
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.4.7";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -1545,7 +1545,6 @@ function initializeImageRangeAnalysis(config, mount) {
     field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
   }));
   const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
-  const scaleTicks = scaleMaximum === 0 ? [0] : Array.from(new Set(Array.from({ length: Math.min(6, scaleMaximum + 1) }, (_, index) => Math.round(index * scaleMaximum / Math.min(5, scaleMaximum)))));
   const picker = mount.querySelector("[data-heatmap-field]");
   const levels = mount.querySelector("[data-heatmap-levels]");
   const count = mount.querySelector("[data-heatmap-count]");
