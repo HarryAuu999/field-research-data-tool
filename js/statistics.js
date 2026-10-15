@@ -94,3 +94,46 @@ export function formatStatistic(value, values = []) {
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(displayPrecision(values)).replace(/0+$/, "").replace(/\.$/, "");
 }
+
+/**
+ * Summarize categorical answers by respondent, not by number of clicks.
+ * Percentages use respondents with at least one valid answer to this question.
+ * For multiChoice, percentages across options may sum to more than 100%.
+ */
+export function categoricalFrequencies(field, records) {
+  const options = field.type === "rating"
+    ? [
+        ...Array.from({ length: field.max - field.min + 1 }, (_, index) => ({
+          id: String(field.min + index), label: String(field.min + index)
+        })),
+        ...(field.unknownOption ? [{ id: field.unknownOption.id, label: field.unknownOption.label }] : [])
+      ]
+    : (field.options || []).map((option) => ({ id: option.id, label: option.label }));
+  const counts = new Map(options.map((option) => [String(option.id), 0]));
+  let respondentCount = 0;
+  for (const record of records) {
+    const answer = record.answers?.[field.id];
+    let selected = [];
+    if (field.type === "rating") {
+      if (answer !== "" && answer !== null && answer !== undefined) selected = [String(answer)];
+    } else if (field.type === "singleChoice") {
+      const value = answer && typeof answer === "object" ? answer.value : answer;
+      if (value !== "" && value !== null && value !== undefined) selected = [String(value)];
+    } else if (field.type === "multiChoice") {
+      selected = Array.isArray(answer?.values) ? answer.values.map(String) : (Array.isArray(answer) ? answer.map(String) : []);
+    }
+    const valid = [...new Set(selected)].filter((id) => counts.has(id));
+    if (!valid.length) continue;
+    respondentCount += 1;
+    valid.forEach((id) => counts.set(id, counts.get(id) + 1));
+  }
+  return {
+    respondentCount,
+    multiple: field.type === "multiChoice",
+    options: options.map((option) => ({
+      ...option,
+      count: counts.get(String(option.id)),
+      percentage: respondentCount ? counts.get(String(option.id)) / respondentCount * 100 : 0
+    }))
+  };
+}
