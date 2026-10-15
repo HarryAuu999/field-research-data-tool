@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.6";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.6";
+} from "./db.js?v=1.5.0";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.5.0";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.6";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.6";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.6";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.6";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.6";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.6";
+} from "./questionnaire-editor.js?v=1.5.0";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.5.0";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.5.0";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.5.0";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.5.0";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.5.0";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.6";
+} from "./statistics.js?v=1.5.0";
 
-const APP_VERSION = "1.4.6";
+const APP_VERSION = "1.5.0";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
