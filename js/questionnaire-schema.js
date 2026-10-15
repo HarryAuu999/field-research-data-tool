@@ -1,7 +1,7 @@
 import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.2";
 import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.2";
 
-const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap"]);
+const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap", "categoricalFrequency"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);
 
 function deepClone(value) {
@@ -24,6 +24,22 @@ export function normalizeTemplateImport(input) {
 function validateAnalysisConfig(config, fields) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
   if (!ANALYSIS_TYPES.has(config.type)) throw new Error("不支持的简易分析类型");
+  if (config.type === "categoricalFrequency") {
+    if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("选项频数分析至少需要一道评分或选择题");
+    const map = new Map(fields.map((field) => [field.id, field]));
+    const seen = new Set();
+    for (const item of config.fields) {
+      const field = map.get(item?.id);
+      if (!field || !["rating", "singleChoice", "multiChoice"].includes(field.type) || seen.has(item.id)) {
+        throw new Error(`选项频数分析字段无效或重复：${item?.id || "未命名"}`);
+      }
+      if (item.label !== undefined && (typeof item.label !== "string" || !item.label.trim())) {
+        throw new Error(`选项频数分析字段 ${item.id} 的标题无效`);
+      }
+      seen.add(item.id);
+    }
+    return;
+  }
   if (config.type === "imageRangeHeatmap") {
     if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("图片热力图至少需要一道图片标注题");
     const fieldMap = new Map(fields.map((field) => [field.id, field]));
@@ -143,7 +159,14 @@ export function validateTemplate(input, { importedAt = new Date().toISOString() 
     }
   }
 
+  if (input.analysis !== undefined && input.analyses !== undefined) {
+    throw new Error("analysis 与 analyses 不能同时配置，请保留其中一种");
+  }
   if (input.analysis !== undefined) validateAnalysisConfig(input.analysis, input.fields);
+  if (input.analyses !== undefined) {
+    if (!Array.isArray(input.analyses) || !input.analyses.length) throw new Error("analyses 必须是非空分析配置数组");
+    for (const config of input.analyses) validateAnalysisConfig(config, input.fields);
+  }
 
   const template = deepClone(input);
   template.key = `${template.id}@${template.version}`;
