@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.6";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.6";
+} from "./db.js?v=1.4.7";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.7";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,22 +29,23 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.6";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.6";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.6";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.6";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.6";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.6";
+} from "./questionnaire-editor.js?v=1.4.7";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.7";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.7";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.7";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.7";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.7";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
   fieldDistribution,
+  categoricalFrequencies,
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.6";
+} from "./statistics.js?v=1.4.7";
 
-const APP_VERSION = "1.4.6";
+const APP_VERSION = "1.4.7";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -194,8 +195,15 @@ function fatalError(error) {
 }
 
 function analysisConfig(template) {
-  if (!template) return null;
+  if (!template || template.analyses?.length) return null;
   return template.analysis || ANALYSIS_PRESETS[template.key] || null;
+}
+
+function analysisConfigs(template) {
+  if (!template) return [];
+  if (Array.isArray(template.analyses) && template.analyses.length) return template.analyses;
+  const legacy = analysisConfig(template);
+  return legacy ? [legacy] : [];
 }
 
 async function seedDefaultTemplate() {
@@ -378,7 +386,7 @@ function renderHome() {
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
-  const currentAnalysis = analysisConfig(state.currentTemplate);
+  const currentAnalysis = analysisConfigs(state.currentTemplate).length > 0;
 
   app.innerHTML = `
     <section class="screen home-screen">
@@ -464,7 +472,7 @@ function renderTemplateOverview() {
   const template = editing ? state.editorTemplate : sourceTemplate;
   const isCurrent = sourceTemplate.key === state.currentTemplate?.key;
   const count = state.templateCounts[sourceTemplate.key] ?? 0;
-  const config = analysisConfig(template);
+  const config = analysisConfigs(template).length > 0;
   let questionNumber = 0;
   const questions = template.fields.map((field, fieldIndex) => {
     const action = editing ? "open-editor-question" : "edit-template-question";
@@ -1446,9 +1454,11 @@ function bindChartCursor(chart) {
   });
 }
 
-function initializeAnalysisCharts(config) {
+function initializeAnalysisCharts(configs) {
+  const configurations = Array.isArray(configs) ? configs : [configs];
   const redrawers = [];
   app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
+    const config = configurations[Number(chart.dataset.analysisModule || 0)];
     const item = config.fields[Number(chart.dataset.analysisChart)];
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
     const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
@@ -1508,18 +1518,14 @@ function analysisStatisticsHtml(config, values, field) {
     ${detailKeys.length ? `<details class="analysis-more"><summary>更多统计</summary>${statisticGridHtml(detailKeys, stats, values, field, "analysis-detail-stats")}</details>` : ""}`;
 }
 
-function renderImageRangeAnalysis(config) {
+function imageRangeAnalysisCard(config) {
   const fields = config.fields.map((item) => ({
     item,
     field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
   }));
   const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
   const scaleTicks = scaleMaximum === 0 ? [0] : Array.from(new Set(Array.from({ length: Math.min(6, scaleMaximum + 1) }, (_, index) => Math.round(index * scaleMaximum / Math.min(5, scaleMaximum)))));
-  app.innerHTML = `
-    <section class="screen analysis-screen">
-      ${pageHeader("简易分析")}
-      <div class="page-content analysis-content">
-        <p class="analysis-help">每位参与者在同一位置最多计 1 人；颜色边缘仅为显示柔化，人数累计不被改变。三张视图使用相同的人数色标。</p>
+  return `
         <section class="analysis-chart-card heatmap-card">
           <label class="heatmap-picker-label">查看图片
             <select data-heatmap-field>${fields.map(({ item, field }) => `<option value="${escapeHtml(field.id)}">${escapeHtml(item.label || field.label)}</option>`).join("")}</select>
@@ -1530,13 +1536,20 @@ function renderImageRangeAnalysis(config) {
           <div class="heatmap-scale" role="img" aria-label="热力图色标，0至${scaleMaximum}人"><div class="heatmap-scale-bar" style="background: ${heatmapScaleGradient(scaleMaximum)}"></div><div class="heatmap-scale-ticks">${scaleTicks.map((count) => `<span>${count}</span>`).join("")}</div></div>
           <p class="heatmap-scale-note">色标：同一区域的标注人数（0–${scaleMaximum} 人）</p>
         </section>
-      </div>
-    </section>`;
-  const picker = app.querySelector("[data-heatmap-field]");
-  const levels = app.querySelector("[data-heatmap-levels]");
-  const count = app.querySelector("[data-heatmap-count]");
-  const image = app.querySelector("[data-heatmap-image]");
-  const overlay = app.querySelector("[data-heatmap-overlay]");
+      `;
+}
+
+function initializeImageRangeAnalysis(config, mount) {
+  const fields = config.fields.map((item) => ({
+    item,
+    field: state.currentTemplate.fields.find((candidate) => candidate.id === item.id)
+  }));
+  const scaleMaximum = Math.max(0, ...fields.map(({ field }) => state.records.filter((record) => imageRangeStrokes(record.answers?.[field.id]).length).length));
+  const picker = mount.querySelector("[data-heatmap-field]");
+  const levels = mount.querySelector("[data-heatmap-levels]");
+  const count = mount.querySelector("[data-heatmap-count]");
+  const image = mount.querySelector("[data-heatmap-image]");
+  const overlay = mount.querySelector("[data-heatmap-overlay]");
   let activeLevel = 1;
   const draw = () => {
     if (!overlay.isConnected) return;
@@ -1558,18 +1571,19 @@ function renderImageRangeAnalysis(config) {
   requestAnimationFrame(draw);
 }
 
-function renderAnalysis() {
-  const config = analysisConfig(state.currentTemplate);
-  if (!config) {
-    state.view = "home";
-    renderHome();
-    showToast("当前问卷没有配置简易分析");
-    return;
-  }
-  if (config.type === "imageRangeHeatmap") {
-    renderImageRangeAnalysis(config);
-    return;
-  }
+function renderImageRangeAnalysis(config) {
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">每位参与者在同一位置最多计 1 人；颜色边缘仅为显示柔化，人数累计不被改变。</p>
+        ${imageRangeAnalysisCard(config)}
+      </div>
+    </section>`;
+  initializeImageRangeAnalysis(config, app);
+}
+
+function distributionAnalysisCards(config, moduleIndex = 0) {
   const charts = config.fields.map((item, index) => {
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
     const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
@@ -1588,12 +1602,91 @@ function renderAnalysis() {
         ${analysisStatisticsHtml(config, values, field)}
         <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span><span class="legend-normal">正态分布参考</span>' : ""}</div>
         <div class="chart-stage">
-          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，样本数${values.length}${percentileText ? `，${escapeHtml(percentileText)}` : ""}，含人数直方图${values.length > 1 ? "、KDE和正态分布参考" : ""}" preserveAspectRatio="none"></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-module="${moduleIndex}" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，样本数${values.length}${percentileText ? `，${escapeHtml(percentileText)}` : ""}，含人数直方图${values.length > 1 ? "、KDE和正态分布参考" : ""}" preserveAspectRatio="none"></svg>
           <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
         ${percentileText ? `<p class="percentile-summary">${escapeHtml(percentileText)}</p>` : ""}
       </section>`;
   }).join("");
+  return charts;
+}
+
+function categoricalAnalysisCards(config) {
+  return config.fields.map((item) => {
+    const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
+    const result = categoricalFrequencies(field, state.records);
+    const rows = result.options.map((option) => {
+      const ratio = Number(option.percentage.toFixed(1));
+      return `
+        <div class="frequency-row">
+          <div class="frequency-label"><span>${escapeHtml(option.label)}</span><strong>${option.count} 人 · ${ratio}%</strong></div>
+          <div class="frequency-track" role="img" aria-label="${escapeHtml(option.label)}，${option.count}人，占有效答题人数${ratio}%">
+            <span class="frequency-fill" style="width:${ratio}%"></span>
+          </div>
+        </div>`;
+    }).join("");
+    const note = result.multiple
+      ? "多选题：每个选项按选择它的参与者计数，因此比例相加可能超过 100%。"
+      : "比例以这道题的有效作答人数为分母。";
+    return `
+      <section class="analysis-chart-card">
+        <div class="analysis-chart-heading"><h2>${escapeHtml(item.label || field.label)}</h2>
+          <p>有效作答 ${result.respondentCount} 人。 ${note}</p></div>
+        ${result.respondentCount ? `<div class="frequency-results">${rows}</div>` : '<div class="analysis-empty">还没有可用于分析的数据</div>'}
+      </section>`;
+  }).join("");
+}
+
+function renderCombinedAnalysis(configs) {
+  const contents = configs.map((config, index) => {
+    const title = config.type === "imageRangeHeatmap" ? "图片区域热力图"
+      : config.type === "categoricalFrequency" ? "评分与选项分布"
+      : "数值统计与分布";
+    const cards = config.type === "imageRangeHeatmap" ? imageRangeAnalysisCard(config)
+      : config.type === "categoricalFrequency" ? categoricalAnalysisCards(config)
+      : distributionAnalysisCards(config, index);
+    return `
+      <section class="analysis-module" data-analysis-module-section="${index}">
+        <h2 class="analysis-module-title">${title}</h2>
+        ${cards}
+      </section>`;
+  }).join("");
+  app.innerHTML = `
+    <section class="screen analysis-screen">
+      ${pageHeader("简易分析")}
+      <div class="page-content analysis-content">
+        <p class="analysis-help">以下展示当前已采集样本的描述性结果，不代表研究结论。不同题目按照各自的有效样本数统计。</p>
+        ${contents}
+      </div>
+    </section>`;
+  configs.forEach((config, index) => {
+    if (config.type === "imageRangeHeatmap") {
+      initializeImageRangeAnalysis(config, app.querySelector(`[data-analysis-module-section="${index}"]`));
+    }
+  });
+  if (configs.some((config) => ["distribution", "descriptiveDistribution"].includes(config.type))) {
+    requestAnimationFrame(() => initializeAnalysisCharts(configs));
+  }
+}
+
+function renderAnalysis() {
+  const configs = analysisConfigs(state.currentTemplate);
+  if (!configs.length) {
+    state.view = "home";
+    renderHome();
+    showToast("当前问卷没有配置简易分析");
+    return;
+  }
+  if (configs.length > 1 || configs[0].type === "categoricalFrequency") {
+    renderCombinedAnalysis(configs);
+    return;
+  }
+  const config = configs[0];
+  if (config.type === "imageRangeHeatmap") {
+    renderImageRangeAnalysis(config);
+    return;
+  }
+  const charts = distributionAnalysisCards(config);
   app.innerHTML = `
     <section class="screen analysis-screen">
       ${pageHeader("简易分析")}

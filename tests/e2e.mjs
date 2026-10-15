@@ -69,7 +69,8 @@ async function assertNoHorizontalOverflow(label) {
 
 const migrationContext = await browser.newContext({ locale: "zh-CN" });
 const migrationPage = await migrationContext.newPage();
-  await migrationPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+await migrationPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+await migrationPage.locator(".home-screen").waitFor();
 await migrationPage.evaluate(async () => {
   const { PREVIOUS_DEFAULT_TEMPLATE } = await import("./js/default-template.js");
   const latest = structuredClone(PREVIOUS_DEFAULT_TEMPLATE);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   analysisValue,
+  categoricalFrequencies,
   descriptiveStatistics,
   fieldDistribution,
   modes,
@@ -37,6 +38,36 @@ const records = [
   { answers: { measure: ["", "bad"] } }
 ];
 assert.deepEqual(fieldDistribution(template, records, "measure", "participantMean"), [2, 5], "每名参与者应只形成一个统计样本");
+
+
+const ratingField = { id: "comfort", type: "rating", min: 1, max: 3, unknownOption: { id: "unknown", label: "无法判断" } };
+const rated = categoricalFrequencies(ratingField, [
+  { answers: { comfort: 1 } }, { answers: { comfort: 1 } },
+  { answers: { comfort: 3 } }, { answers: { comfort: "unknown" } },
+  { answers: { comfort: "" } }
+]);
+assert.equal(rated.respondentCount, 4);
+assert.deepEqual(rated.options.map((option) => option.count), [2, 0, 1, 1]);
+assert.equal(rated.options[0].percentage, 50);
+
+const selectField = { id: "favorite", type: "singleChoice", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] };
+const single = categoricalFrequencies(selectField, [
+  { answers: { favorite: { value: "b" } } }, { answers: { favorite: { value: "a" } } },
+  { answers: { favorite: { value: "" } } }, { answers: { favorite: { value: "unlisted" } } }
+]);
+assert.deepEqual(single.options.map((option) => option.count), [1, 1]);
+assert.equal(single.respondentCount, 2, "invalid or missing responses cannot dilute the denominator");
+
+const multiField = { id: "reasons", type: "multiChoice", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] };
+const multi = categoricalFrequencies(multiField, [
+  { answers: { reasons: { values: ["a", "a", "b"] } } },
+  { answers: { reasons: { values: ["a"] } } },
+  { answers: { reasons: { values: [] } } }
+]);
+assert.equal(multi.respondentCount, 2);
+assert.deepEqual(multi.options.map((option) => option.count), [2, 1], "duplicate selections by one participant count once");
+assert.deepEqual(multi.options.map((option) => option.percentage), [100, 50]);
+assert.equal(multi.multiple, true);
 
 console.log(JSON.stringify({ passed: true, scenarios: [
   "mean", "odd-median", "even-median", "single-mode", "multi-mode", "no-mode",

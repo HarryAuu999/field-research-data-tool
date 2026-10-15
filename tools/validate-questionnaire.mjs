@@ -33,7 +33,8 @@ try {
     key: template.key,
     title: template.title,
     fields: template.fields.length,
-    analysis: template.analysis?.type || null
+    analysis: template.analysis?.type || null,
+    analyses: template.analyses?.map((config) => config.type) || null
   }, null, 2));
 } catch (error) {
   console.error(`验证失败：${error.message}`);

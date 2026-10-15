@@ -56,6 +56,17 @@ assert.deepEqual(reorderFields(fields, ["c", "a"]).map((field) => field.id), ["c
 assert.equal(questionUsesAnalysis({ analysis }, "comfort"), true);
 assert.equal(questionUsesAnalysis({ analysis }, "missing"), false);
 
+const mixedSource = { ...source, analyses: [
+  { type: "descriptiveDistribution", aggregation: "participantMean", fields: [{ id: "comfort" }] },
+  { type: "categoricalFrequency", fields: [{ id: "choice" }] }
+] };
+const mixedCopy = duplicateTemplate(mixedSource);
+assert.deepEqual(mixedCopy.analyses, mixedSource.analyses, "复制问卷须保留全部分析模块");
+assert.notEqual(mixedCopy.analyses, mixedSource.analyses, "复制问卷不得共享原分析配置引用");
+assert.equal(mixedCopy.analysis, undefined, "新版配置不应产生旧 analysis 字段");
+assert.equal(questionUsesAnalysis(mixedSource, "choice"), true, "编辑器须保护新版分析引用的题目");
+assert.equal(questionUsesAnalysis(mixedSource, "missing"), false);
+
 console.log(JSON.stringify({ passed: true, scenarios: [
-  "versioning", "question-defaults", "unique-ids", "type-change", "duplicate", "reorder", "analysis-reference"
+  "versioning", "question-defaults", "unique-ids", "type-change", "duplicate", "reorder", "analysis-reference", "mixed-analysis-copy"
 ] }, null, 2));

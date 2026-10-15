@@ -771,6 +771,16 @@ button:disabled { opacity: 0.38; }
 
 .analysis-screen { width: min(100%, 980px); }
 .analysis-content { display: grid; gap: 16px; }
+
+.analysis-module { display: grid; gap: 12px; min-width: 0; }
+.analysis-module-title { margin: 10px 0 1px; padding-bottom: 10px; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 17px; font-weight: 700; }
+.frequency-results { display: grid; gap: 16px; margin-top: 20px; }
+.frequency-row { min-width: 0; }
+.frequency-label { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 7px; color: var(--ink); font-size: 13px; }
+.frequency-label strong { color: var(--forest); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.frequency-track { height: 9px; overflow: hidden; border-radius: 999px; background: #e9eeeb; }
+.frequency-fill { display: block; height: 100%; border-radius: inherit; background: #5f9278; }
+
 .analysis-help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .analysis-chart-card { padding: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .analysis-chart-heading h2 { margin: 0; color: var(--ink); font-size: 17px; line-height: 1.35; }

@@ -91,4 +91,27 @@ expectInvalid((template) => {
   template.analysis = { type: "descriptiveDistribution", aggregation: "participantMean", fields: [{ id: "score", theme: "green" }] };
 }, /主题色无效/);
 
-console.log(JSON.stringify({ passed: true, scenarios: 21 }, null, 2));
+
+const mixed = structuredClone(imageRangeTemplate);
+mixed.fields.push(
+  { id: "earThickness", type: "number", label: "耳厚", unit: "mm" },
+  { id: "comfort", type: "rating", label: "舒适度", min: 1, max: 5 },
+  { id: "choice", type: "singleChoice", label: "偏好", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] },
+  { id: "reasons", type: "multiChoice", label: "原因", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+);
+delete mixed.analysis;
+mixed.analyses = [
+  { type: "descriptiveDistribution", aggregation: "participantMean", fields: [{ id: "earThickness" }] },
+  { type: "categoricalFrequency", fields: [{ id: "comfort" }, { id: "choice" }, { id: "reasons" }] },
+  { type: "imageRangeHeatmap", fields: [{ id: "contactSide" }, { id: "painSide" }] }
+];
+const validatedMixed = validateTemplate(mixed, { importedAt: fixedTime });
+assert.equal(validatedMixed.analyses.length, 3, "one questionnaire should support combined analysis types");
+assert.equal(validatedMixed.analysis, undefined, "plural analysis should not invent legacy field");
+assert.equal(validateTemplate(imageRangeTemplate, { importedAt: fixedTime }).analysis.type, "imageRangeHeatmap", "legacy analysis must remain valid");
+assert.throws(() => validateTemplate({ ...mixed, analysis: analyzed.analysis }), /不能同时配置/);
+assert.throws(() => validateTemplate({ ...mixed, analyses: [] }), /非空分析配置数组/);
+assert.throws(() => validateTemplate({ ...mixed, analyses: [{ type: "categoricalFrequency", fields: [{ id: "earThickness" }] }] }), /选项频数分析字段无效/);
+assert.throws(() => validateTemplate({ ...mixed, analyses: [{ type: "categoricalFrequency", fields: [{ id: "comfort" }, { id: "comfort" }] }] }), /无效或重复/);
+
+console.log(JSON.stringify({ passed: true, scenarios: 28 }, null, 2));

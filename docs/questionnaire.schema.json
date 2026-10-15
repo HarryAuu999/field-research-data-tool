@@ -22,10 +22,17 @@
       "items": { "$ref": "#/$defs/field" }
     },
     "analysis": { "$ref": "#/$defs/analysis" },
+    "analyses": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/analysis" },
+      "description": "新版多模块分析配置，不能与旧字段 analysis 同时使用。"
+    },
     "key": { "type": "string", "readOnly": true },
     "importedAt": { "type": "string", "format": "date-time", "readOnly": true }
   },
   "additionalProperties": false,
+  "allOf": [{ "not": { "required": ["analysis", "analyses"] } }],
   "$defs": {
     "nonEmptyString": {
       "type": "string",
@@ -324,6 +331,27 @@
                 "properties": {
                   "id": { "type": "string", "minLength": 1 },
                   "label": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "fields"],
+          "properties": {
+            "type": { "const": "categoricalFrequency" },
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/nonEmptyString" },
+                  "label": { "$ref": "#/$defs/nonEmptyString" }
                 },
                 "additionalProperties": false
               }

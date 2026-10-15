@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "id": "ear-mixed-analysis-demo",
+  "version": "1.0",
+  "title": "耳挂式耳机综合研究 · 多类型分析验收",
+  "description": "演示同一问卷的数值统计、评分/选择题频数与接触范围热力图。数据仅供功能测试。",
+  "recordLabelField": "name",
+  "fields": [
+    {
+      "id": "name",
+      "type": "shortText",
+      "label": "参与者编号",
+      "required": true
+    },
+    {
+      "id": "earThickness",
+      "type": "number",
+      "label": "耳部厚度",
+      "unit": "mm",
+      "required": false
+    },
+    {
+      "id": "comfort",
+      "type": "rating",
+      "label": "请评价耳机佩戴舒适度（1–5分）",
+      "min": 1,
+      "max": 5,
+      "required": false
+    },
+    {
+      "id": "preference",
+      "type": "singleChoice",
+      "label": "更喜欢哪种佩戴方案？",
+      "options": [
+        {
+          "id": "a",
+          "label": "方案A"
+        },
+        {
+          "id": "b",
+          "label": "方案B"
+        }
+      ],
+      "required": false
+    },
+    {
+      "id": "issues",
+      "type": "multiChoice",
+      "label": "佩戴期间出现哪些情况？",
+      "options": [
+        {
+          "id": "pressure",
+          "label": "局部压迫"
+        },
+        {
+          "id": "slip",
+          "label": "容易滑动"
+        },
+        {
+          "id": "none",
+          "label": "没有明显问题",
+          "exclusive": true
+        }
+      ],
+      "required": false
+    },
+    {
+      "id": "contactSide",
+      "type": "imageRange",
+      "questionNumber": 2,
+      "label": "请选择耳挂耳机接触范围",
+      "view": "side",
+      "annotationType": "contact",
+      "brushSize": 0.027,
+      "levels": [
+        {
+          "id": 1,
+          "label": "接触范围"
+        }
+      ],
+      "image": {
+        "src": "./assets/ear-side.png",
+        "alt": "耳侧面",
+        "width": 1149,
+        "height": 1368
+      }
+    }
+  ],
+  "analyses": [
+    {
+      "type": "descriptiveDistribution",
+      "aggregation": "participantMean",
+      "statistics": [
+        "count",
+        "mean",
+        "median",
+        "min",
+        "max",
+        "sd"
+      ],
+      "fields": [
+        {
+          "id": "earThickness"
+        }
+      ]
+    },
+    {
+      "type": "categoricalFrequency",
+      "fields": [
+        {
+          "id": "comfort"
+        },
+        {
+          "id": "preference"
+        },
+        {
+          "id": "issues"
+        }
+      ]
+    },
+    {
+      "type": "imageRangeHeatmap",
+      "fields": [
+        {
+          "id": "contactSide"
+        }
+      ]
+    }
+  ]
+}
