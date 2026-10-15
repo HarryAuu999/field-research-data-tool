@@ -39,6 +39,7 @@ import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
   fieldDistribution,
+  categoricalFrequencies,
   formatStatistic,
   quantile,
   sampleStandardDeviation
@@ -194,8 +195,15 @@ function fatalError(error) {
 }
 
 function analysisConfig(template) {
-  if (!template) return null;
+  if (!template || template.analyses?.length) return null;
   return template.analysis || ANALYSIS_PRESETS[template.key] || null;
+}
+
+function analysisConfigs(template) {
+  if (!template) return [];
+  if (Array.isArray(template.analyses) && template.analyses.length) return template.analyses;
+  const legacy = analysisConfig(template);
+  return legacy ? [legacy] : [];
 }
 
 async function seedDefaultTemplate() {
@@ -378,7 +386,7 @@ function renderHome() {
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
-  const currentAnalysis = analysisConfig(state.currentTemplate);
+  const currentAnalysis = analysisConfigs(state.currentTemplate).length > 0;
 
   app.innerHTML = `
     <section class="screen home-screen">
@@ -464,7 +472,7 @@ function renderTemplateOverview() {
   const template = editing ? state.editorTemplate : sourceTemplate;
   const isCurrent = sourceTemplate.key === state.currentTemplate?.key;
   const count = state.templateCounts[sourceTemplate.key] ?? 0;
-  const config = analysisConfig(template);
+  const config = analysisConfigs(template).length > 0;
   let questionNumber = 0;
   const questions = template.fields.map((field, fieldIndex) => {
     const action = editing ? "open-editor-question" : "edit-template-question";
@@ -1446,9 +1454,11 @@ function bindChartCursor(chart) {
   });
 }
 
-function initializeAnalysisCharts(config) {
+function initializeAnalysisCharts(configs) {
+  const configurations = Array.isArray(configs) ? configs : [configs];
   const redrawers = [];
   app.querySelectorAll("[data-analysis-chart]").forEach((chart) => {
+    const config = configurations[Number(chart.dataset.analysisModule || 0)];
     const item = config.fields[Number(chart.dataset.analysisChart)];
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
     const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
@@ -1558,18 +1568,7 @@ function renderImageRangeAnalysis(config) {
   requestAnimationFrame(draw);
 }
 
-function renderAnalysis() {
-  const config = analysisConfig(state.currentTemplate);
-  if (!config) {
-    state.view = "home";
-    renderHome();
-    showToast("当前问卷没有配置简易分析");
-    return;
-  }
-  if (config.type === "imageRangeHeatmap") {
-    renderImageRangeAnalysis(config);
-    return;
-  }
+function distributionAnalysisCards(config, moduleIndex = 0) {
   const charts = config.fields.map((item, index) => {
     const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
     const values = fieldDistribution(state.currentTemplate, state.records, item.id, config.aggregation);
@@ -1588,12 +1587,28 @@ function renderAnalysis() {
         ${analysisStatisticsHtml(config, values, field)}
         <div class="chart-legend"><span class="legend-bar">实际人数</span>${values.length > 1 ? '<span class="legend-line">KDE 分布曲线</span><span class="legend-normal">正态分布参考</span>' : ""}</div>
         <div class="chart-stage">
-          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，样本数${values.length}${percentileText ? `，${escapeHtml(percentileText)}` : ""}，含人数直方图${values.length > 1 ? "、KDE和正态分布参考" : ""}" preserveAspectRatio="none"></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" data-analysis-module="${moduleIndex}" data-analysis-chart="${index}" role="img" aria-label="${escapeHtml(item.label || field.label)}，样本数${values.length}${percentileText ? `，${escapeHtml(percentileText)}` : ""}，含人数直方图${values.length > 1 ? "、KDE和正态分布参考" : ""}" preserveAspectRatio="none"></svg>
           <span class="chart-cursor" hidden></span><span class="chart-tooltip" hidden></span>
         </div>
         ${percentileText ? `<p class="percentile-summary">${escapeHtml(percentileText)}</p>` : ""}
       </section>`;
   }).join("");
+  return charts;
+}
+
+function renderAnalysis() {
+  const config = analysisConfig(state.currentTemplate);
+  if (!config) {
+    state.view = "home";
+    renderHome();
+    showToast("当前问卷没有配置简易分析");
+    return;
+  }
+  if (config.type === "imageRangeHeatmap") {
+    renderImageRangeAnalysis(config);
+    return;
+  }
+  const charts = distributionAnalysisCards(config);
   app.innerHTML = `
     <section class="screen analysis-screen">
       ${pageHeader("简易分析")}
