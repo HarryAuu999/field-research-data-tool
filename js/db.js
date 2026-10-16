@@ -1,4 +1,6 @@
-const DB_NAME = "research-notebook";
+// GitHub Pages project sites under one account share an origin. Keep this Beta
+// deployment's records separate from the production site's IndexedDB.
+const DB_NAME = "research-notebook-beta-github";
 const DB_VERSION = 1;
 
 const STORES = {

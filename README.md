@@ -2,11 +2,11 @@
 
 AuNote 是一个主要在 iPhone 上使用的本地 PWA，用于让研究人员逐项记录用户研究数据，并导出 Excel。
 
-当前状态：**正式版 V1.4.4，独立测试版 V1.4.2-beta.5**。两个版本分别通过 GitHub Pages 发布；Beta 使用独立数据库，不覆盖正式版问卷与记录。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
+当前状态：**正式版 V1.4.7，独立测试版 V1.4.2-beta.6**。本轮 Beta 只试验界面样式，不更新其原有问卷与分析功能。两个版本分别通过 GitHub Pages 发布；Beta 使用独立数据库，不覆盖正式版问卷与记录。入口样式、Manifest 和 JavaScript 使用随版本变化的 URL，避免旧版 Service Worker 长期返回过期程序文件。
 
 Beta 测试站点：<https://harryauu999.github.io/aunote-beta/>。
 
-新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。`main` 是正式版，Beta 分支用于后续迭代；Git 不会同步各设备浏览器里的样本和草稿。
+新设备或其他 AI 接手 Beta 开发时，先检出 [独立 Beta UI 分支](https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-ui-only)，再阅读 [交接说明](docs/HANDOFF.md) 和 [协作规则](AGENTS.md)。`main` 是正式版，Beta 分支用于后续迭代；Git 不会同步各设备浏览器里的样本和草稿。
 
 ## 手机测试地址
 

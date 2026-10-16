@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.2-beta.5";
-import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.5";
+} from "./db.js?v=1.4.2-beta.6";
+import { ANALYSIS_PRESETS, BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.2-beta.6";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.2-beta.5";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.5";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.5";
-import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.5";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.5";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.5";
+} from "./questionnaire-editor.js?v=1.4.2-beta.6";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.2-beta.6";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.2-beta.6";
+import { countImageRangeParticipants, paintHeatmap } from "./image-range-heatmap.js?v=1.4.2-beta.6";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.2-beta.6";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.2-beta.6";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -42,9 +42,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.2-beta.5";
+} from "./statistics.js?v=1.4.2-beta.6";
 
-const APP_VERSION = "1.4.2-beta.5";
+const APP_VERSION = "1.4.2-beta.6";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
 const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
@@ -421,7 +421,7 @@ function renderHome() {
     : `<button class="primary-button" type="button" data-action="start-form">开始填写</button>`;
 
   const heroEyebrow = state.draft
-    ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿 / DRAFT</span>'
+    ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿</span>'
     : '<span class="eyebrow">当前问卷</span>';
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
@@ -448,9 +448,11 @@ function renderHome() {
           </button>
         </div>
         <div class="home-actions">
+          <div class="home-utility-actions">
+            ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
+            <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
+          </div>
           ${draftButtons}
-          ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
-          <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
         </div>
       </div>
       <footer class="home-footer">

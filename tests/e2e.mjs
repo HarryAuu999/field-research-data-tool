@@ -88,7 +88,7 @@ await migrationPage.evaluate(async () => {
   legacy.importedAt = new Date().toISOString();
   latest.importedAt = new Date().toISOString();
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -122,7 +122,7 @@ await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]'
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
 const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -137,7 +137,7 @@ const migratedPreferenceOptions = await migrationPage.evaluate(async () => {
 assert(migratedPreferenceOptions.some((option) => option.id === "noPreference" && option.label === "无偏好"), "升级后V1.1缺少无偏好选项");
 await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -158,7 +158,7 @@ await migrationPage.evaluate(async () => {
 await migrationPage.reload({ waitUntil: "networkidle" });
 const upgradedAnnotation = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -177,7 +177,7 @@ const upgradedAnnotation = await migrationPage.evaluate(async () => {
 assert(upgradedAnnotation.analysis === "imageRangeHeatmap" && upgradedAnnotation.record === "R-LEGACY", "升级旧验收问卷时必须补分析配置且保留历史记录");
 await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -199,7 +199,7 @@ await migrationPage.evaluate(async () => {
 await migrationPage.reload({ waitUntil: "networkidle" });
 const customizedAnnotation = await migrationPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -226,7 +226,7 @@ await analysisPage.evaluate(async () => {
   const horizontal = [2.72, 2.88, 3.02, 3.14, 3.2, 3.29, 3.34, 3.41, 3.49, 3.55, 3.59, 3.62, 3.66, 3.71, 3.76, 3.82, 3.91, 4.01, 4.08, 4.15, 4.22, 4.31, 4.39, 4.52, 4.66, 4.82, 5.01, 5.32, 5.76];
   const tilted = [3.08, 3.22, 3.35, 3.49, 3.58, 3.64, 3.72, 3.81, 3.96, 4.08, 4.19, 4.31, 4.43, 4.51, 4.58, 4.66, 4.75, 4.83, 4.92, 5.03, 5.12, 5.21, 5.34, 5.47, 5.63, 5.79, 6.02, 6.28, 6.66];
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -367,7 +367,7 @@ await page.getByText("1 份", { exact: true }).waitFor();
 assert(await page.getByRole("button", { name: "简易分析", exact: true }).isVisible(), "支持分析的问卷没有显示简易分析入口");
 const beforeAnalysisDatabase = await page.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -409,7 +409,7 @@ await page.setViewportSize({ width: 390, height: 844 });
 await clickAction("home");
 const afterAnalysisDatabase = await page.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -439,7 +439,7 @@ await page.getByRole("heading", { name: "记录详情", exact: true }).waitFor()
 assert(await page.getByText(/第1次：5\.3345 mm；平均值：5\.3345 mm/).isVisible(), "返回记录详情时没有保存当前问题的修改");
 const editReturnState = await page.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });

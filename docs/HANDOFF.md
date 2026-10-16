@@ -1,13 +1,13 @@
 # AuNote 交接说明
 
-更新日期：2026-09-27。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-16。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | GitHub Pages 上的 V1.4.4，已包含图片范围标注和人数热力图 | https://harryauu999.github.io/field-research-data-tool/；仓库 `main` 还包含独立的 `earclip-force-curve-demo/`，Beta 开发不要改动它。 |
-| Beta 源码 | GitHub 独立分支 `codex/aunote-beta-1.4.2`，应用版本 V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；相对正式版，笔画简化容差为0.15%，侧面与截面图放大显示；父子页面加入滑入／返回动效，功能页和问卷相邻题不做转场。 |
+| 正式版 | GitHub Pages 上的 V1.4.7，已包含图片范围标注、人数热力图和多类型简易分析 | https://harryauu999.github.io/field-research-data-tool/；仓库 `main` 还包含独立的 `earclip-force-curve-demo/`，Beta 开发不要改动它。 |
+| Beta 源码 | GitHub 独立分支 `codex/aunote-beta-ui-only`，应用版本 V1.4.2-beta.6 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-ui-only；基于原 Beta 功能，仅试验全应用 UI；笔画简化容差、底图与导航行为继续保留。 |
 | Beta 网页 | 独立公开 GitHub Pages 发布仓库 | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后还需单独更新发布仓库。 |
 
 正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、Service Worker 作用域和 IndexedDB 名称；两个入口的问卷与记录不共享。Safari 网页和“添加到主屏幕”的 PWA 也可能有独立本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
@@ -64,7 +64,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 
 ## 接手时先做
 
-1. 从 GitHub 的 `codex/aunote-beta-1.4.2` 分支检出 Beta 源码，再读 AGENTS.md、本文件、README.md；检查 git status、当前分支和远端。`main` 是正式版，Beta 代码与部署站点单独更新。
+1. 从 GitHub 的 `codex/aunote-beta-ui-only` 分支检出 Beta 源码，再读 AGENTS.md、本文件、README.md；检查 git status、当前分支和远端。`main` 是正式版，Beta 代码与部署站点单独更新。
 2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不要上传真实样本来换取跨设备数据同步。
 3. 只改用户提出的行为，保留旧 schemaVersion 1、问卷版本、IndexedDB 和备份兼容；针对性测试后再按风险跑回归。
 4. 汇报时分开写：本地实现、测试通过、本地 Git 提交、GitHub 推送、Beta 部署成功、真实设备验证。尤其不要把独立 Beta 网页部署误称为 GitHub 正式版升级。

@@ -15,7 +15,7 @@ function assert(condition, message) {
 async function databaseSnapshot(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("research-notebook", 1);
+      const request = indexedDB.open("research-notebook-beta-github", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -206,7 +206,7 @@ const recordedPage = await recordedContext.newPage();
 await recordedPage.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await recordedPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
