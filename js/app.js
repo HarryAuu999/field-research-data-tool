@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.7";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.7";
+} from "./db.js?v=1.4.7-beta.1";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.7-beta.1";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.7";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.7";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.7";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.7";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.7";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.7";
+} from "./questionnaire-editor.js?v=1.4.7-beta.1";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.7-beta.1";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.7-beta.1";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.7-beta.1";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.7-beta.1";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.7-beta.1";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.7";
+} from "./statistics.js?v=1.4.7-beta.1";
 
-const APP_VERSION = "1.4.7";
+const APP_VERSION = "1.4.7-beta.1";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -358,7 +358,7 @@ function renderHome() {
         </header>
         <div class="home-content">
           <button class="hero" type="button" data-action="templates">
-            <span class="hero-heading"><span class="eyebrow">当前问卷 / CURRENT</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
+            <span class="hero-heading"><span class="eyebrow">当前问卷</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
             <span class="hero-title">尚未导入问卷</span>
             <span class="hero-version">点击进入问卷管理</span>
           </button>
@@ -381,8 +381,8 @@ function renderHome() {
     : `<button class="primary-button" type="button" data-action="start-form">开始填写</button>`;
 
   const heroEyebrow = state.draft
-    ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿 / DRAFT</span>'
-    : '<span class="eyebrow">当前问卷 / CURRENT</span>';
+    ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿</span>'
+    : '<span class="eyebrow">当前问卷</span>';
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
@@ -408,9 +408,11 @@ function renderHome() {
           </button>
         </div>
         <div class="home-actions">
+          <div class="home-utility-actions">
+            ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
+            <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
+          </div>
           ${draftButtons}
-          ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
-          <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
         </div>
       </div>
       <footer class="home-footer">

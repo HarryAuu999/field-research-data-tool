@@ -54,7 +54,7 @@ try {
       ]
     };
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("research-notebook", 1);
+      const request = indexedDB.open("research-notebook-beta-github", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

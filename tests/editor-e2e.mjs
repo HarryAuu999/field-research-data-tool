@@ -15,7 +15,7 @@ function assert(condition, message) {
 async function databaseSnapshot(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("research-notebook", 1);
+      const request = indexedDB.open("research-notebook-beta-github", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -98,7 +98,7 @@ assert(emptySource, "没有生成用于无记录编辑测试的问卷副本");
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 await noRecordPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
-await noRecordPage.getByText("当前问卷 / CURRENT", { exact: true }).waitFor();
+await noRecordPage.getByText("当前问卷", { exact: true }).waitFor();
 assert(await noRecordPage.locator(".form-screen").count() === 0, "选择问卷后错误地进入了填写页面");
 await noRecordPage.locator('[data-action="templates"]').first().click();
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
@@ -206,7 +206,7 @@ const recordedPage = await recordedContext.newPage();
   await recordedPage.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await recordedPage.evaluate(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("research-notebook", 1);
+    const request = indexedDB.open("research-notebook-beta-github", 1);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });

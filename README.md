@@ -8,6 +8,8 @@ AuNote 是一款面向用户研究的轻量级 PWA 工具。你可以用自然�
 
 **[开始使用 AuNote ↗](https://harryauu999.github.io/field-research-data-tool/)** · [AI 问卷协作指南](docs/questionnaire-ai-guide.md) · [图片标注研究指南](docs/image-annotation-ai-guide.md)
 
+手机界面测试请打开 [AuNote Beta](https://harryauu999.github.io/aunote-beta/)（V1.4.7-beta.1，黄色图标）。Beta 源码在 `codex/aunote-beta-ui-147` 分支；正式版 `main` 不随 Beta 测试更新。
+
 > **功能展示图即将补充。** 目前可以先在应用中体验内置的耳挂式耳机接触与疼痛区域示例问卷。
 
 ## 从想法到分析

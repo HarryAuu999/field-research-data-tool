@@ -13,6 +13,7 @@ const page = await context.newPage();
 
 try {
   await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.screenshot({ path: "test-results/mobile-home-ui.png", fullPage: true });
   assert.equal(await page.locator('[data-action="export-xlsx"]').textContent(), "导出数据");
   const homeHeader = await page.locator(".app-header").evaluate((element) => element.getBoundingClientRect().toJSON());
   await page.locator('[data-action="templates"]').first().click();
@@ -25,7 +26,7 @@ try {
   await page.locator('[data-action="home"]').click();
   await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("research-notebook", 1);
+      const request = indexedDB.open("research-notebook-beta-github", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
