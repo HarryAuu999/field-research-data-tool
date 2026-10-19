@@ -1,16 +1,16 @@
 # AuNote 交接说明
 
-更新日期：2026-10-14。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-19。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
 | 正式版 | V1.4.7，简易分析可在同一问卷中组合数值统计、评分／选择题频数及图片热力图；继续保留图片标注、五节点连续人数色阶、B收紧羽化、父子页面过渡和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
-| Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
+| Beta 源码 | 本地分支 `codex/aunote-beta-ui-main`，V1.4.8-beta.1；从正式版 V1.4.7 创建，并移入已确认的 UI 与独立 Beta 配置 | 尚未推送 GitHub；此前的 `codex/aunote-beta-ui-only` 分支和未提交的 UI 修改原样保留。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
-正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、PWA 安装入口、Service Worker 作用域和 IndexedDB 名称；浏览器数据不共享。发布 Beta 副本时必须保留 `research-notebook-beta-github` 数据库名，正式版保持 `research-notebook`。Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
+正式版和 Beta 同属 `harryauu999.github.io`，但使用不同路径、PWA 安装入口、Service Worker 作用域和 IndexedDB 名称；浏览器数据不共享。发布 Beta 副本时必须保留 `research-notebook-beta-github` 数据库名、`aunote-beta-` 缓存前缀和黄色图标；正式版保持 `research-notebook`。Safari 网页和“添加到主屏幕”的 PWA 也可能出现不同本地存储空间；收集数据时始终从同一图标进入。Beta 黄色图标和“AuNote Beta”名称用于避免误开正式版。切勿把正式研究数据放入测试版。
 
 ## 项目目标与工作边界
 
@@ -43,7 +43,7 @@ imageRange 答案仍放在 record.answers[字段ID]，结构为 { version: 1, st
 
 ## 数据、导出与恢复
 
-IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 templates、records、drafts、settings。记录保留 templateKey、answers、首次保存与最后修改时间。新增 imageRange 是旧答案对象中的增量字段，旧问卷和旧记录不需要迁移。
+正式版 IndexedDB 名称为 `research-notebook`，本地 Beta 使用 `research-notebook-beta-github`，版本均为 1；js/db.js 中四个 store 为 templates、records、drafts、settings。记录保留 templateKey、answers、首次保存与最后修改时间。新增 imageRange 是旧答案对象中的增量字段，旧问卷和旧记录不需要迁移。
 
 “导出数据”生成单个 XLSX：Responses 为一条样本一行；重复数字题另有每次原值、均值和最大差值列；图片题在 Responses 给出笔数摘要。Annotations 为逐点长表，包含 sampleId、recordNumber、questionId、view、annotationType、level、strokeId、pointOrder、normalizedX/Y、brushSize、imageSrc、imageWidth/Height。不是 mask 展开表；后续电脑分析可从原始笔画重新栅格化。没有 CSV 导出入口。
 
@@ -64,7 +64,7 @@ IndexedDB 名称 research-notebook，版本 1；js/db.js 中四个 store 为 tem
 
 ## 接手时先做
 
-1. 先读 AGENTS.md、本文件、README.md，并检查当前分支与远端差异。正式版从 `main` 开始；Beta 迭代从 `codex/aunote-beta-1.4.2` 开始。不要把两个发布仓库或本地数据库混用。
+1. 先读 AGENTS.md、本文件、README.md，并检查当前分支与远端差异。正式版从 `main` 开始；本地 Beta 基于 `main` 的 `codex/aunote-beta-ui-main`，未推送前不能在其他设备直接检出。不要把两个发布仓库或本地数据库混用。
 2. 明确本次用户要求的是本地验证、更新独立 Beta，还是正式版 GitHub 发布；不要上传真实样本来换取跨设备数据同步。
 3. 只改用户提出的行为，保留旧 schemaVersion 1、问卷版本、IndexedDB 和备份兼容；针对性测试后再按风险跑回归。
 4. 汇报时分开写：本地实现、测试通过、本地 Git 提交、GitHub 推送、Beta 部署成功、真实设备验证。尤其不要把独立 Beta 网页部署误称为 GitHub 正式版升级。

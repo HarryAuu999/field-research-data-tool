@@ -1,15 +1,15 @@
-const APP_VERSION = "1.4.7";
-const UPDATE_SUMMARY = "简易分析升级：同一问卷可以同时查看数值统计、评分和选择题分布、图片热力图。历史问卷和样本继续兼容。";
-const CACHE_NAME = `research-notebook-${APP_VERSION}`;
+const APP_VERSION = "1.4.8-beta.1";
+const UPDATE_SUMMARY = "Beta 已同步正式版 1.4.7 的多类型简易分析，并更新界面样式；原有问卷和记录继续保留。";
+const CACHE_NAME = `aunote-beta-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.7",
-  "./manifest.webmanifest?v=1.4.7",
-  "./assets/App-icon2.svg",
-  "./assets/icon-180.png",
-  "./assets/icon-192.png",
-  "./assets/icon-512.png",
+  "./styles.css?v=1.4.8-beta.1",
+  "./manifest.webmanifest?v=1.4.8-beta.1",
+  "./assets/beta-icon.svg",
+  "./assets/beta-icon-180.png",
+  "./assets/beta-icon-192.png",
+  "./assets/beta-icon-512.png",
   "./assets/ear-pain-points.png",
   "./assets/ear-side.png",
   "./assets/ear-side-section.png",
@@ -21,16 +21,16 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.7",
-  "./js/db.js?v=1.4.7",
-  "./js/default-template.js?v=1.4.7",
-  "./js/questionnaire-editor.js?v=1.4.7",
-  "./js/questionnaire-schema.js?v=1.4.7",
-  "./js/question-reorder.js?v=1.4.7",
-  "./js/statistics.js?v=1.4.7",
-  "./js/image-range.js?v=1.4.7",
-  "./js/image-range-heatmap.js?v=1.4.7",
-  "./js/xlsx-export.js?v=1.4.7"
+  "./js/app.js?v=1.4.8-beta.1",
+  "./js/db.js?v=1.4.8-beta.1",
+  "./js/default-template.js?v=1.4.8-beta.1",
+  "./js/questionnaire-editor.js?v=1.4.8-beta.1",
+  "./js/questionnaire-schema.js?v=1.4.8-beta.1",
+  "./js/question-reorder.js?v=1.4.8-beta.1",
+  "./js/statistics.js?v=1.4.8-beta.1",
+  "./js/image-range.js?v=1.4.8-beta.1",
+  "./js/image-range-heatmap.js?v=1.4.8-beta.1",
+  "./js/xlsx-export.js?v=1.4.8-beta.1"
 ];
 
 self.addEventListener("install", (event) => {
@@ -40,7 +40,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("research-notebook-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("aunote-beta-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });

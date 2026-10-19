@@ -55,8 +55,8 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   await page.evaluate(async ({ template, records }) => {
-    const db = await import("./js/db.js?v=1.4.7");
-    const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.7");
+    const db = await import("./js/db.js?v=1.4.8-beta.1");
+    const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.8-beta.1");
     const valid = validateTemplate(template);
     await db.putTemplate(valid);
     for (const record of records) await db.putRecord(record);
@@ -92,8 +92,8 @@ try {
 
   // Legacy templates must still open their original single heatmap view.
   await page.evaluate(async ({ template, records }) => {
-    const db = await import("./js/db.js?v=1.4.7");
-    const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.7");
+    const db = await import("./js/db.js?v=1.4.8-beta.1");
+    const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.8-beta.1");
     const valid = validateTemplate(template);
     await db.putTemplate(valid);
     await db.putRecord({

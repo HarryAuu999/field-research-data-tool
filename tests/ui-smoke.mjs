@@ -14,6 +14,9 @@ const page = await context.newPage();
 try {
   await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
   assert.equal(await page.locator('[data-action="export-xlsx"]').textContent(), "导出数据");
+  assert.equal(await page.locator('[data-action="export-xlsx"] .home-action-icon path').getAttribute("d"), "M12 3v13m0 0 5-5m-5 5-5-5M4 16v4h16v-4");
+  const backupWeight = await page.locator('[data-action="backup"]').evaluate((element) => Number(getComputedStyle(element).fontWeight));
+  assert.ok(backupWeight < 600, "底部文字入口不应加粗");
   const homeHeader = await page.locator(".app-header").evaluate((element) => element.getBoundingClientRect().toJSON());
   await page.locator('[data-action="templates"]').first().click();
   const subpageHeader = await page.locator(".nav-top-bar").evaluate((element) => element.getBoundingClientRect().toJSON());
@@ -25,7 +28,7 @@ try {
   await page.locator('[data-action="home"]').click();
   await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("research-notebook", 1);
+      const request = indexedDB.open("research-notebook-beta-github", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -39,20 +42,41 @@ try {
         createdAt: "2026-09-14T00:00:00.000Z",
         updatedAt: "2026-09-14T00:00:00.000Z"
       });
+      transaction.objectStore("records").put({
+        id: "ui-smoke-record-two",
+        recordNumber: "R-UI-SMOKE-2",
+        templateKey: "ear-anthropometry-survey@1.2",
+        answers: { name: { value: "第二份测试样本", anonymous: false }, gender: { value: "female", otherText: "" }, age: "24" },
+        createdAt: "2026-09-15T00:00:00.000Z",
+        updatedAt: "2026-09-15T00:00:00.000Z"
+      });
       transaction.oncomplete = resolve;
       transaction.onerror = () => reject(transaction.error);
     });
     db.close();
   });
   await page.reload({ waitUntil: "networkidle" });
+  const sampleHeadingStyle = await page.locator('.count-link > span:first-child').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { color: style.color, fontWeight: Number(style.fontWeight) };
+  });
+  assert.equal(sampleHeadingStyle.color, "rgb(25, 33, 42)", "首页已记录样本标题应使用正文黑色");
+  assert.equal(sampleHeadingStyle.fontWeight, 400, "首页已记录样本标题应使用普通字重");
+  assert.equal(await page.locator('[data-action="analysis"] .home-action-icon path').getAttribute("d"), "M4 19V5M4 19h16M8 15l4-5 3 2 5-6");
+  await page.screenshot({ path: "test-results/mobile-home.png", fullPage: true });
   await page.locator('[data-action="records"]').click();
+  await page.waitForFunction(() => !document.documentElement.dataset.pageTransition);
+  assert.equal(await page.locator('.records-heading').textContent(), '共 2 份记录');
   const listStyle = await page.locator(".record-list").evaluate((element) => {
     const style = getComputedStyle(element);
     return { borderTopWidth: style.borderTopWidth, borderRadius: style.borderRadius, backgroundColor: style.backgroundColor };
   });
-  assert.equal(listStyle.borderTopWidth, "0px", "样本列表不应增加大外框");
-  assert.equal(listStyle.borderRadius, "0px", "样本列表不应成为圆角卡片");
-  assert.equal(listStyle.backgroundColor, "rgba(0, 0, 0, 0)", "样本列表不应增加整块卡片背景");
+  assert.equal(listStyle.borderTopWidth, "1px", "样本分组缺少外边框");
+  assert.equal(listStyle.borderRadius, "13px", "样本分组外框应为圆角矩形");
+  assert.equal(listStyle.backgroundColor, "rgb(255, 255, 255)", "样本分组应使用白色背景");
+  assert.equal(await page.locator('.record-swipe-row').count(), 2, "测试样本未作为分组行显示");
+  const hintGap = await page.locator('.records-content .swipe-hint').evaluate((element) => Number.parseFloat(getComputedStyle(element).marginTop));
+  assert.ok(hintGap >= 18, "左滑提示与样本分组距离太近");
   const row = page.locator('[data-record-row="ui-smoke-record"]');
   const content = row.locator(".swipe-content");
   const compactStyle = await content.evaluate((element) => {
@@ -83,7 +107,7 @@ try {
   assert.equal(await row.locator('[data-action="duplicate-template"]').count(), 0, "样本错误显示复制按钮");
   await page.screenshot({ path: "test-results/mobile-record-swipe.png", fullPage: true });
 
-  console.log(JSON.stringify({ passed: true, scenarios: ["header-size", "back-icon", "compact-record-list", "record-swipe-delete"] }, null, 2));
+  console.log(JSON.stringify({ passed: true, scenarios: ["header-size", "back-icon", "home-actions", "grouped-record-list", "record-swipe-delete"] }, null, 2));
 } finally {
   await context.close();
   await browser.close();
