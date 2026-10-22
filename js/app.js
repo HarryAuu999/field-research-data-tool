@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.7";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.7";
+} from "./db.js?v=1.4.8";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.8";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.7";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.7";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.7";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.7";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.7";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.7";
+} from "./questionnaire-editor.js?v=1.4.8";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.8";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.8";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.8";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.8";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.8";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.7";
+} from "./statistics.js?v=1.4.8";
 
-const APP_VERSION = "1.4.7";
+const APP_VERSION = "1.4.8";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -375,14 +375,11 @@ function renderHome() {
 
   const draftButtons = state.draft
     ? `<div class="draft-actions">
-         <button class="primary-button" type="button" data-action="continue-draft">${state.draft.mode === "edit" ? "继续修改" : "继续填写"}</button>
          <button class="danger-button" type="button" data-action="discard-draft">废弃草稿</button>
+         <button class="primary-button" type="button" data-action="continue-draft">${state.draft.mode === "edit" ? "继续修改" : "继续填写"}</button>
        </div>`
     : `<button class="primary-button" type="button" data-action="start-form">开始填写</button>`;
 
-  const heroEyebrow = state.draft
-    ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿 / DRAFT</span>'
-    : '<span class="eyebrow">当前问卷 / CURRENT</span>';
   const heroDetail = state.draft
     ? `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span><span class="hero-draft-detail">上次编辑：${escapeHtml(formatDateTime(state.draft.updatedAt))} · 已填写至第 ${Number(state.draft.currentIndex || 0) + 1} 项</span>`
     : `<span class="hero-version hero-description">${escapeHtml(state.currentTemplate.description || "暂无背景信息")}</span>`;
@@ -394,23 +391,27 @@ function renderHome() {
         <strong class="app-brand">AuNote</strong>
         <span class="app-version">V${APP_VERSION}</span>
       </header>
-      <div class="home-content">
-        <button class="hero ${state.draft ? "has-draft" : ""}" type="button" data-action="templates">
-          <span class="hero-heading">${heroEyebrow}<img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
-          <span class="hero-title">${escapeHtml(state.currentTemplate.title)}</span>
-          ${heroDetail}
-        </button>
-        <div class="home-list">
-          <button class="count-link" type="button" data-action="records">
-            <span>已记录样本</span>
-            <span class="count-value">${state.records.length} 份</span>
-            <img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+      <div class="home-content has-summary">
+        <div class="home-summary ${state.draft ? "has-draft" : ""}">
+          <button class="hero ${state.draft ? "has-draft" : ""}" type="button" data-action="templates">
+            <span class="hero-heading"><span class="hero-title">${escapeHtml(state.currentTemplate.title)}</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
+            ${state.draft ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿</span>' : ""}
+            ${heroDetail}
           </button>
+          <div class="home-list">
+            <button class="count-link" type="button" data-action="records">
+              <span>已记录样本</span>
+              <span class="count-value">${state.records.length} 份</span>
+              <img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+            </button>
+          </div>
         </div>
         <div class="home-actions">
+          <div class="home-utility-actions">
+            ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}><span class="home-action-tile home-action-tile-analysis" aria-hidden="true"><svg class="home-action-icon" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-5 3 2 5-6"/></svg></span><span class="home-action-label">简易分析</span><img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></button>` : ""}
+            <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}><span class="home-action-tile home-action-tile-export" aria-hidden="true"><svg class="home-action-icon" viewBox="0 0 24 24"><path d="M12 3v13m0 0 5-5m-5 5-5-5M4 16v4h16v-4"/></svg></span><span class="home-action-label">导出数据</span><img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></button>
+          </div>
           ${draftButtons}
-          ${currentAnalysis ? `<button class="secondary-button" type="button" data-action="analysis" ${state.records.length ? "" : "disabled"}>简易分析</button>` : ""}
-          <button class="secondary-button" type="button" data-action="export-xlsx" ${state.records.length ? "" : "disabled"}>导出数据</button>
         </div>
       </div>
       <footer class="home-footer">
@@ -426,15 +427,15 @@ function renderTemplates() {
     const isCurrent = template.key === state.currentTemplate?.key;
     const count = state.templateCounts[template.key] ?? 0;
     return `
-      <div class="swipe-row" data-template-row="${escapeHtml(template.key)}">
+      <div class="swipe-row${isCurrent ? " is-current" : ""}" data-template-row="${escapeHtml(template.key)}">
         <div class="swipe-actions" aria-label="问卷操作">
           <button class="swipe-action swipe-copy" type="button" data-action="duplicate-template" data-key="${escapeHtml(template.key)}" aria-label="复制${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_COPY}" alt="" width="20" height="20" /></button>
           <button class="swipe-action swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}" aria-label="删除${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
         </div>
-        <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}">
+        <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}" ${isCurrent ? 'aria-current="true"' : ""}>
           <span class="template-copy">
             <span class="template-name">${escapeHtml(template.title)} <small>V${escapeHtml(template.version)}</small></span>
-            <span class="template-meta">${count}份记录 ${isCurrent ? '<span class="current-chip">当前</span>' : ""}</span>
+            <span class="template-meta">${count}份记录</span>
           </span>
           <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
         </button>
@@ -487,8 +488,8 @@ function renderTemplateOverview() {
       : "";
     const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
     return `${rowStart}
-      <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
-        <div class="overview-question-heading"><span>Q${field.questionNumber || questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
+      <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑${field.required ? "，必填" : ""}，长按可以调整顺序">
+        <div class="overview-question-heading"><span>Q${field.questionNumber || questionNumber}. ${escapeHtml(field.label)}${field.required ? ' <span class="overview-required" aria-hidden="true">*</span>' : ""}</span></div>
         <p class="overview-question-type">${escapeHtml(fieldTypeName(field.type))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
         ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
         ${options}
@@ -1125,9 +1126,9 @@ function renderRecords() {
     <section class="screen">
       ${pageHeader("已记录样本")}
       <div class="page-content records-content">
-        <p class="section-title">${escapeHtml(state.currentTemplate?.title || "")} · 最早记录在上</p>
-        <div class="record-list">${records || '<div class="empty-state card">还没有已记录样本</div>'}</div>
-        ${records ? '<p class="swipe-hint">提示：向左滑动样本可删除</p>' : ""}
+        <p class="section-title records-heading">共 ${state.records.length} 份记录</p>
+        <div class="record-list ${records ? "has-records" : ""}">${records || '<div class="empty-state card">还没有已记录样本</div>'}</div>
+        ${records ? '<p class="swipe-hint">向左滑动记录可删除</p>' : ""}
       </div>
     </section>`;
   bindSwipeRows();

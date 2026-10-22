@@ -12,6 +12,21 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function assertViewportTransition(page, label) {
+  await page.waitForFunction(() => {
+    const oldHeight = Number.parseFloat(getComputedStyle(document.documentElement, "::view-transition-old(aunote-screen)").height);
+    const newHeight = Number.parseFloat(getComputedStyle(document.documentElement, "::view-transition-new(aunote-screen)").height);
+    return Number.isFinite(oldHeight) && Number.isFinite(newHeight);
+  });
+  const sizes = await page.evaluate(() => ({
+    viewport: window.innerHeight,
+    oldHeight: Number.parseFloat(getComputedStyle(document.documentElement, "::view-transition-old(aunote-screen)").height),
+    newHeight: Number.parseFloat(getComputedStyle(document.documentElement, "::view-transition-new(aunote-screen)").height)
+  }));
+  assert(Math.abs(sizes.oldHeight - sizes.viewport) <= 2 && Math.abs(sizes.newHeight - sizes.viewport) <= 2,
+    `${label}仍在移动不同高度的整页快照：${JSON.stringify(sizes)}`);
+}
+
 async function databaseSnapshot(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
@@ -98,7 +113,7 @@ assert(emptySource, "没有生成用于无记录编辑测试的问卷副本");
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 await noRecordPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
-await noRecordPage.getByText("当前问卷 / CURRENT", { exact: true }).waitFor();
+await noRecordPage.locator(".home-summary .hero-title").getByText(emptySource.title, { exact: true }).waitFor();
 assert(await noRecordPage.locator(".form-screen").count() === 0, "选择问卷后错误地进入了填写页面");
 await noRecordPage.locator('[data-action="templates"]').first().click();
 await noRecordPage.locator(`[data-action="open-template"][data-key="${emptySource.key}"]`).click();
@@ -156,6 +171,7 @@ await lowerQuestionCard.evaluate((element) => window.scrollTo(0, Math.max(0, ele
 const overviewScrollBeforeQuestion = await noRecordPage.evaluate(() => window.scrollY);
 assert(overviewScrollBeforeQuestion > 0, "滚动位置恢复测试没有进入概览页下方");
 await lowerQuestionCard.evaluate((element) => element.click());
+await assertViewportTransition(noRecordPage, "从滚动后的问卷概览进入问题");
 await noRecordPage.waitForFunction(() => window.scrollY === 0);
 assert(await noRecordPage.getByRole("dialog", { name: "选择问题类型" }).count() === 0, "重新进入问题时仍残留上次的题型弹窗");
 await noRecordPage.locator("[data-field-label]").fill("临时性别题");
@@ -165,6 +181,7 @@ await questionLeaveDialog.getByRole("button", { name: "继续编辑", exact: tru
 assert(await noRecordPage.locator("[data-field-label]").inputValue() === "临时性别题", "继续编辑没有保留当前输入");
 await noRecordPage.getByRole("button", { name: "返回", exact: true }).click();
 await confirm(noRecordPage, "放弃更改");
+await assertViewportTransition(noRecordPage, "从问题返回原滚动位置");
 await noRecordPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 await noRecordPage.waitForFunction((expected) => Math.abs(window.scrollY - expected) <= 2, overviewScrollBeforeQuestion);
 assert(await noRecordPage.getByText("临时性别题", { exact: true }).count() === 0, "放弃问题编辑后修改仍然生效");
