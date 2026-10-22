@@ -363,7 +363,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 
 .app-header {
   min-height: calc(64px + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) var(--page-gutter) 0;
+  padding: calc(env(safe-area-inset-top) + 12px) var(--page-gutter) 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -548,6 +548,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .primary-button.accent { background: var(--forest); color: #fff; }
 .secondary-button { border: 1px solid #a9c1d2; background: #fff; color: var(--forest); }
 .danger-button { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
+.draft-actions .danger-button { background: #fff; }
 .text-button { min-height: 44px; border: 0; background: transparent; color: var(--forest); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 button:disabled { opacity: 0.38; }
 
@@ -577,6 +578,7 @@ button:disabled { opacity: 0.38; }
   will-change: transform;
 }
 .swipe-row.dragging .swipe-content { transition: none; }
+.template-screen .swipe-row.is-current .swipe-content { border-color: var(--accent); }
 .swipe-row.revealed .swipe-content { transform: translateX(-116px); }
 .swipe-actions {
   position: absolute;
@@ -659,11 +661,11 @@ button:disabled { opacity: 0.38; }
 .overview-question-row .swipe-content { min-height: 0; display: block; border-radius: 0; }
 .overview-question-row.revealed .swipe-content { transform: translateX(-64px); }
 .overview-question-row:last-child .overview-question, .overview-question-row:last-child .overview-section { border-bottom: 0; }
-.overview-question-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 15px; font-weight: 650; line-height: 1.4; }
-.overview-question-heading small { flex: 0 0 auto; color: var(--forest); font-size: 12px; font-weight: 650; }
-.overview-question-type { color: var(--forest) !important; font-size: 13px !important; font-weight: 600; }
+.overview-question-heading { color: var(--ink); font-size: 15px; font-weight: 400; line-height: 1.4; }
+.overview-required { color: var(--danger); font-size: 18px; line-height: 0; }
+.overview-question-type { color: var(--accent) !important; font-size: 13px !important; font-weight: 400; }
 .overview-question p, .overview-section p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.overview-section h3 { margin: 0; font-size: 16px; }
+.overview-section h3 { margin: 0; font-size: 16px; font-weight: 400; }
 .overview-options { color: var(--quiet) !important; }
 .overview-edit-target { position: relative; }
 .overview-summary-edit { position: relative; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
@@ -962,7 +964,7 @@ button:disabled { opacity: 0.38; }
   outline: none;
 }
 .textarea-input { min-height: 132px; line-height: 1.5; resize: vertical; }
-.text-input:focus, .number-input:focus, .textarea-input:focus, .other-input:focus { border: 1.5px solid var(--forest); box-shadow: 0 0 0 3px var(--forest-soft); }
+.text-input:focus, .number-input:focus, .textarea-input:focus, .other-input:focus { border: 1.5px solid var(--forest); box-shadow: none; }
 .input-with-unit {
   min-height: 48px;
   padding: 0 14px;

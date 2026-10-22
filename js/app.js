@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.8-beta.1";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.8-beta.1";
+} from "./db.js?v=1.4.8-beta.7";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.8-beta.7";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.8-beta.1";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.8-beta.1";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.8-beta.1";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.8-beta.1";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.8-beta.1";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.8-beta.1";
+} from "./questionnaire-editor.js?v=1.4.8-beta.7";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.8-beta.7";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.8-beta.7";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.8-beta.7";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.8-beta.7";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.8-beta.7";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.8-beta.1";
+} from "./statistics.js?v=1.4.8-beta.7";
 
-const APP_VERSION = "1.4.8-beta.1";
+const APP_VERSION = "1.4.8-beta.7";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -375,8 +375,8 @@ function renderHome() {
 
   const draftButtons = state.draft
     ? `<div class="draft-actions">
-         <button class="primary-button" type="button" data-action="continue-draft">${state.draft.mode === "edit" ? "继续修改" : "继续填写"}</button>
          <button class="danger-button" type="button" data-action="discard-draft">废弃草稿</button>
+         <button class="primary-button" type="button" data-action="continue-draft">${state.draft.mode === "edit" ? "继续修改" : "继续填写"}</button>
        </div>`
     : `<button class="primary-button" type="button" data-action="start-form">开始填写</button>`;
 
@@ -428,15 +428,15 @@ function renderTemplates() {
     const isCurrent = template.key === state.currentTemplate?.key;
     const count = state.templateCounts[template.key] ?? 0;
     return `
-      <div class="swipe-row" data-template-row="${escapeHtml(template.key)}">
+      <div class="swipe-row${isCurrent ? " is-current" : ""}" data-template-row="${escapeHtml(template.key)}">
         <div class="swipe-actions" aria-label="问卷操作">
           <button class="swipe-action swipe-copy" type="button" data-action="duplicate-template" data-key="${escapeHtml(template.key)}" aria-label="复制${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_COPY}" alt="" width="20" height="20" /></button>
           <button class="swipe-action swipe-delete" type="button" data-action="delete-template" data-key="${escapeHtml(template.key)}" aria-label="删除${escapeHtml(template.title)} V${escapeHtml(template.version)}"><img src="${ICON_TRASH}" alt="" width="20" height="20" /></button>
         </div>
-        <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}">
+        <button class="swipe-content" type="button" data-action="open-template" data-key="${escapeHtml(template.key)}" ${isCurrent ? 'aria-current="true"' : ""}>
           <span class="template-copy">
             <span class="template-name">${escapeHtml(template.title)} <small>V${escapeHtml(template.version)}</small></span>
-            <span class="template-meta">${count}份记录 ${isCurrent ? '<span class="current-chip">当前</span>' : ""}</span>
+            <span class="template-meta">${count}份记录</span>
           </span>
           <img class="row-chevron" src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
         </button>
@@ -489,8 +489,8 @@ function renderTemplateOverview() {
       : "";
     const repeat = field.type === "repeatedNumber" ? ` · 可填写${field.minEntries || 1}至${field.repeatCount}次` : "";
     return `${rowStart}
-      <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑，长按可以调整顺序">
-        <div class="overview-question-heading"><span>Q${field.questionNumber || questionNumber}. ${escapeHtml(field.label)}</span><small>${field.required ? "必填" : "可跳过"}</small></div>
+      <button class="swipe-content overview-question overview-edit-target" type="button" aria-label="打开${escapeHtml(field.label)}进行编辑${field.required ? "，必填" : ""}，长按可以调整顺序">
+        <div class="overview-question-heading"><span>Q${field.questionNumber || questionNumber}. ${escapeHtml(field.label)}${field.required ? ' <span class="overview-required" aria-hidden="true">*</span>' : ""}</span></div>
         <p class="overview-question-type">${escapeHtml(fieldTypeName(field.type))}${escapeHtml(repeat)}${field.unit ? ` · ${escapeHtml(field.unit)}` : ""}</p>
         ${field.description ? `<p>${escapeHtml(field.description)}</p>` : ""}
         ${options}

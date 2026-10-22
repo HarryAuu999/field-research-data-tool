@@ -19,6 +19,14 @@ try {
   assert.ok(backupWeight < 600, "底部文字入口不应加粗");
   const homeHeader = await page.locator(".app-header").evaluate((element) => element.getBoundingClientRect().toJSON());
   await page.locator('[data-action="templates"]').first().click();
+  const currentTemplateRow = page.locator('.template-screen .swipe-row.is-current');
+  await currentTemplateRow.waitFor();
+  assert.equal(await currentTemplateRow.count(), 1, "问卷管理应仅有一个当前问卷");
+  assert.equal(await currentTemplateRow.locator('.current-chip').count(), 0, "当前问卷不应显示文字标签");
+  assert.equal(await currentTemplateRow.locator('.swipe-content').getAttribute('aria-current'), 'true');
+  const currentBorderColor = await currentTemplateRow.locator('.swipe-content').evaluate((element) => getComputedStyle(element).borderColor);
+  const accentColor = await page.locator('html').evaluate((element) => getComputedStyle(element).getPropertyValue('--accent').trim());
+  assert.equal(currentBorderColor, `rgb(${accentColor.slice(1).match(/.{2}/g).map((hex) => parseInt(hex, 16)).join(', ')})`, "当前问卷应使用重点色描边");
   const subpageHeader = await page.locator(".nav-top-bar").evaluate((element) => element.getBoundingClientRect().toJSON());
   assert.ok(Math.abs(homeHeader.width - subpageHeader.width) <= 1, "返回页顶部栏与主页顶部栏宽度不一致");
   assert.ok(Math.abs(homeHeader.height - subpageHeader.height) <= 1, "返回页顶部栏与主页顶部栏高度不一致");
