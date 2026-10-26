@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.8";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.8";
+} from "./db.js?v=1.4.9";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.9";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,12 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.8";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.8";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.8";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.8";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.8";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.8";
+} from "./questionnaire-editor.js?v=1.4.9";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.9";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.9";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.9";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.9";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.9";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +43,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.8";
+} from "./statistics.js?v=1.4.9";
 
-const APP_VERSION = "1.4.8";
+const APP_VERSION = "1.4.9";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -392,18 +392,21 @@ function renderHome() {
         <span class="app-version">V${APP_VERSION}</span>
       </header>
       <div class="home-content has-summary">
-        <div class="home-summary ${state.draft ? "has-draft" : ""}">
-          <button class="hero ${state.draft ? "has-draft" : ""}" type="button" data-action="templates">
-            <span class="hero-heading"><span class="hero-title">${escapeHtml(state.currentTemplate.title)}</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
-            ${state.draft ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿</span>' : ""}
-            ${heroDetail}
-          </button>
-          <div class="home-list">
-            <button class="count-link" type="button" data-action="records">
-              <span>已记录样本</span>
-              <span class="count-value">${state.records.length} 份</span>
-              <img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+        <div class="home-current-group">
+          <h2 class="home-section-title">当前问卷</h2>
+          <div class="home-summary ${state.draft ? "has-draft" : ""}">
+            <button class="hero ${state.draft ? "has-draft" : ""}" type="button" data-action="templates">
+              <span class="hero-heading"><span class="hero-title">${escapeHtml(state.currentTemplate.title)}</span><img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" /></span>
+              ${state.draft ? '<span class="draft-label"><span class="draft-dot"></span>未完成草稿</span>' : ""}
+              ${heroDetail}
             </button>
+            <div class="home-list">
+              <button class="count-link" type="button" data-action="records">
+                <span>已记录样本</span>
+                <span class="count-value">${state.records.length} 份</span>
+                <img src="${ICON_CHEVRON_RIGHT}" alt="" width="16" height="16" />
+              </button>
+            </div>
           </div>
         </div>
         <div class="home-actions">
@@ -2846,8 +2849,8 @@ async function showUpdate(worker, { manual = false, info = null } = {}) {
   state.deferredUpdate = null;
   state.waitingWorker = worker;
   state.waitingWorkerInfo = workerInfo;
-  updateTitle.textContent = `发现新版本 V${workerInfo.version}`;
-  updateSummary.textContent = workerInfo.summary;
+  updateTitle.textContent = `新版本已就绪 V${workerInfo.version}`;
+  updateSummary.textContent = `${workerInfo.summary} 可立即刷新页面。关闭提示后，下次打开仍可能自动使用新版。`;
   updateDialog.hidden = false;
   document.body.classList.add("dialog-open");
 }
@@ -2926,7 +2929,7 @@ updateSkip.addEventListener("click", async () => {
   const version = state.waitingWorkerInfo?.version;
   if (version) await setSetting("skippedAppVersion", version);
   closeUpdateDialog();
-  showToast(version ? `已跳过 V${version}` : "已跳过这个版本");
+  showToast(version ? `不再提醒 V${version}` : "不再提醒此版本");
 });
 
 updateButton.addEventListener("click", () => {

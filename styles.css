@@ -6,10 +6,10 @@
   --muted: #586570;
   --quiet: #687580;
   --line: #e4e8ed;
-  --forest: #356e9a;
-  --forest-soft: #e9f2f8;
-  --accent: #356e9a;
-  --accent-soft: #e9f2f8;
+  --forest: #2b6ea8;
+  --forest-soft: #eaf0f6;
+  --accent: #2b6ea8;
+  --accent-soft: #eaf0f6;
   --danger: #c53030;
   --danger-soft: #fff5f5;
   --shadow: 0 16px 36px rgba(30, 50, 61, 0.14);
@@ -339,7 +339,7 @@ body { color: var(--ink); }
 
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 3px solid rgba(53, 110, 154, 0.27);
+  outline: 3px solid rgba(43, 110, 168, 0.27);
   outline-offset: 2px;
 }
 ::selection { background: #d5e7f3; color: var(--ink); }
@@ -430,6 +430,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 }
 
 .home-content.has-summary { grid-template-rows: auto 1fr; }
+.home-current-group { display: grid; align-content: start; gap: 16px; }
+.home-section-title { margin: 0 2px; color: var(--ink); font-size: 24px; line-height: 1.3; font-weight: 750; }
 .home-summary {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -475,7 +477,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   font-weight: 740;
   letter-spacing: -0.02em;
 }
-.home-summary .hero-title { flex: 1; min-width: 0; }
+.home-summary .hero-title { flex: 1; min-width: 0; font-size: 19px; }
 .hero-version { margin: 0; color: var(--muted); opacity: 1; font-size: 14px; line-height: 1.45; }
 .hero-draft-detail { color: var(--muted); font-size: 12px; }
 
@@ -716,7 +718,7 @@ button:disabled { opacity: 0.38; }
   position: fixed;
   z-index: 1000;
   margin: 0;
-  border: 1px solid rgba(53, 110, 154, 0.55);
+  border: 1px solid rgba(43, 110, 168, 0.55);
   opacity: 0.98;
   box-shadow: 0 14px 30px rgba(17, 24, 39, 0.2);
   transform-origin: center;
@@ -784,7 +786,7 @@ button:disabled { opacity: 0.38; }
   line-height: 1.45;
 }
 .editor-field textarea { resize: vertical; }
-.editor-field input:focus, .editor-field textarea:focus { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(53, 110, 154, 0.12); }
+.editor-field input:focus, .editor-field textarea:focus { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(43, 110, 168, 0.12); }
 .editor-check { min-height: 44px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .editor-check input { width: 20px; height: 20px; accent-color: var(--forest); }
 .editor-help { margin: -4px 0 0; color: var(--quiet); font-size: 12px; line-height: 1.55; }
