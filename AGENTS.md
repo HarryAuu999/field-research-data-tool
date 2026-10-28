@@ -30,8 +30,11 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 - `docs/questionnaire-template.md`：现役问卷 JSON 格式说明。
 - `js/image-angle.js` 与 `docs/image-angle-preview.md`：图片二维角度采集、极坐标直方图、Excel复现口径；示例JSON只供手动导入，不能自动安装到现有用户库。
 - `tests/e2e.mjs`：手机尺寸端到端回归测试。
+- `assets/base-images/README.md`：通用底图库及贡献规范。新底图按部位分类并登记来源许可；现有资源不搬动、覆盖或擅删，`ear-pain-points.png`仅为历史问卷兼容保留。仅收录资源不自动内置PWA，不为文档目录变更修改版本或SW。
 
 ## 数据与修改边界
+
+- 后续新增或调整的滑块统一采用圆头轨道、跑道圆拖动钮；参考角度滑块35.2×22px、白底重点色描边，不改成正圆。未经单独要求，不为统一样式批量修改既有滑块。
 
 - 程序更新不得清空或覆盖已保存问卷、草稿和记录。
 - 问卷的 `id + version` 共同确定独立版本；不得静默覆盖同名版本。

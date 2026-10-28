@@ -65,6 +65,7 @@ AuNote 不要求账户，也不依赖后端业务服务器保存问卷数据。�
 | --- | --- |
 | 向 AI 描述研究目标，生成 AuNote 问卷 | [AI 问卷转换指南](docs/questionnaire-ai-guide.md) |
 | 研究接触、疼痛、压力感等区域，需要底图或图片标注 | [AI 图片标注研究指南](docs/image-annotation-ai-guide.md) |
+| 查找或贡献耳、手、足、人体通用底图 | [底图库目录](assets/base-images/README.md) · [贡献流程](CONTRIBUTING.md) |
 | 生成冷静、清晰、适合标注的灰度底图 | [底图设计规范与生成 Prompt](prompts/annotation-base-image.md) |
 | 了解题型、JSON 字段和当前限制 | [问卷格式说明](docs/questionnaire-template.md) |
 | 采集角度、查看角度分布或从Excel复现 | [图片角度指南](docs/image-angle-preview.md) · [单题JSON](examples/ear-image-angle-test.json) |

@@ -5,6 +5,7 @@
 **目标：把研究目的变成可在 AuNote 离线采集、可重建坐标和可做人数热力图的问卷。** 不要求研究人员先掌握 JSON 或手动写格式。
 
 - [通用问卷 AI 转换指南](questionnaire-ai-guide.md)：所有题型、能力差距、合法 JSON 与校验。
+- [通用底图库](../assets/base-images/README.md)：先查已有资源，缺少合适视角时再与用户讨论制作或贡献。仓库收录不等于已加入PWA离线缓存。
 - [图片底图生成规范及可复用 Prompt](../prompts/annotation-base-image.md)：当用户没有底图时使用。
 - [已有耳朵研究示例](../examples/ear-image-range-test.json)：实用 `imageRange` 配置，三张图、接触与两级疼痛。
 - [导出数据与热力图分析](image-range-heatmap-analysis.md)：研究完成后的处理方式。
