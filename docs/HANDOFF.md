@@ -1,12 +1,20 @@
 # AuNote 交接说明
 
-更新日期：2026-10-14。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-28。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.10 角度模块整合
+
+新增 `imageAngle` 与 `angleDistribution`：固定底图、归一化圆心与明确角度参考，保存每题一个数值；范围跨度≤180°，不是360°环绕或3D。沿用schemaVersion 1、原IndexedDB与备份，不迁移数据。出厂问卷未替换，`examples/ear-image-angle-test.json`仅供用户手动导入；`preview/image-angle.html`仅为localhost辅助入口，正式应用不调用它。
+
+角度模块可与数值、频数、区域热力图一起配置到`analyses`。AI遇到佩戴倾角或产品方向等需求，应主动提出此能力，先确认图片、圆心、零度、正负、范围、步长、组距，详见[图片角度指南](image-angle-preview.md)。Responses保留数值，AngleFields保存题目几何参数。针对测试为image-angle单元/浏览器和multi-analysis四模块共存；无需为改文案反复跑全套。
+
+V1.4.8–V1.4.9的UI及更新提示已保留：主页“当前问卷”24px、卡片标题19px、重点色恢复`#2B6EA8`，更新对话框说明下次打开仍可能自动使用新版。角度滑块保持跑道圆，较原32×20px增大10%为35.2×22px；只将滑轨两端圆化，不推广到其他滑块。当前整合目标为V1.4.10，部署状态须核对站点版本，不能把本地提交当成已上线。
 
 ## 先分清三种状态
 
 | 对象 | 当前状态 | 证据与限制 |
 | --- | --- | --- |
-| 正式版 | V1.4.7，简易分析可在同一问卷中组合数值统计、评分／选择题频数及图片热力图；继续保留图片标注、五节点连续人数色阶、B收紧羽化、父子页面过渡和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
+| 正式版 | V1.4.10整合目标，新增图片角度采集与分布；简易分析可在同一问卷中组合数值统计、评分／选择题频数及图片热力图；继续保留图片标注、五节点连续人数色阶、B收紧羽化、父子页面过渡和历史数据兼容。 | https://harryauu999.github.io/field-research-data-tool/；源码为本仓库 `main`。独立热力图 HTML 模板在 `tools/heatmap-report-template.html`，AI 用法在 `docs/heatmap-ai-guide.md`，不嵌入简易分析。仓库还包含独立的 `earclip-force-curve-demo/`，AuNote 开发不要修改它。 |
 | Beta 源码 | 独立分支 `codex/aunote-beta-1.4.2`，V1.4.2-beta.5 | https://github.com/HarryAuu999/field-research-data-tool/tree/codex/aunote-beta-1.4.2；正式版仅合入本次所需功能，不用此分支覆盖 `main` 的问卷初始化逻辑。 |
 | Beta 网页 | 独立公开 GitHub Pages | https://harryauu999.github.io/aunote-beta/；发布仓库 https://github.com/HarryAuu999/aunote-beta。源码分支更新后，还需单独更新发布仓库。 |
 
@@ -31,7 +39,7 @@ AuNote 是面向现场用户研究的轻量、离线优先 PWA，主要在 iPhon
 
 规范维持 schemaVersion 数字 1。普通问卷转换首先读 docs/questionnaire-ai-guide.md，再按需读 docs/questionnaire-template.md、docs/questionnaire.schema.json 和 examples/；不要为了普通转换重读整个 135 KB 的 js/app.js。运行 node tools/validate-questionnaire.mjs 问卷.json 做与 PWA 一致的校验。导入兼容字符串 "1" 和单层 questionnaire/template 包装，但规范输出仍应是顶层数字 1 的单个 JSON 对象。
 
-AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的要求，不得静默降级、猜必填、发明字段或研究统计方法。1–5 分允许小数时用 number 而非整数 rating。recordLabelField 指向样本名称字段；page 仅在明确要求同页时配置。旧 `analysis` 单对象继续兼容；新版非空 `analyses` 数组可组合 `descriptiveDistribution`、`categoricalFrequency`、`imageRangeHeatmap` 等模块，两字段不可同时配置。混合示例见 `examples/ear-mixed-analysis-test.json`。
+AI 必须先报告原问卷中 AuNote 部分支持、不支持或信息不足的要求，不得静默降级、猜必填、发明字段或研究统计方法。1–5 分允许小数时用 number 而非整数 rating。recordLabelField 指向样本名称字段；page 仅在明确要求同页时配置。旧 `analysis` 单对象继续兼容；新版非空 `analyses` 数组可组合 `descriptiveDistribution`、`categoricalFrequency`、`imageRangeHeatmap`、`angleDistribution` 模块，两字段不可同时配置。混合示例见 `examples/ear-mixed-analysis-test.json`。
 
 ## 图片范围标注：真实实现
 

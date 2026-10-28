@@ -42,6 +42,10 @@ AuNote 可以把不同参与者在相同底图上的标注叠加为**人数热�
 
 Excel 导出保留结构化原始标注数据；可用[离线热力图分析工具](docs/image-range-heatmap-analysis.md)重新生成可视化，并按需要进一步调整分析与出图。
 
+### 图片角度采集与分布
+
+在固定底图上调整方向线，记录佩戴倾角或产品方向；用极坐标直方图和描述性统计观察多人角度分布。可与数值统计、选项频数和图片热力图在同一份问卷中并存。AI遇到适合的研究需求应主动建议，先确认底图、圆心与角度定义；见[图片角度配置与分析指南](docs/image-angle-preview.md)。[单题测试问卷](examples/ear-image-angle-test.json)仅供手动导入，不随更新自动加入问卷库。
+
 ### 本地优先，数据由你掌控
 
 AuNote 不要求账户，也不依赖后端业务服务器保存问卷数据。问卷、草稿、样本和简易分析在设备本地处理；支持导出单个 Excel 文件与完整 JSON 备份。
@@ -63,6 +67,7 @@ AuNote 不要求账户，也不依赖后端业务服务器保存问卷数据。�
 | 研究接触、疼痛、压力感等区域，需要底图或图片标注 | [AI 图片标注研究指南](docs/image-annotation-ai-guide.md) |
 | 生成冷静、清晰、适合标注的灰度底图 | [底图设计规范与生成 Prompt](prompts/annotation-base-image.md) |
 | 了解题型、JSON 字段和当前限制 | [问卷格式说明](docs/questionnaire-template.md) |
+| 采集角度、查看角度分布或从Excel复现 | [图片角度指南](docs/image-angle-preview.md) · [单题JSON](examples/ear-image-angle-test.json) |
 | 参考完整的耳挂式耳机接触/疼痛标注研究 | [示例问卷](examples/ear-image-range-test.json) |
 | 使用导出 Excel 重现或进一步处理人数热力图 | [离线热力图分析指南](docs/image-range-heatmap-analysis.md) |
 | 在本机开发、测试或继续维护项目 | [开发交接说明](docs/HANDOFF.md) · [协作规则](AGENTS.md) |

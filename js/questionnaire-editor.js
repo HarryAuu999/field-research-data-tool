@@ -7,10 +7,11 @@ const TYPE_LABELS = {
   multiChoice: "多选",
   rating: "评分",
   imageRange: "图片范围标注",
+  imageAngle: "图片角度",
   section: "标题与备注"
 };
 
-export const EDITABLE_FIELD_TYPES = Object.entries(TYPE_LABELS).filter(([value]) => value !== "imageRange").map(([value, label]) => ({ value, label }));
+export const EDITABLE_FIELD_TYPES = Object.entries(TYPE_LABELS).filter(([value]) => !["imageRange", "imageAngle"].includes(value)).map(([value, label]) => ({ value, label }));
 export const SUPPORTED_FIELD_TYPES = new Set(Object.keys(TYPE_LABELS));
 
 export function fieldTypeName(type) {

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图片角度本地预览</title>
+  <p id="status">正在载入角度测试问卷…</p>
+  <script type="module">
+    import { openDatabase, getTemplate, putTemplate, setSetting } from "../js/db.js?v=1.4.10";
+    import { validateTemplate } from "../js/questionnaire-schema.js?v=1.4.10";
+    try {
+      // Local preview entry only. The application default and existing versions
+      // are never rewritten; use a dedicated localhost origin for testing.
+      if (!["localhost", "127.0.0.1"].includes(location.hostname)) throw new Error("请通过本地预览服务打开");
+      await openDatabase();
+      const response = await fetch("../examples/ear-image-angle-test.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const template = validateTemplate(await response.json());
+      if (!(await getTemplate(template.key))) await putTemplate(template);
+      await setSetting("currentTemplateKey", template.key);
+      location.replace("../");
+    } catch (error) {
+      document.querySelector("#status").textContent = `预览载入失败：${error.message}`;
+    }
+  </script>
+</html>

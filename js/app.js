@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.9";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.9";
+} from "./db.js?v=1.4.10";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.10";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,12 +29,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.9";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.9";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.9";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.9";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.9";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.9";
+} from "./questionnaire-editor.js?v=1.4.10";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.10";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.10";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.10";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.10";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.10";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.10";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -43,9 +44,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.9";
+} from "./statistics.js?v=1.4.10";
 
-const APP_VERSION = "1.4.9";
+const APP_VERSION = "1.4.10";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -689,7 +690,16 @@ function questionSpecificEditorHtml(field) {
       <div class="editor-rating-labels"><h3>每档说明</h3>${ratingLabelsHtml(field)}</div>`;
   }
   if (field.type === "section") return "";
-  return '<p class="editor-locked-notice">这是专用交互题。可以随整份问卷复制或调整顺序，但不能用通用编辑器修改内部内容。</p>';
+  const settings = field.type === "imageAngle"
+    ? `角度范围 ${field.angle.min}° ～ ${field.angle.max}° · 步长 ${field.angle.step}°`
+    : field.levels?.map((level) => level.label).join(" · ") || "";
+  return `<div class="editor-readonly-preview" aria-label="问题内容（只读）">
+    <h2>${escapeHtml(field.label)}${field.required ? '<span class="required-mark" aria-label="必填">*</span>' : ""}</h2>
+    ${field.description ? `<p class="editor-preview-description">${escapeHtml(field.description)}</p>` : ""}
+    ${field.image?.src ? `<img class="editor-preview-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
+    ${settings ? `<p class="editor-help">${escapeHtml(settings)}</p>` : ""}
+    <p class="editor-help">此专用题型仅供预览，内容由问卷 JSON 配置。</p>
+  </div>`;
 }
 
 function renderQuestionEditor() {
@@ -1641,13 +1651,24 @@ function categoricalAnalysisCards(config) {
   }).join("");
 }
 
+function imageAngleAnalysisCards(config) {
+  const items = config.fields.map((item) => {
+    const field = state.currentTemplate.fields.find((candidate) => candidate.id === item.id);
+    return { item, field, result: angleDistribution(field, state.records, config.binWidth) };
+  });
+  const maximum = Math.max(0, ...items.map(({ result }) => result.maximum));
+  return items.map(({ item, field, result }) => imageAngleAnalysisHtml(field, result, maximum, item.label || field.label)).join("");
+}
+
 function renderCombinedAnalysis(configs) {
   const contents = configs.map((config, index) => {
     const title = config.type === "imageRangeHeatmap" ? "图片区域热力图"
       : config.type === "categoricalFrequency" ? "评分与选项分布"
+      : config.type === "angleDistribution" ? "角度分布"
       : "数值统计与分布";
     const cards = config.type === "imageRangeHeatmap" ? imageRangeAnalysisCard(config)
       : config.type === "categoricalFrequency" ? categoricalAnalysisCards(config)
+      : config.type === "angleDistribution" ? imageAngleAnalysisCards(config)
       : distributionAnalysisCards(config, index);
     return `
       <section class="analysis-module" data-analysis-module-section="${index}">
@@ -1668,6 +1689,7 @@ function renderCombinedAnalysis(configs) {
       initializeImageRangeAnalysis(config, app.querySelector(`[data-analysis-module-section="${index}"]`));
     }
   });
+  bindAngleAnalysis(app);
   if (configs.some((config) => ["distribution", "descriptiveDistribution"].includes(config.type))) {
     requestAnimationFrame(() => initializeAnalysisCharts(configs));
   }
@@ -1681,7 +1703,7 @@ function renderAnalysis() {
     showToast("当前问卷没有配置简易分析");
     return;
   }
-  if (configs.length > 1 || configs[0].type === "categoricalFrequency") {
+  if (configs.length > 1 || ["categoricalFrequency", "angleDistribution"].includes(configs[0].type)) {
     renderCombinedAnalysis(configs);
     return;
   }
@@ -1761,6 +1783,7 @@ function renderFieldControl(field, answer, fieldIndex = state.formIndex) {
     case "multiChoice": return renderMultiChoice(field, answer, fieldIndex);
     case "rating": return renderRating(field, answer, fieldIndex);
     case "imageRange": return renderImageRange(field, answer, fieldIndex);
+    case "imageAngle": return imageAngleControlHtml(field, answer);
     case "section": return `<div class="card">${escapeHtml(field.description || "")}</div>`;
     default: return "";
   }
@@ -1930,7 +1953,7 @@ function renderFormQuestion({ field, fieldIndex }) {
     <div class="question-meta"><span class="question-number">Q${field.questionNumber || fieldIndex + 1}.</span><span class="requirement-chip ${field.required ? "is-required" : ""}">${requirementLabel}</span></div>
     <h2 class="question-title">${escapeHtml(field.label)}</h2>
     ${field.description ? `<p class="question-description">${escapeHtml(field.description)}</p>` : ""}
-    ${field.image?.src && field.type !== "imageRange" ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
+    ${field.image?.src && !["imageRange", "imageAngle"].includes(field.type) ? `<img class="question-image" src="${escapeHtml(field.image.src)}" alt="${escapeHtml(field.image.alt || field.label)}" />` : ""}
     ${renderFieldControl(field, answer, fieldIndex)}
     <div class="validation-message" data-validation-for="${fieldIndex}"></div>
   </section>`;
@@ -1950,7 +1973,7 @@ function renderForm() {
   const progress = ((pageIndex + 1) / pages.length) * 100;
   const isLast = pageIndex === pages.length - 1;
   const usesGroupedPages = pages.some((item) => item.items.length > 1);
-  const annotationItem = page.items.length === 1 && page.items[0].field.type === "imageRange" ? page.items[0] : null;
+  const annotationItem = page.items.length === 1 && ["imageRange", "imageAngle"].includes(page.items[0].field.type) ? page.items[0] : null;
   document.documentElement.classList.toggle("annotation-page", Boolean(annotationItem));
 
   app.innerHTML = `
@@ -1971,7 +1994,14 @@ function renderForm() {
         <button class="primary-button" type="button" data-action="next-question">${isLast ? (state.draft.mode === "edit" ? "保存修改" : "保存记录") : (usesGroupedPages ? "下一页" : "下一题")}</button>
       </div>
     </section>`;
-  if (annotationItem) bindImageRange(annotationItem.field, annotationItem.fieldIndex);
+  if (annotationItem?.field.type === "imageRange") bindImageRange(annotationItem.field, annotationItem.fieldIndex);
+  if (annotationItem?.field.type === "imageAngle") {
+    const field = annotationItem.field;
+    bindImageAngle(app, field, (value) => {
+      state.draft.answers[field.id] = value;
+      persistDraft().catch(console.error);
+    });
+  }
 }
 
 function renderBackup() {
@@ -2102,6 +2132,7 @@ function captureCurrentField() {
 
 function fieldValidation(field, answer) {
   if (field.type === "section") return "";
+  if (field.type === "imageAngle") return imageAngleValidation(field, answer);
   const isBlankString = (value) => typeof value !== "string" || !value.trim();
   if (field.type === "imageRange" && field.required && imageRangeStrokes(answer).length === 0) return `请标注“${field.label}”`;
 
@@ -2240,6 +2271,7 @@ function makeRecordNumber(id) {
 
 function formatAnswer(field, answer, options = {}) {
   if (answer === null || answer === undefined || answer === "") return "";
+  if (field.type === "imageAngle") return isImageAngleValue(field, answer) ? `${answer}${options.forExport ? "" : "°"}` : "";
   if (field.type === "imageRange") return imageRangeStrokes(answer).length ? `已标注（${imageRangeStrokes(answer).length}笔）` : "";
   if (["shortText", "longText"].includes(field.type)) {
     if (field.allowAnonymous && typeof answer === "object") return answer.anonymous ? "匿名" : String(answer.value || "");
@@ -2281,10 +2313,12 @@ function formatAnswer(field, answer, options = {}) {
 }
 
 function exportHeader(field) {
+  if (field.type === "imageAngle") return `${field.label}（°）`;
   return field.unit ? `${field.label}（${field.unit}）` : field.label;
 }
 
 function exportColumns(field) {
+  if (field.type === "imageAngle") return [{ header: exportHeader(field), value: (answer) => isImageAngleValue(field, answer) ? answer : "" }];
   if (field.type !== "repeatedNumber") {
     return [{ header: exportHeader(field), value: (answer) => formatAnswer(field, answer, { forExport: true }) }];
   }
@@ -2326,7 +2360,18 @@ async function exportXlsx() {
       }
     }
   }
-  const blob = createXlsxBlob([{ name: "Responses", rows: [headers, ...rows] }, { name: "Annotations", rows: annotationRows }]);
+  const sheets = [{ name: "Responses", rows: [headers, ...rows] }, { name: "Annotations", rows: annotationRows }];
+  const angleFields = fields.filter((field) => field.type === "imageAngle");
+  if (angleFields.length) {
+    const metadata = [["questionId", "questionLabel", "responseColumn", "imageSrc", "imageWidth", "imageHeight", "centerX", "centerY", "zeroDegrees", "rotation", "min", "max", "step", "radius"]];
+    for (const field of angleFields) {
+      const offset = fields.slice(0, fields.indexOf(field)).reduce((total, item) => total + exportColumns(item).length, 0);
+      metadata.push([field.id, field.label, offset + 4, field.image.src.startsWith("data:") ? "嵌入图片（见问卷JSON）" : field.image.src,
+        field.image.width, field.image.height, ...field.angle.center, field.angle.zeroDegrees, field.angle.rotation, field.angle.min, field.angle.max, field.angle.step, field.angle.radius]);
+    }
+    sheets.push({ name: "AngleFields", rows: metadata });
+  }
+  const blob = createXlsxBlob(sheets);
   const filename = sanitizeFilename(`${state.currentTemplate.title}_V${state.currentTemplate.version}_${compactDate()}_共${state.records.length}份.xlsx`);
   const file = new File([blob], filename, { type: blob.type });
   await shareOrDownload(file);
@@ -2753,7 +2798,7 @@ app.addEventListener("click", async (event) => {
 });
 
 app.addEventListener("input", (event) => {
-  if (event.target.matches("[data-annotation-brush]")) return;
+  if (event.target.matches("[data-annotation-brush], [data-angle-slider]")) return;
   if (state.view === "templateMetaEditor") {
     captureTemplateMetaEditor();
     persistTemplateEditorDraft().catch(console.error);

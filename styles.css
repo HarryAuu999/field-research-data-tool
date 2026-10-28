@@ -813,6 +813,11 @@ button:disabled { opacity: 0.38; }
 .editor-rating-row input, .editor-rating-row textarea { min-width: 0; padding: 9px 10px; border: 1px solid #cfd5dc; border-radius: 6px; font-size: 16px; }
 .editor-rating-row textarea { grid-column: 2; resize: vertical; }
 .editor-locked-notice { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.editor-readonly-preview { display: grid; gap: 12px; }
+.editor-readonly-preview h2 { margin: 0; color: var(--ink); font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
+.editor-preview-description { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; white-space: pre-line; }
+.editor-preview-image { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--paper); }
+.editor-readonly-preview .editor-help { margin: 0; }
 .editor-delete-question { width: 100%; min-height: 44px; margin-top: 10px; border: 0; background: transparent; color: var(--danger); font-size: 14px; text-decoration: underline; }
 .question-type-overlay { position: fixed; z-index: 100; inset: 0; padding: 24px 16px max(24px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; justify-content: center; background: rgba(17, 24, 39, 0.34); }
 .question-type-dialog { width: min(100%, 520px); max-height: min(78dvh, 680px); padding: 18px; overflow-y: auto; border-radius: 16px; background: #fff; box-shadow: var(--shadow); }
@@ -1105,6 +1110,41 @@ html.annotation-page, html.annotation-page body { height: 100%; overflow: hidden
 .annotation-workspace { flex: 1; min-height: 0; width: calc(100% + 28px); margin: 6px -14px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .annotation-canvas { width: 100%; height: auto; max-height: 100%; min-height: 0; flex: 0 1 auto; display: block; border: 1px solid var(--line); border-radius: 10px; background: #fff; touch-action: none; user-select: none; -webkit-user-select: none; }
 .annotation-hit-area { touch-action: none; cursor: crosshair; }
+.image-angle-workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; margin-top: 6px; }
+.image-angle-canvas { flex: 1; min-height: 0; width: 100%; height: 100%; display: block; border-radius: 10px; background: var(--paper); user-select: none; }
+.image-angle-baseline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.image-angle-ray { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.image-angle-center { fill: var(--accent); }
+[data-angle-selected="false"] .image-angle-ray { opacity: 0.4; }
+.image-angle-tools { flex: none; padding: 8px 0 6px; }
+.image-angle-value-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 36px; font-size: 14px; }
+.image-angle-value-row output { margin-left: 8px; color: var(--accent); font-weight: 650; font-variant-numeric: tabular-nums; }
+.image-angle-clear { min-width: 44px; min-height: 36px; padding: 5px 8px; border: 0; background: transparent; color: var(--muted); font-size: 13px; }
+.image-angle-slider { display: block; width: 100%; min-height: 44px; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 0; background: transparent; touch-action: pan-x; }
+.image-angle-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--accent) 0 var(--angle-progress, 18.18%), var(--line) var(--angle-progress, 18.18%) 100%); }
+.image-angle-slider::-moz-range-track { height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--accent) 0 var(--angle-progress, 18.18%), var(--line) var(--angle-progress, 18.18%) 100%); }
+.image-angle-slider::-webkit-slider-thumb { box-sizing: border-box; width: 35.2px; height: 22px; margin-top: -8px; appearance: none; -webkit-appearance: none; border: 2px solid var(--accent); border-radius: 999px; background: #fff; }
+.image-angle-slider::-moz-range-thumb { box-sizing: border-box; width: 35.2px; height: 22px; border: 2px solid var(--accent); border-radius: 999px; background: #fff; }
+.image-angle-limits { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.image-angle-statistics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 12px 0; color: var(--muted); font-size: 14px; }
+.image-angle-statistics strong { margin-left: 5px; color: var(--ink); font-weight: 650; }
+.image-angle-chart { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--paper); }
+.angle-chart-bar { fill: var(--accent); fill-opacity: 0.8; stroke: none; stroke-width: 0; cursor: pointer; }
+.angle-chart-bar:focus { outline: none; }
+.angle-chart-bar[aria-pressed="true"] { stroke: #000; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.angle-chart-grid { fill: none; stroke: var(--ink); stroke-opacity: 0.3; stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.angle-chart-mean { stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+.angle-chart-count, .angle-chart-tick { font-size: var(--angle-label-size); fill: var(--ink); stroke: #fff; stroke-width: var(--angle-label-outline); paint-order: stroke; pointer-events: none; }
+.image-angle-legend { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.image-angle-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.image-angle-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+.image-angle-legend svg { display: block; flex: none; width: 32px; height: 12px; overflow: visible; }
+.image-angle-bin-info { color: #000; fill: #000; stroke: #fff; stroke-width: var(--angle-label-outline); paint-order: stroke; stroke-linejoin: round; font-size: var(--angle-label-size); font-weight: 700; pointer-events: none; }
+.image-angle-bin-info[hidden] { display: none; }
+.image-angle-analysis .analysis-more summary { color: #000; font-weight: 700; }
+.image-angle-ranges { margin: 12px 0 0; font-size: 13px; }
+.image-angle-ranges > div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+.image-angle-ranges dd { margin: 0; font-variant-numeric: tabular-nums; }
 .annotation-tools { width: calc(100% - 28px); flex: none; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 5px 8px; padding: 6px 0 0; }
 .annotation-level-name { font-size: 13px; color: var(--muted); }
 .annotation-brush { order: 3; width: 100%; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }

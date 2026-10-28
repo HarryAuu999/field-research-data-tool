@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "ear-clip-angle-preview",
+  "version": "1.0",
+  "title": "耳夹C桥角度测试",
+  "description": "单题本地测试：记录耳夹C桥方向，采集多个样本后查看角度人数分布。",
+  "recordLabelField": "wearAngle",
+  "fields": [
+    {
+      "id": "wearAngle",
+      "type": "imageAngle",
+      "label": "耳夹C桥佩戴角度",
+      "description": "调整滑块，使直线与耳夹C桥方向一致。水平0°，朝耳垂90°，向上为负角度。",
+      "required": false,
+      "image": {
+        "src": "./assets/ear-side.png",
+        "alt": "左耳侧面示意图",
+        "width": 1149,
+        "height": 1368
+      },
+      "angle": {
+        "center": [0.54, 0.528],
+        "zeroDegrees": 180,
+        "rotation": "counterclockwise",
+        "min": -20,
+        "max": 90,
+        "step": 1,
+        "radius": 0.32
+      }
+    }
+  ],
+  "analyses": [
+    {
+      "type": "angleDistribution",
+      "binWidth": 10,
+      "fields": [{ "id": "wearAngle", "label": "C桥佩戴角度分布" }]
+    }
+  ]
+}
