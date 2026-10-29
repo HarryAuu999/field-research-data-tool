@@ -153,9 +153,10 @@
 
 当研究目的涉及人体或产品的**位置、接触面、疼痛范围、主观压力感分布或热力图**时，请先阅读[AI 图片标注研究指南](image-annotation-ai-guide.md)，主动询问用户采用已有底图还是由 AI 按[底图生成规范](../prompts/annotation-base-image.md)生成。**在确认视角、研究指标、图片尺寸和实际文件来源之前，不要交付带占位图片路径的“可导入”问卷。**
 
-- 普通导入JSON使用`data:image/...;base64,...`内嵌图片，保证离线可用；禁止HTTP/HTTPS外链。
+- **优先引用默认底图：** 使用已随PWA发布并离线缓存的同一底图时，直接引用准确的`./assets/...`路径，不重复内嵌。当前默认耳图为`./assets/ear-side.png`、`./assets/ear-side-section.png`、`./assets/ear-back.png`；核对视角、原始尺寸及目标版本，不能把仓库中存在误当成已部署缓存。
+- 用户自定义图片使用`data:image/...;base64,...`内嵌，保证离线可用且不上传公共项目，owner同样适用。禁止HTTP/HTTPS外链。
 - `alt`应简洁说明图片传达的内容。图片本身包含关键作答信息时，必须提供足以理解的替代文本。
-- `./assets/...`仅供已随AuNote项目发布并由Service Worker缓存的内置资源使用；AI不能假设用户设备已有某个本地文件。
+- 所有问卷均可引用已随AuNote发布并由Service Worker缓存的内置资源，不仅限于出厂问卷；AI不能假设用户设备已有其他本地文件。
 - 普通图片不进入Excel Responses。`imageRange`图片范围标注题支持在图片上涂画区域，点按也可记录很小的范围；仅当研究目标确实涉及空间位置或范围、并能提供稳定的底图资源时使用；AI可主动建议这种题型，但不能为了增加功能而改变原研究意图。须给出`view`、`annotationType`、`brushSize`、1～2个`levels`和底图原始`width`/`height`，每题独占一页。同一研究问题拆为多个图片页时，可为这些题填写相同的`questionNumber`，但答案仍分别保存。详见[格式说明](questionnaire-template.md)及[七页示例](../examples/ear-image-range-test.json)。普通外部AI不可假定用户设备已有`./assets/...`，应内嵌图片或先确认图片会随应用缓存。
 
 ### 图片角度采集与分析

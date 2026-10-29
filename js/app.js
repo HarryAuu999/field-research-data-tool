@@ -17,8 +17,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.10";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.10";
+} from "./db.js?v=1.4.11";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.11";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,13 +29,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.10";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.10";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.10";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.10";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.10";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.10";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.10";
+} from "./questionnaire-editor.js?v=1.4.11";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.11";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.11";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.11";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.11";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.11";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.11";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -44,9 +44,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.10";
+} from "./statistics.js?v=1.4.11";
 
-const APP_VERSION = "1.4.10";
+const APP_VERSION = "1.4.11";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -2338,6 +2338,11 @@ function exportColumns(field) {
   return columns;
 }
 
+function exportImageSource(field) {
+  const src = field.image?.src || "";
+  return src.startsWith("data:") ? "嵌入图片（见问卷JSON）" : src;
+}
+
 async function exportXlsx() {
   if (!state.currentTemplate || !state.records.length) return;
   const fields = state.currentTemplate.fields.filter((field) => field.type !== "section");
@@ -2355,7 +2360,7 @@ async function exportXlsx() {
       for (const stroke of imageRangeStrokes(record.answers?.[field.id])) {
         (stroke.points || []).forEach(([x, y], index) => annotationRows.push([
           record.id, record.recordNumber, field.id, field.view, stroke.annotationType || field.annotationType,
-          stroke.level, stroke.id, index, x, y, stroke.brushSize, field.image.src, field.image.width, field.image.height
+          stroke.level, stroke.id, index, x, y, stroke.brushSize, exportImageSource(field), field.image.width, field.image.height
         ]));
       }
     }
@@ -2366,7 +2371,7 @@ async function exportXlsx() {
     const metadata = [["questionId", "questionLabel", "responseColumn", "imageSrc", "imageWidth", "imageHeight", "centerX", "centerY", "zeroDegrees", "rotation", "min", "max", "step", "radius"]];
     for (const field of angleFields) {
       const offset = fields.slice(0, fields.indexOf(field)).reduce((total, item) => total + exportColumns(item).length, 0);
-      metadata.push([field.id, field.label, offset + 4, field.image.src.startsWith("data:") ? "嵌入图片（见问卷JSON）" : field.image.src,
+      metadata.push([field.id, field.label, offset + 4, exportImageSource(field),
         field.image.width, field.image.height, ...field.angle.center, field.angle.zeroDegrees, field.angle.rotation, field.angle.min, field.angle.max, field.angle.step, field.angle.radius]);
     }
     sheets.push({ name: "AngleFields", rows: metadata });

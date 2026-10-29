@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.10";
-const UPDATE_SUMMARY = "新增图片角度采集与角度分布分析，可与数值统计、选项频数和区域热力图组合。";
+const APP_VERSION = "1.4.11";
+const UPDATE_SUMMARY = "修复内嵌图片范围标注无法导出Excel的问题，已有问卷与样本可直接导出。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.10",
-  "./manifest.webmanifest?v=1.4.10",
+  "./styles.css?v=1.4.11",
+  "./manifest.webmanifest?v=1.4.11",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,17 +21,17 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.10",
-  "./js/db.js?v=1.4.10",
-  "./js/default-template.js?v=1.4.10",
-  "./js/questionnaire-editor.js?v=1.4.10",
-  "./js/questionnaire-schema.js?v=1.4.10",
-  "./js/question-reorder.js?v=1.4.10",
-  "./js/statistics.js?v=1.4.10",
-  "./js/image-range.js?v=1.4.10",
-  "./js/image-range-heatmap.js?v=1.4.10",
-  "./js/image-angle.js?v=1.4.10",
-  "./js/xlsx-export.js?v=1.4.10"
+  "./js/app.js?v=1.4.11",
+  "./js/db.js?v=1.4.11",
+  "./js/default-template.js?v=1.4.11",
+  "./js/questionnaire-editor.js?v=1.4.11",
+  "./js/questionnaire-schema.js?v=1.4.11",
+  "./js/question-reorder.js?v=1.4.11",
+  "./js/statistics.js?v=1.4.11",
+  "./js/image-range.js?v=1.4.11",
+  "./js/image-range-heatmap.js?v=1.4.11",
+  "./js/image-angle.js?v=1.4.11",
+  "./js/xlsx-export.js?v=1.4.11"
 ];
 
 self.addEventListener("install", (event) => {

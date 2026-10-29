@@ -5,7 +5,7 @@
 ## 输入与口径
 
 - XLSX 的 `Responses` 工作表一行一份样本；`Annotations` 按点记录笔画。按列名读取，至少使用 `sampleId`、`questionId`、`view`、`annotationType`、`level`、`strokeId`、`pointOrder`、`normalizedX`、`normalizedY`、`brushSize`、`imageSrc`、`imageWidth`、`imageHeight`。
-- 用户需要提供与问卷 `imageSrc` 对应的**原始底图**。不能靠猜测使用另一张相似图片；底图的尺寸和标注坐标系必须一致。
+- 内置图片的`imageSrc`保留路径，可直接读取项目对应默认底图。内嵌图片的`imageSrc`写“嵌入图片（见问卷JSON）”，按`questionId`在用户原始问卷JSON的`fields[].image`中查找并解码，或由用户提供采集时同一原图；Excel不重复保存Base64。不能靠猜测使用另一张相似图片；底图的尺寸和标注坐标系必须一致。
 - 按 `sampleId → questionId → level → strokeId` 重建笔画，按 `pointOrder` 排序。每一笔使用自己的 `brushSize`，它是相对于原图宽度的比例；点的 x/y 分别相对于原图宽/高归一化。
 - 在同一字段和等级内，先把每名参与者的所有笔画合并成**二值 mask**，再逐像素累加。重复涂同一位置只算 1 人。若问卷疼痛等级 2 对等级 1 有优先权，先从该人的等级 1 mask 扣除其等级 2 mask，再累计；不能用平滑后的色值当人数。
 - 不同 `questionId`、视角、等级分别出图。同一组可比较图共用 `sample_total` 和连续人数色标；分母明确为 `Responses` 中的样本数。标注人数和最大重合人数另行显示。

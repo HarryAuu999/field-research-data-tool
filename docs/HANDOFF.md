@@ -1,6 +1,12 @@
 # AuNote 交接说明
 
-更新日期：2026-10-28。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-29。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.11 导出修复
+
+本次发布范围为内嵌图片范围标注Excel导出修复及底图引用规则。`Annotations.imageSrc`对内置图片保留路径，对内嵌图片写“嵌入图片（见问卷JSON）”，按questionId从原始问卷找图；角度元数据复用同一处理。避免逐点复制图片编码导致文件膨胀和导出失败，不迁移或改写用户问卷、样本、草稿及图片。转换时优先引用已发布缓存的默认底图，自定义图片内嵌。专项回归为tests/embedded-image-export-e2e.mjs，仅使用合成夹具。
+
+双展示问卷、虚拟样本和统计摘要显示调整仍在其他本地工作树待确认，不属于本次发布。线上状态须核对站点版本，不能把本地提交当成已上线。
 
 ## V1.4.10 角度模块整合
 

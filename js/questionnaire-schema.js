@@ -1,6 +1,6 @@
-import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.10";
-import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.10";
-import { angleDistribution, validateImageAngleField } from "./image-angle.js?v=1.4.10";
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.11";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.11";
+import { angleDistribution, validateImageAngleField } from "./image-angle.js?v=1.4.11";
 
 const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap", "categoricalFrequency", "angleDistribution"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);

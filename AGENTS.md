@@ -44,6 +44,9 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 
 ## AI转换问卷规则
 
+- 图片来源先分流：使用已随PWA发布并离线缓存的默认底图时，直接引用`./assets/...`，不重复内嵌；当前默认耳图为ear-side.png、ear-side-section.png、ear-back.png。用户自定义图片才内嵌data URI，不得为方便研究上传到公共项目，owner同样适用。仅在仓库中存在但未部署缓存的资源不能直接引用。
+- 范围标注与角度导出的`imageSrc`保留内置图片路径；内嵌图片仅写“嵌入图片（见问卷JSON）”，按questionId回查原问卷。不得逐点重复写入Base64。相关修复运行`node tests/embedded-image-export-e2e.mjs`；真实研究数据不可加入测试夹具。
+
 - **先读 [AI 问卷转换指南](docs/questionnaire-ai-guide.md)**，以其中的文案克制原则、分析自动识别规则和能力差距检查为准。必要时查阅 [问卷字段及分析配置](docs/questionnaire-template.md)。
 - 转换后的题目必须简洁忠实：不得为展示专业性自动添加解释、测量免责声明、选项或冗长 `description`。原研究必需的操作与测量口径必须保留。
 - 即使用户没有提出简易分析，也要主动识别可分析的数值指标、评分/选择题和图片范围标注，并在**现有 schema 支持且没有语义歧义**时自动配置基础分析。不要把姓名、编号当成统计指标，不要为了分析改变原题型。
@@ -57,6 +60,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 本次整合版本：V1.4.10（图片角度模块）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
+- 本次修复版本：V1.4.11（内嵌图片标注导出）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。
