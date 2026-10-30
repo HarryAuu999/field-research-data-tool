@@ -13,6 +13,7 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 - 浏览器测试：顶部栏、基础手机布局和样本左滑运行 `node tests/ui-smoke.mjs`；JSON配置的多题同页和样本名称运行 `node tests/questionnaire-layout-e2e.mjs`；图片标注与XLSX运行 `node tests/image-range-e2e.mjs`；Android Manifest、图标资源和 Pixel 视口运行 `node tests/android-smoke.mjs`；问卷编辑界面与排序运行 `node tests/editor-e2e.mjs`；完整填写、样本、分析、Excel导出、备份和离线运行 `node tests/e2e.mjs`。测试需要本机 Chrome及已启动的本地预览服务。
 - 开发过程中优先运行与改动范围对应的最小测试集；除非改动影响跨模块行为，不要在每个小编辑后反复运行完整 E2E。
 - 修改 `js/db.js`、数据迁移、备份恢复、Service Worker 的运行逻辑、离线逻辑或跨模块状态时，运行完整回归。仅显示层、图片资源、文档或独立纯函数的更新，优先运行对应单元测试、相关浏览器测试及版本检查；正式发布也按实际风险决定，不因单纯版本号或缓存清单更新重复跑所有无关用例。
+- 数据安全专项运行 `node tests/data-safety-e2e.mjs`（合成数据、独立浏览器上下文），覆盖取消安全备份、恢复确认及中断保存回滚。
 - 发布前核对 `js/app.js` 与 `sw.js` 的应用版本号一致。
 - 未经用户明确要求，不得推送或发布到 GitHub；先保留本地版本供用户网页验证。
 
@@ -60,6 +61,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 本次修复版本：V1.4.11（内嵌图片标注导出）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
+- 本次修复版本：V1.4.12（恢复前备份确认与样本保存原子性）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。

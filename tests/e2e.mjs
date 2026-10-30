@@ -603,9 +603,11 @@ await clickAction("backup");
 const safetyDownloadPromise = page.waitForEvent("download");
 await page.locator("#backup-file-input").setInputFiles(backupPath);
 page.once("dialog", (dialog) => dialog.accept());
-await confirmCustomDialog("继续恢复");
+// Recovery opens a second confirmation on the same dialog element.
+await page.getByRole("alertdialog").getByRole("button", { name: "继续恢复", exact: true }).click();
 const safetyDownload = await safetyDownloadPromise;
 await safetyDownload.saveAs(path.join(outputDir, "pre-restore-safety-backup.json"));
+await confirmCustomDialog("已保存，继续恢复");
 await page.getByText("1 份", { exact: true }).waitFor();
 await clickAction("templates");
 await page.locator('[data-action="open-template"][data-key="fixture-template@1.0"]').waitFor();

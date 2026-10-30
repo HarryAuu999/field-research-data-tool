@@ -1,4 +1,4 @@
-import { quantile, sampleStandardDeviation } from "./statistics.js?v=1.4.11";
+import { quantile, sampleStandardDeviation } from "./statistics.js?v=1.4.12";
 
 const DEG = Math.PI / 180;
 const escape = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");

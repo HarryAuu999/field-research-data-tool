@@ -1,6 +1,12 @@
 # AuNote 交接说明
 
-更新日期：2026-10-29。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-10-30。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.12 数据安全修复
+
+恢复前取消系统分享会中止恢复；系统分享完成或触发下载后，还须确认“安全备份已保存”才替换数据库。网页无法自行确认文件最终落盘，未保存或不确定时应取消恢复。新样本使用 `js/db.js` 的 `completeDraft`，在同一个 IndexedDB 事务中保存正式记录并删除对应草稿；中断或失败时一起回滚。数据库名、版本及问卷/答案格式不变，不迁移已有数据。
+
+数据安全专项：`node tests/data-safety-e2e.mjs`。仅用合成夹具与非持久化 Chrome context，覆盖取消分享、下载后取消确认、分享成功及失败回退下载后的恢复、保存中断回滚及重试。此前19组回归最终通过；版本资源更新后再检查版本、数据安全、完整填写与离线流程。上线状态仍须核对 GitHub Pages 实际部署。
 
 ## V1.4.11 导出修复
 

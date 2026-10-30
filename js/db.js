@@ -127,6 +127,23 @@ export async function getRecords(templateKey) {
 export const getRecord = (id) => getOne(STORES.records, id);
 export const putRecord = (record) => putOne(STORES.records, record);
 export const deleteRecord = (id) => deleteOne(STORES.records, id);
+
+// Completing a new response must not leave a saved record and its old draft.
+export async function completeDraft(record) {
+  const db = await openDatabase();
+  const transaction = db.transaction([STORES.records, STORES.drafts], "readwrite");
+  const done = transactionDone(transaction);
+  try {
+    transaction.objectStore(STORES.records).put(record);
+    transaction.objectStore(STORES.drafts).delete(record.templateKey);
+  } catch (error) {
+    transaction.abort();
+    await done.catch(() => {});
+    throw error;
+  }
+  await done;
+  return record;
+}
 export const getDraft = (templateKey) => getOne(STORES.drafts, templateKey);
 export const putDraft = (draft) => putOne(STORES.drafts, draft);
 export const deleteDraft = (templateKey) => deleteOne(STORES.drafts, templateKey);

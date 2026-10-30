@@ -42,8 +42,8 @@ try {
       await page.goto(base);
       await page.locator(".hero-title").waitFor();
       await page.evaluate(async ({ input, samples }) => {
-        const db = await import("./js/db.js?v=1.4.11");
-        const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.11");
+        const db = await import("./js/db.js?v=1.4.12");
+        const { validateTemplate } = await import("./js/questionnaire-schema.js?v=1.4.12");
         const valid = validateTemplate(input);
         await db.putTemplate(valid);
         for (const record of samples) await db.putRecord(record);
@@ -52,7 +52,7 @@ try {
       await page.reload();
       await page.locator('[data-action="export-xlsx"]').waitFor();
       const before = await page.evaluate(async (key) => {
-        const db = await import("./js/db.js?v=1.4.11");
+        const db = await import("./js/db.js?v=1.4.12");
         return { template: await db.getTemplate(key), records: await db.getRecords(key) };
       }, `${input.id}@${input.version}`);
       const downloaded = page.waitForEvent("download");
@@ -78,7 +78,7 @@ try {
         assert.ok(responseXml.includes("重复测量－平均值"));
       }
       const after = await page.evaluate(async (key) => {
-        const db = await import("./js/db.js?v=1.4.11");
+        const db = await import("./js/db.js?v=1.4.12");
         return { template: await db.getTemplate(key), records: await db.getRecords(key) };
       }, `${input.id}@${input.version}`);
       assert.deepEqual(after, before, "导出不得修改问卷内嵌图片或原始样本");

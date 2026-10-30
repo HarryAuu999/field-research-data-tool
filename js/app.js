@@ -1,4 +1,5 @@
 import {
+  completeDraft,
   deleteSetting,
   deleteDraft,
   deleteRecord,
@@ -17,8 +18,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.11";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.11";
+} from "./db.js?v=1.4.12";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.12";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -29,13 +30,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.11";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.11";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.11";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.11";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.11";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.11";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.11";
+} from "./questionnaire-editor.js?v=1.4.12";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.12";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.12";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.12";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.12";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.12";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.12";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -44,9 +45,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.11";
+} from "./statistics.js?v=1.4.12";
 
-const APP_VERSION = "1.4.11";
+const APP_VERSION = "1.4.12";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -2247,7 +2248,7 @@ async function completeRecord() {
 
   const timestamp = nowIso();
   const id = crypto.randomUUID();
-  await putRecord({
+  await completeDraft({
     id,
     recordNumber: makeRecordNumber(id),
     templateKey: state.currentTemplate.key,
@@ -2257,7 +2258,6 @@ async function completeRecord() {
   });
   showToast("记录已保存");
 
-  await deleteDraft(state.currentTemplate.key);
   state.draft = null;
   state.view = "home";
   await refreshContext();
@@ -2390,9 +2390,9 @@ async function shareOrDownload(file) {
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: file.name });
-      return;
+      return true;
     } catch (error) {
-      if (error?.name === "AbortError") return;
+      if (error?.name === "AbortError") return false;
       console.warn("系统分享失败，改用下载", error);
     }
   }
@@ -2405,6 +2405,7 @@ async function shareOrDownload(file) {
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
   showToast("文件已生成，请查看系统下载内容");
+  return true;
 }
 
 async function makeBackupFile(prefix = "AuNote_完整备份") {
@@ -2464,7 +2465,21 @@ async function restoreBackupFile(file) {
   if (!confirmed) return;
 
   const safetyFile = await makeBackupFile("恢复前自动备份");
-  await shareOrDownload(safetyFile);
+  if (!(await shareOrDownload(safetyFile))) {
+    showToast("已取消恢复，现有数据未更改");
+    return;
+  }
+  // A download request or resolved share does not prove a recoverable file exists.
+  const safetySaved = await showConfirm({
+    title: "确认安全备份已保存？",
+    message: "请确认已保存“恢复前自动备份”文件，再替换当前数据。尚未保存或不确定时，请取消恢复。",
+    confirmLabel: "已保存，继续恢复",
+    cancelLabel: "取消恢复"
+  });
+  if (!safetySaved) {
+    showToast("已取消恢复，现有数据未更改");
+    return;
+  }
   await replaceDatabaseState(data);
   window.alert("恢复完成，工具将重新打开。");
   location.reload();
