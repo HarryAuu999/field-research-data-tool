@@ -35,6 +35,8 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 
 ## 数据与修改边界
 
+- 已确认配色：重点色`#0055D1`、页面底色`#F6F7F8`；B1图标背景和文字横线`#173B78`、笔记本`#F7F3EB`、笔与夹子`#EBA765`。未经用户明确要求不得因UI优化自行更换这些颜色。
+
 - 后续新增或调整的滑块统一采用圆头轨道、跑道圆拖动钮；参考角度滑块35.2×22px、白底重点色描边，不改成正圆。未经单独要求，不为统一样式批量修改既有滑块。
 
 - 程序更新不得清空或覆盖已保存问卷、草稿和记录。
@@ -61,6 +63,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 本次修复版本：V1.4.12（恢复前备份确认与样本保存原子性）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
+- 本次发布版本：V1.4.13（已确认配色与B1图标，保留此前数据安全及导出修复）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。

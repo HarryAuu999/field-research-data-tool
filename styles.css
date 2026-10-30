@@ -1,15 +1,15 @@
 :root {
   color-scheme: light;
-  --paper: #f6f7f9;
+  --paper: #f6f7f8;
   --surface: #ffffff;
   --ink: #19212a;
   --muted: #586570;
   --quiet: #687580;
   --line: #e4e8ed;
-  --forest: #2b6ea8;
-  --forest-soft: #eaf0f6;
-  --accent: #2b6ea8;
-  --accent-soft: #eaf0f6;
+  --forest: #0055d1;
+  --forest-soft: #e8f0fb;
+  --accent: #0055d1;
+  --accent-soft: #e8f0fb;
   --danger: #c53030;
   --danger-soft: #fff5f5;
   --shadow: 0 16px 36px rgba(30, 50, 61, 0.14);
@@ -128,7 +128,7 @@ html[data-page-transition="back"]::view-transition-new(aunote-screen) { animatio
   font-weight: 720;
 }
 
-.primary-button { background: var(--forest); color: #fff; box-shadow: 0 10px 24px rgba(43, 110, 168, 0.16); }
+.primary-button { background: var(--forest); color: #fff; box-shadow: 0 10px 24px rgba(0, 85, 209, 0.16); }
 .primary-button.accent { background: var(--accent); color: #27170b; }
 .secondary-button { background: var(--surface); color: var(--forest); border: 1px solid var(--line); }
 .danger-button { background: var(--danger-soft); color: var(--danger); }
@@ -339,7 +339,7 @@ body { color: var(--ink); }
 
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 3px solid rgba(43, 110, 168, 0.27);
+  outline: 3px solid rgba(0, 85, 209, 0.27);
   outline-offset: 2px;
 }
 ::selection { background: #d5e7f3; color: var(--ink); }
@@ -718,7 +718,7 @@ button:disabled { opacity: 0.38; }
   position: fixed;
   z-index: 1000;
   margin: 0;
-  border: 1px solid rgba(43, 110, 168, 0.55);
+  border: 1px solid rgba(0, 85, 209, 0.55);
   opacity: 0.98;
   box-shadow: 0 14px 30px rgba(17, 24, 39, 0.2);
   transform-origin: center;
@@ -786,7 +786,7 @@ button:disabled { opacity: 0.38; }
   line-height: 1.45;
 }
 .editor-field textarea { resize: vertical; }
-.editor-field input:focus, .editor-field textarea:focus { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(43, 110, 168, 0.12); }
+.editor-field input:focus, .editor-field textarea:focus { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(0, 85, 209, 0.12); }
 .editor-check { min-height: 44px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
 .editor-check input { width: 20px; height: 20px; accent-color: var(--forest); }
 .editor-help { margin: -4px 0 0; color: var(--quiet); font-size: 12px; line-height: 1.55; }
@@ -860,7 +860,7 @@ button:disabled { opacity: 0.38; }
 .chart-legend { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .chart-legend span::before { width: 18px; height: 8px; content: ""; display: inline-block; }
-.legend-bar::before { border: 1px solid var(--chart-color, var(--forest)); background: var(--chart-fill, rgba(43, 110, 168, 0.22)); }
+.legend-bar::before { border: 1px solid var(--chart-color, var(--forest)); background: var(--chart-fill, rgba(0, 85, 209, 0.22)); }
 .legend-line::before { height: 0 !important; border-top: 2px solid var(--chart-color, var(--forest)); }
 .legend-normal::before { height: 0 !important; border-top: 2px dashed #4b5563; }
 .chart-stage { position: relative; width: 100%; height: clamp(270px, 44vh, 360px); margin-top: 6px; }

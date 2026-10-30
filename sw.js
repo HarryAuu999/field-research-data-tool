@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.12";
-const UPDATE_SUMMARY = "取消恢复前备份将停止恢复；保存样本与清除草稿同步完成，避免中断后重复保存。";
+const APP_VERSION = "1.4.13";
+const UPDATE_SUMMARY = "更新已确认的重点色、页面底色与B1应用图标，保留数据安全和导出修复。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.12",
-  "./manifest.webmanifest?v=1.4.12",
+  "./styles.css?v=1.4.13",
+  "./manifest.webmanifest?v=1.4.13",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,17 +21,17 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.12",
-  "./js/db.js?v=1.4.12",
-  "./js/default-template.js?v=1.4.12",
-  "./js/questionnaire-editor.js?v=1.4.12",
-  "./js/questionnaire-schema.js?v=1.4.12",
-  "./js/question-reorder.js?v=1.4.12",
-  "./js/statistics.js?v=1.4.12",
-  "./js/image-range.js?v=1.4.12",
-  "./js/image-range-heatmap.js?v=1.4.12",
-  "./js/image-angle.js?v=1.4.12",
-  "./js/xlsx-export.js?v=1.4.12"
+  "./js/app.js?v=1.4.13",
+  "./js/db.js?v=1.4.13",
+  "./js/default-template.js?v=1.4.13",
+  "./js/questionnaire-editor.js?v=1.4.13",
+  "./js/questionnaire-schema.js?v=1.4.13",
+  "./js/question-reorder.js?v=1.4.13",
+  "./js/statistics.js?v=1.4.13",
+  "./js/image-range.js?v=1.4.13",
+  "./js/image-range-heatmap.js?v=1.4.13",
+  "./js/image-angle.js?v=1.4.13",
+  "./js/xlsx-export.js?v=1.4.13"
 ];
 
 self.addEventListener("install", (event) => {

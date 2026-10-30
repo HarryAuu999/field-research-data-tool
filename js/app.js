@@ -18,8 +18,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.12";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.12";
+} from "./db.js?v=1.4.13";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.13";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -30,13 +30,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.12";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.12";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.12";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.12";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.12";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.12";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.12";
+} from "./questionnaire-editor.js?v=1.4.13";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.13";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.13";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.13";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.13";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.13";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.13";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -45,9 +45,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.12";
+} from "./statistics.js?v=1.4.13";
 
-const APP_VERSION = "1.4.12";
+const APP_VERSION = "1.4.13";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -58,7 +58,7 @@ const ICON_TRASH = "./assets/trash.svg";
 const ICON_COPY = "./assets/copy.svg";
 const ICON_PLUS = "./assets/plus.svg";
 const ANALYSIS_THEMES = {
-  blue: { base: "#2b6ea8", fill: "rgba(43, 110, 168, 0.22)" },
+  blue: { base: "#0055d1", fill: "rgba(0, 85, 209, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
 const app = document.querySelector("#app");
