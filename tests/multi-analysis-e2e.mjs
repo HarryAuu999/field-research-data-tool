@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 
 const base = JSON.parse(readFileSync(new URL("../examples/ear-image-range-test.json", import.meta.url), "utf8"));
 const angleExample = JSON.parse(readFileSync(new URL("../examples/ear-image-angle-test.json", import.meta.url), "utf8"));
+const pairedExample = JSON.parse(readFileSync(new URL("../examples/paired-t-test.json", import.meta.url), "utf8"));
 const test = structuredClone(base);
 test.id = "combined-analysis-e2e";
 test.version = "1.0";
@@ -72,6 +73,7 @@ try {
   await page.getByText("图片区域热力图").waitFor();
   assert.equal(await page.locator("[data-analysis-chart]").count(), 1);
   assert.equal(await page.locator(".analysis-module").count(), 4);
+  assert.equal(await page.locator("[data-paired-t-test]").count(), 0, "未配置的问卷不得显示配对 t 检验");
   await page.locator(".image-angle-chart").waitFor();
   assert.match(await page.locator(".image-angle-statistics").textContent(), /平均数\s*15°/);
   assert.equal(await page.locator("[data-angle-bin]").evaluateAll((bars) => bars.reduce((sum, bar) => sum + Number(bar.dataset.count), 0)), 2);
@@ -114,7 +116,33 @@ try {
   await page.locator("[data-heatmap-overlay]").waitFor();
   assert.equal(await page.locator("[data-heatmap-overlay]").count(), 1);
   assert.deepEqual(pageErrors, [], "旧问卷单类型热力图页面发生运行错误");
-  console.log(JSON.stringify({ passed: true, modules: 4, legacy: true }));
+
+  await page.evaluate(async (template) => {
+    const db = await import("./js/db.js");
+    const { validateTemplate } = await import("./js/questionnaire-schema.js");
+    const valid = validateTemplate(template);
+    await db.putTemplate(valid);
+    const pairs = [[1, 2], [2, 3], [1, 3], [3, 5], [4, 4], [4, ""]];
+    for (const [index, [comfortA, comfortB]] of pairs.entries()) {
+      const timestamp = new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString();
+      await db.putRecord({
+        id: `pair-${index}`, templateKey: valid.key, answers: { comfortA, comfortB },
+        createdAt: timestamp, updatedAt: timestamp
+      });
+    }
+    await db.setSetting("currentTemplateKey", valid.key);
+  }, pairedExample);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator('[data-action="analysis"]').click();
+  await page.getByRole("heading", { name: "配对 t 检验" }).waitFor();
+  const comparison = page.locator("[data-paired-t-test]");
+  assert.match(await comparison.textContent(), /平均差（B−A）\s*1\.2 分/);
+  assert.match(await comparison.textContent(), /有效配对数\s*5/);
+  assert.match(await comparison.textContent(), /95% 置信区间/);
+  assert.match(await comparison.textContent(), /双侧 p 值/);
+  assert.match(await comparison.textContent(), /达到统计显著性.*排除 1 份/);
+  assert.deepEqual(pageErrors, [], "配对 t 检验页面发生运行错误");
+  console.log(JSON.stringify({ passed: true, modules: 4, legacy: true, pairedOptIn: true }));
   await context.close();
 } finally {
   await browser.close();

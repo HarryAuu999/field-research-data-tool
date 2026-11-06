@@ -18,8 +18,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.13";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.13";
+} from "./db.js?v=1.4.14";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.14";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -30,35 +30,34 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.13";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.13";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.13";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.13";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.13";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.13";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.13";
+} from "./questionnaire-editor.js?v=1.4.14";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.14";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.14";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.14";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.14";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.14";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.14";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
   fieldDistribution,
   categoricalFrequencies,
+  pairedTTest,
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.13";
+} from "./statistics.js?v=1.4.14";
 
-const APP_VERSION = "1.4.13";
+const APP_VERSION = "1.4.14";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
 const BACKUP_VERSION = 1;
-const ICON_ARROW_LEFT = "./assets/arrow-left.svg";
 const ICON_CHEVRON_RIGHT = "./assets/chevron-right.svg";
 const ICON_TRASH = "./assets/trash.svg";
 const ICON_COPY = "./assets/copy.svg";
-const ICON_PLUS = "./assets/plus.svg";
 const ANALYSIS_THEMES = {
-  blue: { base: "#0055d1", fill: "rgba(0, 85, 209, 0.22)" },
+  blue: { base: "#3674d9", fill: "rgba(54, 116, 217, 0.22)" },
   orange: { base: "#c66a2b", fill: "rgba(198, 106, 43, 0.22)" }
 };
 const app = document.querySelector("#app");
@@ -264,11 +263,15 @@ async function loadTemplateCounts() {
   state.templateCounts = Object.fromEntries(pairs);
 }
 
+function backArrowHtml() {
+  return '<svg width="24" height="24" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4.166L4.166 10L10 15.834M4.166 10H15.834" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+}
+
 function pageHeader(title, backAction = "home") {
   return `
     <header class="nav-top-bar">
       <button class="back-button" type="button" data-action="${escapeHtml(backAction)}" aria-label="返回">
-        <img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" />
+        ${backArrowHtml()}
       </button>
       <h1>${escapeHtml(title)}</h1>
       <span class="nav-side" aria-hidden="true"></span>
@@ -524,7 +527,7 @@ function renderTemplateOverview() {
           <div class="overview-meta"><span>${count}份记录</span>${isCurrent ? '<span class="current-chip">当前问卷</span>' : ""}${config ? '<span class="analysis-chip">支持简易分析</span>' : ""}</div>
         </div>
         <div class="overview-question-list">${questions}</div>
-        <button class="overview-add-question" type="button" data-action="open-question-type-picker" data-key="${escapeHtml(sourceTemplate.key)}" aria-label="增加问题"><img src="${ICON_PLUS}" alt="" width="22" height="22" /></button>
+        <button class="overview-add-question" type="button" data-action="open-question-type-picker" data-key="${escapeHtml(sourceTemplate.key)}" aria-label="增加问题"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         ${state.editorDirty ? '<button class="editor-discard-link" type="button" data-action="discard-template-editor">放弃本次修改</button>' : ""}
         <button class="overview-delete-link" type="button" data-action="delete-template" data-key="${escapeHtml(sourceTemplate.key)}">删除此问卷</button>
       </div>
@@ -1661,15 +1664,56 @@ function imageAngleAnalysisCards(config) {
   return items.map(({ item, field, result }) => imageAngleAnalysisHtml(field, result, maximum, item.label || field.label)).join("");
 }
 
+function pairedTTestCard(config) {
+  const fields = config.fields.map(({ id }) => state.currentTemplate.fields.find((field) => field.id === id));
+  const [a, b] = fields;
+  const [labelA, labelB] = config.fields.map((item, index) => escapeHtml(item.label || fields[index].label));
+  const result = pairedTTest(a, b, state.records);
+  const unit = a.type === "rating" ? " 分" : a.unit ? ` ${escapeHtml(a.unit)}` : "";
+  const format = (value) => {
+    if (!Number.isFinite(value)) return "—";
+    if (value !== 0 && Math.abs(value) < 0.01) return value.toPrecision(3);
+    return Number(value.toFixed(2)).toString();
+  };
+  const stat = (label, value) => `<div class="analysis-stat"><span>${label}</span><strong>${value}</strong></div>`;
+  let interpretation;
+  let inference = "";
+  if (result.status === "ok") {
+    const significant = result.p < 0.05;
+    const roundedP = Number(result.p.toPrecision(4));
+    const p = result.p < 0.0001 ? "< 0.0001" : significant && roundedP >= 0.05 ? "< 0.05" : `= ${roundedP}`;
+    inference = stat("95% 置信区间", `${result.interval.map(format).join(" ～ ")}${unit}`)
+      + stat("双侧 p 值", escapeHtml(p));
+    interpretation = significant ? "达到统计显著性（α = 0.05）" : "差异证据不足（α = 0.05）";
+  } else {
+    interpretation = {
+      insufficient: "有效配对少于 2 组，无法计算检验。",
+      constant: "配对差值没有可估计的变异，无法计算检验。",
+      unavailable: "当前数据无法稳定计算检验。"
+    }[result.status];
+  }
+  const difference = result.mean === null ? "—" : `${format(result.mean)}${unit}`;
+  return `<section class="analysis-chart-card" data-paired-t-test>
+    <h3>${labelB} − ${labelA}</h3>
+    <div class="analysis-primary-stats">${stat("平均差（B−A）", difference)}${stat("有效配对数", result.count)}${inference}</div>
+    <p class="analysis-help" style="margin-top: 10px">${interpretation}${result.excluded ? ` · 排除 ${result.excluded} 份不完整或无效记录` : ""}</p>
+  </section>`;
+}
+
 function renderCombinedAnalysis(configs) {
+  const help = configs.some((config) => config.type === "pairedTTest")
+    ? "结果基于当前有效样本。配对检验使用同一份记录内的两次作答。"
+    : "以下展示当前已采集样本的描述性结果，不代表研究结论。不同题目按照各自的有效样本数统计。";
   const contents = configs.map((config, index) => {
     const title = config.type === "imageRangeHeatmap" ? "图片区域热力图"
       : config.type === "categoricalFrequency" ? "评分与选项分布"
       : config.type === "angleDistribution" ? "角度分布"
+      : config.type === "pairedTTest" ? "配对 t 检验"
       : "数值统计与分布";
     const cards = config.type === "imageRangeHeatmap" ? imageRangeAnalysisCard(config)
       : config.type === "categoricalFrequency" ? categoricalAnalysisCards(config)
       : config.type === "angleDistribution" ? imageAngleAnalysisCards(config)
+      : config.type === "pairedTTest" ? pairedTTestCard(config)
       : distributionAnalysisCards(config, index);
     return `
       <section class="analysis-module" data-analysis-module-section="${index}">
@@ -1681,7 +1725,7 @@ function renderCombinedAnalysis(configs) {
     <section class="screen analysis-screen">
       ${pageHeader("简易分析")}
       <div class="page-content analysis-content">
-        <p class="analysis-help">以下展示当前已采集样本的描述性结果，不代表研究结论。不同题目按照各自的有效样本数统计。</p>
+        <p class="analysis-help">${help}</p>
         ${contents}
       </div>
     </section>`;
@@ -1704,7 +1748,7 @@ function renderAnalysis() {
     showToast("当前问卷没有配置简易分析");
     return;
   }
-  if (configs.length > 1 || ["categoricalFrequency", "angleDistribution"].includes(configs[0].type)) {
+  if (configs.length > 1 || ["categoricalFrequency", "angleDistribution", "pairedTTest"].includes(configs[0].type)) {
     renderCombinedAnalysis(configs);
     return;
   }
@@ -1980,7 +2024,7 @@ function renderForm() {
   app.innerHTML = `
     <section class="screen form-screen ${annotationItem ? "annotation-screen" : ""}">
       <header class="nav-top-bar form-top-bar">
-        <button class="back-button" type="button" data-action="leave-form" aria-label="${state.draft.mode === "edit" ? "返回记录详情" : "返回首页"}"><img src="${ICON_ARROW_LEFT}" alt="" width="20" height="20" /></button>
+        <button class="back-button" type="button" data-action="leave-form" aria-label="${state.draft.mode === "edit" ? "返回记录详情" : "返回首页"}">${backArrowHtml()}</button>
         <h1>${state.draft.mode === "edit" ? "修改记录" : "填写问卷"}</h1>
         <span class="form-counter">${pageIndex + 1}/${pages.length}</span>
       </header>

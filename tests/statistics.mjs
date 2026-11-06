@@ -5,6 +5,7 @@ import {
   descriptiveStatistics,
   fieldDistribution,
   modes,
+  pairedTTest,
   quantile,
   sampleStandardDeviation
 } from "../js/statistics.js";
@@ -14,6 +15,30 @@ function closeTo(actual, expected, message) {
 }
 
 const odd = descriptiveStatistics([1, 2, 3, 4, 5]);
+const ratingA = { id: "a", type: "rating", min: 0, max: 5 };
+const ratingB = { ...ratingA, id: "b", unknownOption: { id: "unknown" } };
+const pairs = [[0, 1], [2, 3], [1, 3], [3, 5], [4, 4], [4, ""], [4, "unknown"], [4, 6], [4, 4.5], [4, [4]]]
+  .map(([a, b]) => ({ answers: { a, b } }));
+const comparison = pairedTTest(ratingA, ratingB, pairs);
+assert.equal(comparison.status, "ok");
+assert.equal(comparison.count, 5);
+assert.equal(comparison.excluded, 5);
+closeTo(comparison.mean, 1.2, "配对均差");
+const se = Math.sqrt(0.7 / 5);
+const t = 1.2 / se;
+const s = t / Math.sqrt(t * t + 4);
+closeTo(comparison.t, t, "配对 t 值");
+closeTo(comparison.p, 1 - 1.5 * s + 0.5 * s ** 3, "自由度为 4 的双侧概率");
+closeTo(comparison.interval[0], 1.2 - 2.7764451051977987 * se, "95% 区间下界");
+closeTo(comparison.interval[1], 1.2 + 2.7764451051977987 * se, "95% 区间上界");
+const reversed = pairedTTest(ratingB, ratingA, pairs);
+closeTo(reversed.mean, -1.2, "交换 A、B 应反转均差");
+closeTo(reversed.p, comparison.p, "交换 A、B 不应改变双侧概率");
+assert.equal(pairedTTest(ratingA, ratingB, pairs.slice(0, 1)).status, "insufficient");
+assert.equal(pairedTTest(ratingA, ratingB, pairs.slice(0, 2)).status, "constant");
+const twoPairs = pairedTTest(ratingA, ratingB, pairs.slice(1, 3));
+closeTo(twoPairs.p, 1 - 2 * Math.atan(3) / Math.PI, "自由度为 1 的双侧概率");
+closeTo(pairedTTest(ratingA, ratingB, [{ answers: { a: 2, b: 3 } }, { answers: { a: 2, b: 1 } }]).p, 1, "均差为零的双侧概率");
 assert.equal(odd.mean, 3, "平均数计算错误");
 assert.equal(odd.median, 3, "奇数样本中位数计算错误");
 assert.equal(descriptiveStatistics([1, 2, 3, 4]).median, 2.5, "偶数样本中位数计算错误");

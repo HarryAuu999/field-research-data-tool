@@ -81,6 +81,101 @@ export function fieldDistribution(template, records, fieldId, aggregation = "par
     .sort((a, b) => a - b);
 }
 
+// Lanczos approximation for the positive arguments used by the t distribution.
+const LANCZOS = [676.5203681218851, -1259.1392167224028, 771.3234287776531,
+  -176.6150291621406, 12.5073432786869, -0.13857109526572012,
+  9.984369578019572e-6, 1.5056327351493116e-7];
+
+function logGamma(value) {
+  const z = value - 1;
+  const sum = LANCZOS.reduce((total, coefficient, i) => total + coefficient / (z + i + 1), 0.9999999999998099);
+  const t = z + 7.5;
+  return 0.9189385332046727 + (z + 0.5) * Math.log(t) - t + Math.log(sum);
+}
+
+// Modified Lentz evaluation of the incomplete beta continued fraction (DLMF 8.17.22).
+function betaFraction(a, b, x) {
+  const nonzero = (value) => Math.abs(value) < 1e-30 ? (value < 0 ? -1e-30 : 1e-30) : value;
+  let c = 1;
+  let d = 1 / nonzero(1 - (a + b) * x / (a + 1));
+  let fraction = d;
+  for (let m = 1; m <= 200; m += 1) {
+    const even = m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m));
+    const odd = -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1));
+    for (const term of [even, odd]) {
+      d = 1 / nonzero(1 + term * d);
+      c = nonzero(1 + term / c);
+      fraction *= d * c;
+    }
+    if (Math.abs(d * c - 1) < 1e-14) return fraction;
+  }
+  return NaN;
+}
+
+function tTwoSidedProbability(degreesOfFreedom) {
+  const a = degreesOfFreedom / 2;
+  const b = 0.5;
+  const logNormalizer = logGamma(a + b) - logGamma(a) - logGamma(b);
+  return (t) => {
+    const squareRatio = t ** 2 / degreesOfFreedom;
+    if (squareRatio === 0) return 1;
+    const x = 1 / (1 + squareRatio);
+    if (x === 0) return 0;
+    const complement = squareRatio * x;
+    const factor = Math.exp(logNormalizer - a * Math.log1p(squareRatio) + b * Math.log(complement));
+    const probability = x < (a + 1) / (a + b + 2)
+      ? factor * betaFraction(a, b, x) / a
+      : 1 - factor * betaFraction(b, a, complement) / b;
+    return Math.max(0, Math.min(1, probability));
+  };
+}
+
+function comparisonValue(field, answer) {
+  if (typeof answer !== "number" && typeof answer !== "string") return null;
+  if (field.type === "rating" && field.unknownOption && answer === field.unknownOption.id) return null;
+  const value = numericValue(answer);
+  if (field.type === "rating" && (!Number.isInteger(value) || value < field.min || value > field.max)) return null;
+  if (field.type === "number" && field.integer && !Number.isInteger(value)) return null;
+  return value;
+}
+
+export function pairedTTest(fieldA, fieldB, records) {
+  const differences = [];
+  let roundoff = 0;
+  for (const record of records) {
+    const a = comparisonValue(fieldA, record.answers?.[fieldA.id]);
+    const b = comparisonValue(fieldB, record.answers?.[fieldB.id]);
+    if (a === null || b === null) continue;
+    differences.push(b - a);
+    roundoff = Math.max(roundoff, Number.EPSILON * Math.max(a, b));
+  }
+  const count = differences.length;
+  const mean = count ? differences.reduce((sum, value) => sum + value, 0) / count : null;
+  const summary = { count, excluded: records.length - count, mean };
+  if (count < 2) return { ...summary, status: "insufficient" };
+  const sd = sampleStandardDeviation(differences);
+  if (!Number.isFinite(mean) || !Number.isFinite(sd)) return { ...summary, status: "unavailable" };
+  if (sd <= roundoff) return { ...summary, status: "constant" };
+  const standardError = sd / Math.sqrt(count);
+  const t = mean / standardError;
+  const df = count - 1;
+  const probability = tTwoSidedProbability(df);
+  const p = probability(t);
+  // Invert the two-sided tail at 0.05 for the 95% interval.
+  // The critical value is at most 12.707 for integer df >= 1.
+  let lower = 0;
+  let upper = 13;
+  for (let step = 0; step < 48; step += 1) {
+    const midpoint = (lower + upper) / 2;
+    if (probability(midpoint) > 0.05) lower = midpoint;
+    else upper = midpoint;
+  }
+  const margin = ((lower + upper) / 2) * standardError;
+  const interval = [mean - margin, mean + margin];
+  if (![p, ...interval].every(Number.isFinite)) return { ...summary, status: "unavailable" };
+  return { ...summary, status: "ok", t, df, p, interval };
+}
+
 export function displayPrecision(values) {
   const decimals = values.map((value) => {
     const text = String(value);

@@ -1,8 +1,8 @@
-import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.13";
-import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.13";
-import { angleDistribution, validateImageAngleField } from "./image-angle.js?v=1.4.13";
+import { SUPPORTED_FIELD_TYPES } from "./questionnaire-editor.js?v=1.4.14";
+import { DESCRIPTIVE_STATISTICS } from "./statistics.js?v=1.4.14";
+import { angleDistribution, validateImageAngleField } from "./image-angle.js?v=1.4.14";
 
-const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap", "categoricalFrequency", "angleDistribution"]);
+const ANALYSIS_TYPES = new Set(["distribution", "descriptiveDistribution", "imageRangeHeatmap", "categoricalFrequency", "angleDistribution", "pairedTTest"]);
 const ANALYSIS_THEMES = new Set(["blue", "orange"]);
 
 function deepClone(value) {
@@ -25,6 +25,22 @@ export function normalizeTemplateImport(input) {
 function validateAnalysisConfig(config, fields) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("简易分析配置必须是一个对象");
   if (!ANALYSIS_TYPES.has(config.type)) throw new Error("不支持的简易分析类型");
+  if (config.type === "pairedTTest") {
+    if (Object.keys(config).some((key) => !["type", "fields"].includes(key))) throw new Error("配对 t 检验只接受 type 和 fields");
+    if (!Array.isArray(config.fields) || config.fields.length !== 2) throw new Error("配对 t 检验需要按 A、B 顺序配置两道题");
+    const pair = config.fields.map((item) => {
+      const field = fields.find((candidate) => candidate.id === item?.id);
+      if (!field || !["number", "rating"].includes(field.type)) throw new Error("配对 t 检验只支持数字题或评分题");
+      if (Object.keys(item).some((key) => !["id", "label"].includes(key))) throw new Error("配对 t 检验的题目配置只接受 id 和 label");
+      if (item.label !== undefined && (typeof item.label !== "string" || !item.label.trim())) throw new Error("配对 t 检验的题目标题无效");
+      return field;
+    });
+    const [a, b] = pair;
+    if (a.id === b.id || a.type !== b.type) throw new Error("配对 t 检验需要两道不同的同类型题目");
+    if (a.type === "rating" && (a.min !== b.min || a.max !== b.max)) throw new Error("配对 t 检验的两道评分题必须使用相同量表范围");
+    if (a.type === "number" && String(a.unit ?? "").trim() !== String(b.unit ?? "").trim()) throw new Error("配对 t 检验的两道数字题必须使用相同单位");
+    return;
+  }
   if (config.type === "angleDistribution") {
     if (!Number.isFinite(config.binWidth) || config.binWidth <= 0) throw new Error("角度分布需要正数 binWidth");
     if (!Array.isArray(config.fields) || !config.fields.length) throw new Error("角度分布至少需要一道图片角度题");

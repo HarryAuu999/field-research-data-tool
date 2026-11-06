@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "paired-comfort-example",
+  "version": "1.0",
+  "title": "A/B 舒适度配对比较示例",
+  "description": "每份记录对应一位参与者。体验两款产品后，分别用同一量表评价舒适度。",
+  "fields": [
+    { "id": "comfortA", "type": "rating", "label": "A 款舒适度", "min": 1, "max": 5, "required": true },
+    { "id": "comfortB", "type": "rating", "label": "B 款舒适度", "min": 1, "max": 5, "required": true }
+  ],
+  "analyses": [
+    { "type": "pairedTTest", "fields": [{ "id": "comfortA" }, { "id": "comfortB" }] }
+  ]
+}

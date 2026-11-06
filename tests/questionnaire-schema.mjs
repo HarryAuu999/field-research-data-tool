@@ -18,6 +18,14 @@ function expectInvalid(change, messagePattern) {
 }
 
 const validated = validateTemplate(baseTemplate, { importedAt: fixedTime });
+const pairedExample = JSON.parse(fs.readFileSync(new URL("../examples/paired-t-test.json", import.meta.url), "utf8"));
+assert.equal(validateTemplate(pairedExample).analyses[0].type, "pairedTTest");
+const mismatchedPair = structuredClone(pairedExample);
+mismatchedPair.fields[1].max = 7;
+assert.throws(() => validateTemplate(mismatchedPair), /相同量表/);
+const duplicatePair = structuredClone(pairedExample);
+duplicatePair.analyses[0].fields[1].id = "comfortA";
+assert.throws(() => validateTemplate(duplicatePair), /两道不同/);
 assert.equal(validated.key, "test-questionnaire@1.0");
 assert.equal(validated.importedAt, fixedTime);
 assert.notEqual(validated, baseTemplate, "校验结果应为副本，避免修改导入来源");

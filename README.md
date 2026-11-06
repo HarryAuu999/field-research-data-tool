@@ -8,8 +8,6 @@ AuNote 是一款面向用户研究的轻量级 PWA 工具。你可以用自然�
 
 **[开始使用 AuNote ↗](https://harryauu999.github.io/field-research-data-tool/)** · [AI 问卷协作指南](docs/questionnaire-ai-guide.md) · [图片标注研究指南](docs/image-annotation-ai-guide.md)
 
-> **功能展示图即将补充。** 目前可以先在应用中体验内置的耳挂式耳机接触与疼痛区域示例问卷。
-
 ## 从想法到分析
 
 ![AuNote 工作流程：AI 协作设计研究 → 现场数据采集 → 研究过程可视化 → 导出与深入分析](assets/aunote-workflow.svg)
@@ -34,7 +32,11 @@ AuNote 支持导入、编辑与复用问卷。**AI 负责协作设计与生成�
 
 AuNote 可以把不同参与者在相同底图上的标注叠加为**人数热力图**，展示哪些区域被更多人标记，而不是把同一个人重复画的笔数算作多个人。
 
-没有合适的底图？可以提供已有图片，也可以与外部 AI 协作设计、生成适合标注的底图。可参考[AI 图片标注研究指南](docs/image-annotation-ai-guide.md)和项目内置的[耳挂式耳机示例](examples/ear-image-range-test.json)。
+没有合适的底图？可以提供已有图片，也可以与外部 AI 协作设计、生成适合标注的底图。可参考[AI 图片标注研究指南](docs/image-annotation-ai-guide.md)和项目内置的[产品与耳部接触与疼痛范围研究示例](examples/ear-image-range-test.json)。
+
+**简易分析图示：耳部接触范围热力图。** 使用通用耳侧底图和 24 份程序生成的模拟标注。数据并非真实研究结果，仅供参考。
+
+<img src="docs/images/demo-contact-heatmap.png" width="480" alt="模拟数据示例：耳部接触范围热力图，连续色标为 0 至 24 人，最高重合 23 人">
 
 ### 研究过程中随时查看分析
 
@@ -45,6 +47,10 @@ Excel 导出保留结构化原始标注数据；可用[离线热力图分析工�
 ### 图片角度采集与分布
 
 在固定底图上调整方向线，记录佩戴倾角或产品方向；用极坐标直方图和描述性统计观察多人角度分布。可与数值统计、选项频数和图片热力图在同一份问卷中并存。AI遇到适合的研究需求应主动建议，先确认底图、圆心与角度定义；见[图片角度配置与分析指南](docs/image-angle-preview.md)。[单题测试问卷](examples/ear-image-angle-test.json)仅供手动导入，不随更新自动加入问卷库。
+
+**简易分析图示：C 桥佩戴角度分布。** 使用通用耳侧底图和 14 个为展示编制的模拟角度值。数据并非真实研究结果，仅供参考。
+
+<img src="docs/images/demo-angle-analysis.png" width="480" alt="模拟数据示例：C 桥佩戴角度极坐标直方图，附样本数、平均数、中位数与标准差">
 
 ### 本地优先，数据由你掌控
 
@@ -69,7 +75,7 @@ AuNote 不要求账户，也不依赖后端业务服务器保存问卷数据。�
 | 生成冷静、清晰、适合标注的灰度底图 | [底图设计规范与生成 Prompt](prompts/annotation-base-image.md) |
 | 了解题型、JSON 字段和当前限制 | [问卷格式说明](docs/questionnaire-template.md) |
 | 采集角度、查看角度分布或从Excel复现 | [图片角度指南](docs/image-angle-preview.md) · [单题JSON](examples/ear-image-angle-test.json) |
-| 参考完整的耳挂式耳机接触/疼痛标注研究 | [示例问卷](examples/ear-image-range-test.json) |
+| 参考产品与耳部接触与疼痛范围研究 | [示例问卷](examples/ear-image-range-test.json) |
 | 使用导出 Excel 重现或进一步处理人数热力图 | [离线热力图分析指南](docs/image-range-heatmap-analysis.md) |
 | 在本机开发、测试或继续维护项目 | [开发交接说明](docs/HANDOFF.md) · [协作规则](AGENTS.md) |
 

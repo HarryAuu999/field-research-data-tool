@@ -185,16 +185,6 @@ export const PREVIOUS_DEFAULT_TEMPLATE = {
   })
 };
 
-// New installations get the shorter built-in example. Existing 1.1 templates
-// retain their original questions and records in IndexedDB.
-export const DEFAULT_TEMPLATE = {
-  ...PREVIOUS_DEFAULT_TEMPLATE,
-  version: "1.2",
-  fields: PREVIOUS_DEFAULT_TEMPLATE.fields.filter((field) => !["sensitivity", "painLocations"].includes(field.id))
-};
-
-export const BUILT_IN_TEMPLATES = [DEFAULT_TEMPLATE];
-
 // Built-in analysis presets live in the app instead of the stored questionnaire.
 // This lets existing V1.1 questionnaires and records gain read-only analysis
 // without rewriting their saved template or answer data.
@@ -212,6 +202,29 @@ export const ANALYSIS_PRESETS = {
   "ear-anthropometry-survey@1.1": THICKNESS_DISTRIBUTION,
   "ear-anthropometry-survey@1.2": THICKNESS_DISTRIBUTION
 };
+
+export const DEFAULT_TEMPLATE = {
+  ...PREVIOUS_DEFAULT_TEMPLATE,
+  version: "1.3",
+  description: "由研究人员完成的左耳最小接触厚度、佩戴角度与主观体验记录。",
+  fields: PREVIOUS_DEFAULT_TEMPLATE.fields
+    .filter((field) => !["sensitivity", "painLocations"].includes(field.id))
+    .map((field) => field.id === "wearHabit" ? {
+      id: "wearAngle",
+      type: "imageAngle",
+      label: "耳夹C桥佩戴角度",
+      description: "调整方向线，使其与耳夹C桥方向一致。水平向左为0°，向耳垂为90°。",
+      required: false,
+      image: { src: "./assets/ear-side.png", alt: "左耳侧面示意图", width: 1149, height: 1368 },
+      angle: { center: [0.54, 0.528], zeroDegrees: 180, rotation: "counterclockwise", min: -20, max: 90, step: 1, radius: 0.32 }
+    } : field),
+  analyses: [
+    THICKNESS_DISTRIBUTION,
+    { type: "angleDistribution", binWidth: 10, fields: [{ id: "wearAngle", label: "C桥佩戴角度分布" }] }
+  ]
+};
+
+export const BUILT_IN_TEMPLATES = [DEFAULT_TEMPLATE];
 
 export function templateKey(template) {
   return `${template.id}@${template.version}`;

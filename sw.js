@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.13";
-const UPDATE_SUMMARY = "更新已确认的重点色、页面底色与B1应用图标，保留数据安全和导出修复。";
+const APP_VERSION = "1.4.14";
+const UPDATE_SUMMARY = "更新重点色与返回箭头，新增配对 t 检验与新版内置耳厚问卷。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.13",
-  "./manifest.webmanifest?v=1.4.13",
+  "./styles.css?v=1.4.14",
+  "./manifest.webmanifest?v=1.4.14",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,17 +21,17 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.13",
-  "./js/db.js?v=1.4.13",
-  "./js/default-template.js?v=1.4.13",
-  "./js/questionnaire-editor.js?v=1.4.13",
-  "./js/questionnaire-schema.js?v=1.4.13",
-  "./js/question-reorder.js?v=1.4.13",
-  "./js/statistics.js?v=1.4.13",
-  "./js/image-range.js?v=1.4.13",
-  "./js/image-range-heatmap.js?v=1.4.13",
-  "./js/image-angle.js?v=1.4.13",
-  "./js/xlsx-export.js?v=1.4.13"
+  "./js/app.js?v=1.4.14",
+  "./js/db.js?v=1.4.14",
+  "./js/default-template.js?v=1.4.14",
+  "./js/questionnaire-editor.js?v=1.4.14",
+  "./js/questionnaire-schema.js?v=1.4.14",
+  "./js/question-reorder.js?v=1.4.14",
+  "./js/statistics.js?v=1.4.14",
+  "./js/image-range.js?v=1.4.14",
+  "./js/image-range-heatmap.js?v=1.4.14",
+  "./js/image-angle.js?v=1.4.14",
+  "./js/xlsx-export.js?v=1.4.14"
 ];
 
 self.addEventListener("install", (event) => {

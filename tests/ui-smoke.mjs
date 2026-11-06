@@ -32,8 +32,10 @@ try {
   const subpageHeader = await page.locator(".nav-top-bar").evaluate((element) => element.getBoundingClientRect().toJSON());
   assert.ok(Math.abs(homeHeader.width - subpageHeader.width) <= 1, "返回页顶部栏与主页顶部栏宽度不一致");
   assert.ok(Math.abs(homeHeader.height - subpageHeader.height) <= 1, "返回页顶部栏与主页顶部栏高度不一致");
-  const backIcon = await page.locator(".back-button img").evaluate((element) => element.getBoundingClientRect().toJSON());
+  const backIcon = await page.locator(".back-button svg").evaluate((element) => element.getBoundingClientRect().toJSON());
   assert.ok(backIcon.width >= 24 && backIcon.height >= 24, "返回图标没有放大到24px");
+  const expectedIconColor = `rgb(${accentColor.slice(1).match(/.{2}/g).map((hex) => parseInt(hex, 16)).join(', ')})`;
+  assert.equal(await page.locator(".back-button svg path").evaluate((el) => getComputedStyle(el).stroke), expectedIconColor, "返回图标应继承当前重点色");
 
   await page.locator('[data-action="home"]').click();
   await page.evaluate(async () => {
@@ -47,7 +49,7 @@ try {
       transaction.objectStore("records").put({
         id: "ui-smoke-record",
         recordNumber: "R-UI-SMOKE",
-        templateKey: "ear-anthropometry-survey@1.2",
+        templateKey: "ear-anthropometry-survey@1.3",
         answers: { name: { value: "界面测试样本", anonymous: false }, gender: { value: "male", otherText: "" }, age: "21" },
         createdAt: "2026-09-14T00:00:00.000Z",
         updatedAt: "2026-09-14T00:00:00.000Z"
@@ -55,7 +57,7 @@ try {
       transaction.objectStore("records").put({
         id: "ui-smoke-record-two",
         recordNumber: "R-UI-SMOKE-2",
-        templateKey: "ear-anthropometry-survey@1.2",
+        templateKey: "ear-anthropometry-survey@1.3",
         answers: { name: { value: "第二份测试样本", anonymous: false }, gender: { value: "female", otherText: "" }, age: "24" },
         createdAt: "2026-09-15T00:00:00.000Z",
         updatedAt: "2026-09-15T00:00:00.000Z"

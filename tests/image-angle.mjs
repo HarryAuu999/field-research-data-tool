@@ -8,7 +8,9 @@ import { DEFAULT_TEMPLATE } from "../js/default-template.js";
 const template = JSON.parse(fs.readFileSync(new URL("../examples/ear-image-angle-test.json", import.meta.url), "utf8"));
 const field = template.fields[0];
 assert.equal(validateTemplate(template).key, "ear-clip-angle-preview@1.0");
-assert.equal(DEFAULT_TEMPLATE.fields.find((f) => f.id === "wearHabit").type, "singleChoice", "出厂问卷尚未批准替换");
+const defaultTemplate = validateTemplate(DEFAULT_TEMPLATE);
+assert.equal(defaultTemplate.fields.find((f) => f.id === "wearAngle").type, "imageAngle");
+assert.ok(defaultTemplate.analyses.some((analysis) => analysis.type === "angleDistribution" && analysis.fields[0].id === "wearAngle"));
 assert.equal(EDITABLE_FIELD_TYPES.some((item) => item.value === "imageAngle"), false, "专用配置由JSON定义");
 assert.deepEqual(duplicateTemplate(template).fields[0].angle, field.angle);
 

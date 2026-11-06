@@ -127,6 +127,7 @@ await migrationPage.getByText("耳部人体数据采集", { exact: true }).waitF
 await migrationPage.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
 await migrationPage.locator('[data-action="templates"]').click();
 await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').waitFor();
+assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.3"]').count() === 0, "升级不得自动添加新耳厚问卷");
 await migrationPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.0"]').waitFor();
 await migrationPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.1"]').waitFor();
 assert(await migrationPage.locator('[data-template-row="ear-anthropometry-survey@1.1"]').getByText("1份记录", { exact: false }).isVisible(), "升级后V1.1记录没有保留");
@@ -241,10 +242,11 @@ await analysisPage.evaluate(async () => {
     request.onerror = () => reject(request.error);
   });
   const template = await new Promise((resolve, reject) => {
-    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.2");
+    const request = db.transaction("templates").objectStore("templates").get("ear-anthropometry-survey@1.3");
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+  delete template.analyses;
   template.analysis = {
     type: "descriptiveDistribution",
     aggregation: "participantMean",
@@ -261,7 +263,7 @@ await analysisPage.evaluate(async () => {
     horizontal.forEach((value, index) => transaction.objectStore("records").put({
       id: `analysis-${index}`,
       recordNumber: `A-${index + 1}`,
-      templateKey: "ear-anthropometry-survey@1.2",
+      templateKey: "ear-anthropometry-survey@1.3",
       answers: {
         horizontalThickness: [String(value - 0.02), String(value), String(value + 0.02)],
         tiltedThickness: [String(tilted[index] - 0.02), String(tilted[index]), String(tilted[index] + 0.02)]
@@ -314,7 +316,7 @@ await analysisContext.close();
 
   await page.goto(process.env.AUNOTE_TEST_URL || "http://127.0.0.1:4173/", { waitUntil: "networkidle" });
 await page.getByText("佩戴耳厚数据采集", { exact: true }).waitFor();
-await page.getByText("由研究人员完成的左耳最小接触厚度、佩戴习惯与主观体验记录。", { exact: true }).waitFor();
+await page.getByText("由研究人员完成的左耳最小接触厚度、佩戴角度与主观体验记录。", { exact: true }).waitFor();
 assert(await page.getByText("0 份", { exact: true }).isVisible(), "首页初始记录数不是0");
 assert(await page.getByRole("button", { name: "数据备份/恢复", exact: true }).isVisible(), "主页缺少数据备份/恢复入口");
 assert(await page.getByRole("button", { name: "检查更新", exact: true }).isVisible(), "主页缺少检查更新入口");
@@ -348,9 +350,11 @@ await page.setViewportSize({ width: 430, height: 932 });
 await assertNoHorizontalOverflow("430px重复测量页");
 await page.setViewportSize({ width: 390, height: 844 });
 await page.screenshot({ path: path.join(outputDir, "mobile-repeated-measurement.png"), fullPage: true });
-await nextTo("耳夹佩戴习惯");
+await nextTo("耳夹C桥佩戴角度");
 
-await choose('[data-action="select-single"][data-option="tilt45"]');
+await page.locator("[data-angle-slider]").focus();
+await page.keyboard.press("ArrowRight");
+assert(await page.locator("[data-angle-value]").textContent() === "1°", "新版内置问卷角度滑块没有采集角度");
 await nextTo("耳型大小评价");
 await choose('[data-action="select-single"][data-option="medium"]');
 await nextTo("开放式耳机偏好");
@@ -381,7 +385,8 @@ const beforeAnalysisDatabase = await page.evaluate(async () => {
 await clickAction("analysis");
 await page.getByRole("heading", { name: "简易分析", exact: true }).waitFor();
 assert(await page.locator("[data-analysis-chart]").count() === 2, "简易分析没有生成水平与倾斜两张分布图");
-assert(await page.getByText("样本数", { exact: true }).count() === 2, "旧distribution配置没有获得描述性统计摘要");
+assert(await page.getByText("样本数", { exact: true }).count() === 2, "耳厚分布缺少描述性统计摘要");
+assert(await page.locator(".image-angle-analysis [data-angle-bin][data-count='1']").count() === 1, "简易分析没有统计已保存角度");
 assert(await page.locator("svg[data-analysis-chart]").count() === 2, "已保存记录的简易分析没有使用SVG图表");
 const firstChart = page.locator('[data-analysis-chart="0"]');
 assert(await firstChart.evaluate((element) => getComputedStyle(element).touchAction) === "pan-y", "图表没有保留系统纵向滚动能力");
@@ -468,7 +473,7 @@ for (const title of [
   "年龄",
   "左耳水平佩戴位置厚度",
   "左耳倾斜佩戴位置厚度",
-  "耳夹佩戴习惯",
+  "耳夹C桥佩戴角度",
   "耳型大小评价",
   "开放式耳机偏好",
   "偏好原因"
@@ -533,7 +538,7 @@ const importedTemplate = page.locator('[data-template-row="fixture-template@1.0"
 assert(await importedTemplate.getByText("模板导入测试", { exact: false }).isVisible(), "导入模板名称不正确");
 assert(await importedTemplate.getByText("0份记录", { exact: false }).isVisible(), "导入模板记录数不正确");
 
-await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.2"]').click();
+await page.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.3"]').click();
 await page.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 assert(await page.getByText("支持简易分析", { exact: true }).isVisible(), "问卷概览没有显示简易分析能力");
 assert(await page.getByRole("button", { name: "选择此问卷", exact: true }).isVisible(), "问卷概览底部缺少选择此问卷按钮");
@@ -554,7 +559,7 @@ const backupPath = path.join(outputDir, "complete-backup.json");
 await backupDownload.saveAs(backupPath);
 const backup = JSON.parse(await fs.readFile(backupPath, "utf8"));
 assert(backup.format === "research-notebook-backup", "完整备份格式标识不正确");
-assert(["ear-anthropometry-survey@1.2", "fixture-template@1.0", "ear-hook-annotation-acceptance@1.1"].every((key) => backup.data.templates.some((template) => template.key === key)), "完整备份没有包含内置问卷、导入问卷和新版图片标注示例");
+assert(["ear-anthropometry-survey@1.3", "fixture-template@1.0", "ear-hook-annotation-acceptance@1.1"].every((key) => backup.data.templates.some((template) => template.key === key)), "完整备份没有包含内置问卷、导入问卷和新版图片标注示例");
 assert(backup.data.records.length === 1, "完整备份没有包含已保存记录");
 
 await clickAction("home");

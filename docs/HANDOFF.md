@@ -1,6 +1,10 @@
 # AuNote 交接说明
 
-更新日期：2026-10-30。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-11-06。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.14 配色、内置耳厚问卷与配对检验
+
+重点色改为 `#3674D9`，返回箭头跟随重点色。全新安装的「佩戴耳厚数据采集」V1.3 用图片角度题记录 C 桥佩戴角度，简易分析同时显示耳厚统计与极坐标角度分布。已有安装继续读取原问卷版本、记录和草稿。双侧配对 t 检验仅在问卷明确配置 `pairedTTest` 后显示，示例见 [A/B 舒适度问卷](../examples/paired-t-test.json)。README 的角度分布与热力图均使用模拟数据。实际部署状态以 GitHub Pages 为准。
 
 ## V1.4.13 配色与B1图标
 

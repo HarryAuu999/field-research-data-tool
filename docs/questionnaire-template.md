@@ -132,7 +132,7 @@ AI转换问卷时必须同时检查题目内容和布局、交互、校验、分
 | 描述性统计和数字分布 | 支持 | `number`和`repeatedNumber`可用`analysis`或新版`analyses`配置 |
 | 评分/选择题频数 | 支持 | `rating`、`singleChoice`、`multiChoice`可配置`categoricalFrequency`，显示每个选项人数与比例 |
 | 同问卷混合分析 | 支持 | 使用`analyses`数组组合数字、类别和图片分析；旧`analysis`仍兼容 |
-| A/B字段并列分析 | 部分支持 | 可分别显示描述统计和分布图；没有自动配对检验或项目专用比较结论 |
+| A/B 差异比较 | 支持配对设计 | 问卷明确配置 `pairedTTest` 时，比较同一份样本记录中的 A、B 评分或数值 |
 
 遇到部分支持或不支持的要求时，应在生成JSON之前向用户说明降级方式。不得用未定义的`warnings`、`unsupportedRequirements`、`conversionNotes`、`group`、`samePage`或`displayTogether`等字段保存提醒。
 
@@ -290,6 +290,21 @@ Excel只导出一个XLSX文件。`Responses`保持原有记录编号、时间和
 Excel的Responses保留每份样本的数值角度，表头注明度；AngleFields另存每题底图与几何参数，Annotations仍保存范围标注。普通数字题依然只接收非负数；角度题可按明确配置接收负值。
 
 ## 可选的简易分析
+
+### 双侧配对 t 检验
+
+仅在问卷明确配置 `pairedTTest` 时显示。适用于同一位参与者分别回答 A、B，并将两道题存入同一份记录。每组比较使用一个分析对象，可与其他模块并列。
+
+```json
+{
+  "type": "pairedTTest",
+  "fields": [{ "id": "comfortA" }, { "id": "comfortB" }]
+}
+```
+
+按 A、B 顺序配置两道不同的 `rating` 或两道不同的 `number` 题。评分须使用相同量表，数字须使用相同单位。可在每项中填写 `label` 来覆盖显示名称。计算 B−A 的平均差、95% 置信区间、有效配对数和双侧 p 值，按 `p < 0.05` 显示统计显著性。任一题缺答或无法判断则排除该对，0 是有效数值。配对不足 2 组或差值无可估计变异时无法计算检验。统计显著性不能单独说明实际效果或因果关系。独立样本、单样本和多重比较校正目前不支持。参见 [A/B 舒适度示例](../examples/paired-t-test.json)。
+
+### 分析配置与组合
 
 新版问卷建议使用 **`analyses` 数组**，把一个或多个分析模块并列配置；历史问卷继续使用的单对象 `analysis` 完全兼容。两者互斥，不能同时写在同一份问卷中。
 

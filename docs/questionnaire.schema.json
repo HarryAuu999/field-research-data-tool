@@ -405,6 +405,23 @@
             }
           },
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type", "fields"],
+          "properties": {
+            "type": { "const": "pairedTTest" },
+            "fields": {
+              "type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true,
+              "description": "按 A、B 顺序引用两道同类型、同量表或同单位的评分题或数字题，计算 B−A。",
+              "items": {
+                "type": "object", "required": ["id"],
+                "properties": { "id": { "$ref": "#/$defs/nonEmptyString" }, "label": { "$ref": "#/$defs/nonEmptyString" } },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       ]
     }
