@@ -1,11 +1,11 @@
-const APP_VERSION = "1.4.14";
-const UPDATE_SUMMARY = "更新重点色与返回箭头，新增配对 t 检验与新版内置耳厚问卷。";
+const APP_VERSION = "1.4.15";
+const UPDATE_SUMMARY = "默认耳厚问卷补充大、中、小耳的耳长分界。";
 const CACHE_NAME = `research-notebook-${APP_VERSION}`;
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=1.4.14",
-  "./manifest.webmanifest?v=1.4.14",
+  "./styles.css?v=1.4.15",
+  "./manifest.webmanifest?v=1.4.15",
   "./assets/App-icon2.svg",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -21,17 +21,17 @@ const APP_ASSETS = [
   "./assets/trash.svg",
   "./assets/copy.svg",
   "./assets/plus.svg",
-  "./js/app.js?v=1.4.14",
-  "./js/db.js?v=1.4.14",
-  "./js/default-template.js?v=1.4.14",
-  "./js/questionnaire-editor.js?v=1.4.14",
-  "./js/questionnaire-schema.js?v=1.4.14",
-  "./js/question-reorder.js?v=1.4.14",
-  "./js/statistics.js?v=1.4.14",
-  "./js/image-range.js?v=1.4.14",
-  "./js/image-range-heatmap.js?v=1.4.14",
-  "./js/image-angle.js?v=1.4.14",
-  "./js/xlsx-export.js?v=1.4.14"
+  "./js/app.js?v=1.4.15",
+  "./js/db.js?v=1.4.15",
+  "./js/default-template.js?v=1.4.15",
+  "./js/questionnaire-editor.js?v=1.4.15",
+  "./js/questionnaire-schema.js?v=1.4.15",
+  "./js/question-reorder.js?v=1.4.15",
+  "./js/statistics.js?v=1.4.15",
+  "./js/image-range.js?v=1.4.15",
+  "./js/image-range-heatmap.js?v=1.4.15",
+  "./js/image-angle.js?v=1.4.15",
+  "./js/xlsx-export.js?v=1.4.15"
 ];
 
 self.addEventListener("install", (event) => {

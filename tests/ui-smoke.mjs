@@ -49,7 +49,7 @@ try {
       transaction.objectStore("records").put({
         id: "ui-smoke-record",
         recordNumber: "R-UI-SMOKE",
-        templateKey: "ear-anthropometry-survey@1.3",
+        templateKey: "ear-anthropometry-survey@1.4",
         answers: { name: { value: "界面测试样本", anonymous: false }, gender: { value: "male", otherText: "" }, age: "21" },
         createdAt: "2026-09-14T00:00:00.000Z",
         updatedAt: "2026-09-14T00:00:00.000Z"
@@ -57,7 +57,7 @@ try {
       transaction.objectStore("records").put({
         id: "ui-smoke-record-two",
         recordNumber: "R-UI-SMOKE-2",
-        templateKey: "ear-anthropometry-survey@1.3",
+        templateKey: "ear-anthropometry-survey@1.4",
         answers: { name: { value: "第二份测试样本", anonymous: false }, gender: { value: "female", otherText: "" }, age: "24" },
         createdAt: "2026-09-15T00:00:00.000Z",
         updatedAt: "2026-09-15T00:00:00.000Z"

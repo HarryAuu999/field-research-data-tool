@@ -102,10 +102,10 @@ await noRecordPage.evaluate(() => {
 });
 await noRecordPage.getByRole("button", { name: "佩戴耳厚数据采集", exact: false }).first().click();
 await noRecordPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
-assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.3"] .swipe-action').count() === 2, "问卷左滑区域应只有复制和删除两个操作");
+assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.4"] .swipe-action').count() === 2, "问卷左滑区域应只有复制和删除两个操作");
 assert(await noRecordPage.locator('[data-template-row="ear-hook-annotation-acceptance@1.1"]').count() === 1, "新安装缺少V1.1图片标注演示问卷");
 assert(await noRecordPage.locator('[data-template-row="ear-anthropometry-survey@1.0"]').count() === 0, "新安装不应再内置旧耳厚V1.0问卷");
-await openHiddenAction(noRecordPage, "duplicate-template", "ear-anthropometry-survey@1.3");
+await openHiddenAction(noRecordPage, "duplicate-template", "ear-anthropometry-survey@1.4");
 const initialCopyData = await databaseSnapshot(noRecordPage);
 const emptySource = initialCopyData.templates.find((item) => item.title === "佩戴耳厚数据采集（副本）");
 assert(emptySource, "没有生成用于无记录编辑测试的问卷副本");
@@ -232,7 +232,7 @@ await recordedPage.evaluate(async () => {
     transaction.objectStore("records").put({
       id: "existing-record",
       recordNumber: "R-EXISTING",
-      templateKey: "ear-anthropometry-survey@1.3",
+      templateKey: "ear-anthropometry-survey@1.4",
       answers: { preferenceReason: "旧版本答案" },
       createdAt: "2026-09-01T00:00:00.000Z",
       updatedAt: "2026-09-01T00:00:00.000Z"
@@ -244,7 +244,7 @@ await recordedPage.evaluate(async () => {
 });
 await recordedPage.reload({ waitUntil: "networkidle" });
 await recordedPage.locator('[data-action="templates"]').first().click();
-await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.3"]').click();
+await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.4"]').click();
 await recordedPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 const reasonCard = recordedPage.locator('[data-editor-field-id="preferenceReason"]');
 const reasonContent = reasonCard.locator(".swipe-content");
@@ -271,8 +271,8 @@ await recordedPage.getByRole("button", { name: "保存问卷", exact: true }).cl
 await recordedPage.locator("#toast", { hasText: "问卷已保存为" }).waitFor();
 await recordedPage.getByRole("heading", { name: "问卷概览", exact: true }).waitFor();
 const recordedData = await databaseSnapshot(recordedPage);
-const oldVersion = recordedData.templates.find((item) => item.key === "ear-anthropometry-survey@1.3");
-const newVersion = recordedData.templates.find((item) => item.key === "ear-anthropometry-survey@1.4");
+const oldVersion = recordedData.templates.find((item) => item.key === "ear-anthropometry-survey@1.4");
+const newVersion = recordedData.templates.find((item) => item.key === "ear-anthropometry-survey@1.5");
 assert(oldVersion?.fields.some((field) => field.id === "preferenceReason"), "有记录问卷的旧版本问题被修改");
 assert(!newVersion?.fields.some((field) => field.id === "preferenceReason"), "新版本没有删除指定问题");
 assert(recordedData.records.some((item) => item.id === "existing-record" && item.templateKey === oldVersion.key && item.answers.preferenceReason === "旧版本答案"), "旧记录或旧答案被迁移或修改");
@@ -281,7 +281,7 @@ assert(!recordedData.records.some((item) => item.templateKey === newVersion.key)
 await recordedPage.locator('[data-action="leave-template-overview"]').click();
 await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 await recordedPage.waitForTimeout(100);
-await openHiddenAction(recordedPage, "duplicate-template", "ear-anthropometry-survey@1.4");
+await openHiddenAction(recordedPage, "duplicate-template", "ear-anthropometry-survey@1.5");
 await recordedPage.getByRole("heading", { name: "问卷管理", exact: true }).waitFor();
 const copyRow = recordedPage.locator('[data-action="open-template"]').filter({ hasText: "副本" }).first();
 await copyRow.waitFor();
@@ -312,7 +312,7 @@ const multilineBackground = recordedPage.locator(".hero-description");
 assert(await multilineBackground.innerText() === "第一行背景\n第二行背景", "首页没有保留问卷背景换行");
 assert(await multilineBackground.evaluate((element) => getComputedStyle(element).whiteSpace) === "pre-line", "首页问卷背景没有启用换行显示");
 await recordedPage.locator('[data-action="templates"]').first().click();
-await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.3"]').click();
+await recordedPage.locator('[data-action="open-template"][data-key="ear-anthropometry-survey@1.4"]').click();
 await recordedPage.getByRole("button", { name: "选择此问卷", exact: true }).click();
 await recordedPage.getByText("1 份", { exact: true }).waitFor();
 const oldCsvDownloadPromise = recordedPage.waitForEvent("download");

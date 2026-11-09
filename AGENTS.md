@@ -63,6 +63,6 @@ AuNote 是一个主要在 iPhone 上使用的本地离线 PWA，帮助研究人�
 ## 当前状态
 
 - 新设备或新 AI 接手前先读 `docs/HANDOFF.md`，并检查当前分支与 GitHub 远端差异；不要把已部署的独立 Beta 站点误认为 Beta 源码已上传 GitHub。
-- 本次发布版本：V1.4.14（重点色与箭头、出厂耳厚角度问卷、可选配对 t 检验）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
+- 本次发布版本：V1.4.15（默认耳厚问卷补充耳长分界）；实时发布状态以GitHub部署及站点版本为准。独立测试 PWA 为 V1.4.2-beta.5，使用独立路径及数据库。
 - 正式版 GitHub Pages：`https://harryauu999.github.io/field-research-data-tool/`；Beta GitHub Pages：`https://harryauu999.github.io/aunote-beta/`。
 - 当前问卷、支持题型和分析配置以代码及 `docs/questionnaire-template.md` 为准。

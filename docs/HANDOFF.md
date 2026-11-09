@@ -1,6 +1,10 @@
 # AuNote 交接说明
 
-更新日期：2026-11-06。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-11-09。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.15 默认耳厚问卷补充说明
+
+全新安装使用「佩戴耳厚数据采集」V1.4。第 7 题按左耳耳长说明小耳 < 60 mm、中耳 60–67 mm（含两端）、大耳 > 67 mm。第 6 题继续使用图片角度模块。已保存的问卷版本按原样保留。
 
 ## V1.4.14 配色、内置耳厚问卷与配对检验
 

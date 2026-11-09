@@ -205,19 +205,26 @@ export const ANALYSIS_PRESETS = {
 
 export const DEFAULT_TEMPLATE = {
   ...PREVIOUS_DEFAULT_TEMPLATE,
-  version: "1.3",
+  version: "1.4",
   description: "由研究人员完成的左耳最小接触厚度、佩戴角度与主观体验记录。",
   fields: PREVIOUS_DEFAULT_TEMPLATE.fields
     .filter((field) => !["sensitivity", "painLocations"].includes(field.id))
-    .map((field) => field.id === "wearHabit" ? {
-      id: "wearAngle",
-      type: "imageAngle",
-      label: "耳夹C桥佩戴角度",
-      description: "调整方向线，使其与耳夹C桥方向一致。水平向左为0°，向耳垂为90°。",
-      required: false,
-      image: { src: "./assets/ear-side.png", alt: "左耳侧面示意图", width: 1149, height: 1368 },
-      angle: { center: [0.54, 0.528], zeroDegrees: 180, rotation: "counterclockwise", min: -20, max: 90, step: 1, radius: 0.32 }
-    } : field),
+    .map((field) => {
+      if (field.id === "earSize") return {
+        ...field,
+        description: "按左耳耳长判断：小＜60 mm，中为 60–67 mm（含两端），大＞67 mm。耳长是耳廓上端到耳垂下端的直线距离。"
+      };
+      if (field.id !== "wearHabit") return field;
+      return {
+        id: "wearAngle",
+        type: "imageAngle",
+        label: "耳夹C桥佩戴角度",
+        description: "调整方向线，使其与耳夹C桥方向一致。水平向左为0°，向耳垂为90°。",
+        required: false,
+        image: { src: "./assets/ear-side.png", alt: "左耳侧面示意图", width: 1149, height: 1368 },
+        angle: { center: [0.54, 0.528], zeroDegrees: 180, rotation: "counterclockwise", min: -20, max: 90, step: 1, radius: 0.32 }
+      };
+    }),
   analyses: [
     THICKNESS_DISTRIBUTION,
     { type: "angleDistribution", binWidth: 10, fields: [{ id: "wearAngle", label: "C桥佩戴角度分布" }] }

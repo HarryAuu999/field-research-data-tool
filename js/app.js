@@ -18,8 +18,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.14";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.14";
+} from "./db.js?v=1.4.15";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.15";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -30,13 +30,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.14";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.14";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.14";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.14";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.14";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.14";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.14";
+} from "./questionnaire-editor.js?v=1.4.15";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.15";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.15";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.15";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.15";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.15";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.15";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -46,9 +46,9 @@ import {
   formatStatistic,
   quantile,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.14";
+} from "./statistics.js?v=1.4.15";
 
-const APP_VERSION = "1.4.14";
+const APP_VERSION = "1.4.15";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
