@@ -1,6 +1,10 @@
 # AuNote 交接说明
 
-更新日期：2026-11-09。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+更新日期：2026-11-24。本文是开发交接入口；问卷字段细节以 docs/questionnaire-template.md 和 js/questionnaire-schema.js 为准，协作规则以根目录 AGENTS.md 为准。
+
+## V1.4.16 离线与数据修复
+
+正式版由当前 Service Worker 提供与其版本一致的离线入口。恢复完整备份前校验数据结构，恢复写入失败时回滚。配对 t 检验支持量表范围内的负评分，数值直方图修正小数边界，Excel 的测量值和评分支持直接参与计算。仍使用原 IndexedDB 与备份格式。
 
 ## V1.4.15 默认耳厚问卷补充说明
 

@@ -20,4 +20,12 @@ for (const moduleName of ["db", "default-template", "questionnaire-editor", "que
   assert.ok(workerSource.includes(`./js/${moduleName}.js?v=${appVersion}`), `${moduleName}.js 未按当前版本加入离线缓存`);
 }
 
+for (const file of (await fs.readdir("js")).filter((name) => name.endsWith(".js"))) {
+  const source = await fs.readFile(`js/${file}`, "utf8");
+  for (const [, specifier] of source.matchAll(/\b(?:from|import)\s+["'](\.\/[^"']+)["']/g)) {
+    assert.ok(specifier.endsWith(`?v=${appVersion}`), `${file} 的依赖 ${specifier} 缺少当前版本参数`);
+    assert.ok(workerSource.includes(`"./js/${specifier.slice(2)}"`), `${file} 的依赖 ${specifier} 缺少精确的离线缓存地址`);
+  }
+}
+
 console.log(JSON.stringify({ passed: true, version: appVersion }, null, 2));

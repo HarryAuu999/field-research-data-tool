@@ -86,6 +86,39 @@ try {
     });
   }
 
+  await check("invalid backup record is rejected before confirmation", async (page) => {
+    const before = await snapshot(page);
+    const records = [{ id: "synthetic-incomplete", templateKey: before.templates[0].key, answers: {} }];
+    const payload = { format: "research-notebook-backup", backupVersion: 1, data: { ...before, records } };
+    await page.locator('[data-action="backup"]').click();
+    const alert = page.waitForEvent("dialog");
+    await page.locator("#backup-file-input").setInputFiles({
+      name: "synthetic-incomplete.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(payload))
+    });
+    assert.match((await alert).message(), /缺少有效的创建时间/);
+    assert.equal(await page.getByRole("heading", { name: "恢复完整备份？" }).count(), 0);
+    assert.deepEqual(await snapshot(page), before);
+  });
+
+  await check("synchronous restore write failure rolls back every store", async (page) => {
+    const { before } = await prepareRestore(page, "success");
+    await page.getByRole("heading", { name: "确认安全备份已保存？" }).waitFor();
+    await page.evaluate(() => {
+      const original = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (...args) {
+        if (this.name === "settings") {
+          IDBObjectStore.prototype.put = original;
+          throw new Error("测试：恢复写入失败");
+        }
+        return original.apply(this, args);
+      };
+    });
+    const alert = page.waitForEvent("dialog");
+    await page.getByRole("button", { name: "已保存，继续恢复", exact: true }).click();
+    assert.match((await alert).message(), /恢复写入失败/);
+    assert.deepEqual(await snapshot(page), before);
+  });
+
   await check("failed record completion rolls back both writes; retry saves once", async (page) => {
     await page.evaluate(async () => {
       const db = await import("./js/db.js");

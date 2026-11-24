@@ -4,6 +4,7 @@ import {
   categoricalFrequencies,
   descriptiveStatistics,
   fieldDistribution,
+  histogramBins,
   modes,
   pairedTTest,
   quantile,
@@ -39,6 +40,21 @@ assert.equal(pairedTTest(ratingA, ratingB, pairs.slice(0, 2)).status, "constant"
 const twoPairs = pairedTTest(ratingA, ratingB, pairs.slice(1, 3));
 closeTo(twoPairs.p, 1 - 2 * Math.atan(3) / Math.PI, "自由度为 1 的双侧概率");
 closeTo(pairedTTest(ratingA, ratingB, [{ answers: { a: 2, b: 3 } }, { answers: { a: 2, b: 1 } }]).p, 1, "均差为零的双侧概率");
+const bipolarA = { ...ratingA, min: -2, max: 2 };
+const bipolarB = { ...ratingB, min: -2, max: 2 };
+const bipolar = pairedTTest(bipolarA, bipolarB, [
+  { answers: { a: -2, b: 0 } },
+  { answers: { a: "-1", b: 0 } },
+  { answers: { a: 1, b: 2 } },
+  { answers: { a: -3, b: 0 } },
+  { answers: { a: -1.5, b: 0 } },
+  { answers: { a: -1, b: "unknown" } }
+]);
+assert.equal(bipolar.count, 3);
+assert.equal(bipolar.excluded, 3);
+closeTo(bipolar.mean, 4 / 3, "负评分参与配对");
+assert.deepEqual(histogramBins([0, 0.3, 0.4], 0.1, false).bins.map((bin) => bin.count), [1, 0, 0, 2]);
+assert.deepEqual(histogramBins([1, 1.149999999999, 1.15, 1.3], 0.1, true).bins.map((bin) => bin.count), [1, 1, 1, 1]);
 assert.equal(odd.mean, 3, "平均数计算错误");
 assert.equal(odd.median, 3, "奇数样本中位数计算错误");
 assert.equal(descriptiveStatistics([1, 2, 3, 4]).median, 2.5, "偶数样本中位数计算错误");

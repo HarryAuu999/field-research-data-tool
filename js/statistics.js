@@ -12,12 +12,40 @@ export const DESCRIPTIVE_STATISTICS = [
   "q3"
 ];
 
-function numericValue(value) {
+export function numericValue(value) {
   if (typeof value === "number") return Number.isFinite(value) && value >= 0 ? value : null;
   const text = String(value ?? "").trim();
   if (!DECIMAL_PATTERN.test(text)) return null;
   const number = Number(text);
   return Number.isFinite(number) ? number : null;
+}
+
+function binPosition(value, start, width) {
+  const position = (value - start) / width;
+  const nearest = Math.round(position);
+  const tolerance = Math.min(1e-10, 2 * Number.EPSILON * Math.max(1, Math.abs(value / width), Math.abs(start / width)));
+  return Math.abs(position - nearest) <= tolerance ? nearest : position;
+}
+
+export function histogramBins(sortedValues, width, centered) {
+  let start = Math.floor(binPosition(sortedValues[0], 0, width)) * width;
+  let end = Math.ceil(binPosition(sortedValues.at(-1), 0, width)) * width;
+  if (end <= start) end = start + width;
+  if (centered) {
+    start -= width * 0.5;
+    end += width * 0.5;
+  }
+  const count = Math.max(1, Math.ceil(binPosition(end, start, width)));
+  const bins = Array.from({ length: count }, (_, index) => ({
+    start: start + index * width,
+    end: start + (index + 1) * width,
+    count: 0
+  }));
+  for (const value of sortedValues) {
+    const index = Math.min(count - 1, Math.max(0, Math.floor(binPosition(value, start, width))));
+    bins[index].count += 1;
+  }
+  return { start, end: start + count * width, bins };
 }
 
 export function quantile(sortedValues, percentile) {
@@ -131,12 +159,17 @@ function tTwoSidedProbability(degreesOfFreedom) {
 }
 
 function comparisonValue(field, answer) {
+  if (field.type === "rating") return ratingValue(field, answer);
   if (typeof answer !== "number" && typeof answer !== "string") return null;
-  if (field.type === "rating" && field.unknownOption && answer === field.unknownOption.id) return null;
   const value = numericValue(answer);
-  if (field.type === "rating" && (!Number.isInteger(value) || value < field.min || value > field.max)) return null;
   if (field.type === "number" && field.integer && !Number.isInteger(value)) return null;
   return value;
+}
+
+export function ratingValue(field, answer) {
+  if (field.unknownOption && answer === field.unknownOption.id) return null;
+  const value = typeof answer === "string" && /^-?(?:\d+|\d*\.\d+)$/.test(answer.trim()) ? Number(answer) : answer;
+  return Number.isInteger(value) && value >= field.min && value <= field.max ? value : null;
 }
 
 export function pairedTTest(fieldA, fieldB, records) {
@@ -147,7 +180,7 @@ export function pairedTTest(fieldA, fieldB, records) {
     const b = comparisonValue(fieldB, record.answers?.[fieldB.id]);
     if (a === null || b === null) continue;
     differences.push(b - a);
-    roundoff = Math.max(roundoff, Number.EPSILON * Math.max(a, b));
+    roundoff = Math.max(roundoff, Number.EPSILON * Math.max(Math.abs(a), Math.abs(b)));
   }
   const count = differences.length;
   const mean = count ? differences.reduce((sum, value) => sum + value, 0) / count : null;

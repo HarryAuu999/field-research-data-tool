@@ -18,8 +18,8 @@ import {
   replaceEmptyTemplateVersion,
   replaceDatabaseState,
   setSetting
-} from "./db.js?v=1.4.15";
-import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.15";
+} from "./db.js?v=1.4.16";
+import { ANALYSIS_PRESETS, DEFAULT_TEMPLATE, templateKey } from "./default-template.js?v=1.4.16";
 import {
   EDITABLE_FIELD_TYPES,
   changeQuestionType,
@@ -30,13 +30,13 @@ import {
   nextQuestionnaireVersion,
   questionUsesAnalysis,
   reorderFields
-} from "./questionnaire-editor.js?v=1.4.15";
-import { bindLongPressReorder } from "./question-reorder.js?v=1.4.15";
-import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.15";
-import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.15";
-import { createXlsxBlob } from "./xlsx-export.js?v=1.4.15";
-import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.15";
-import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.15";
+} from "./questionnaire-editor.js?v=1.4.16";
+import { bindLongPressReorder } from "./question-reorder.js?v=1.4.16";
+import { appendStrokePoint, blankImageRangeAnswer, imageRangeStrokes, pointOnImage, simplifyStrokePoints, strokePath } from "./image-range.js?v=1.4.16";
+import { countImageRangeParticipants, heatmapScaleGradient, paintHeatmap } from "./image-range-heatmap.js?v=1.4.16";
+import { createXlsxBlob } from "./xlsx-export.js?v=1.4.16";
+import { angleDistribution, bindAngleAnalysis, bindImageAngle, imageAngleAnalysisHtml, imageAngleControlHtml, imageAngleValidation, isImageAngleValue } from "./image-angle.js?v=1.4.16";
+import { normalizeTemplateImport, validateTemplate } from "./questionnaire-schema.js?v=1.4.16";
 import {
   DESCRIPTIVE_STATISTICS,
   descriptiveStatistics,
@@ -44,11 +44,14 @@ import {
   categoricalFrequencies,
   pairedTTest,
   formatStatistic,
+  histogramBins,
+  numericValue,
   quantile,
+  ratingValue,
   sampleStandardDeviation
-} from "./statistics.js?v=1.4.15";
+} from "./statistics.js?v=1.4.16";
 
-const APP_VERSION = "1.4.15";
+const APP_VERSION = "1.4.16";
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const IMAGE_RANGE_BRUSH_SETTING = "imageRangeBrushSize";
 const BACKUP_FORMAT = "research-notebook-backup";
@@ -1310,28 +1313,9 @@ function niceCeiling(value) {
 }
 
 function distributionModel(values, configuredBinWidth) {
-  const minimum = values[0];
-  const maximum = values[values.length - 1];
   const automatic = !Number.isFinite(configuredBinWidth);
   const binWidth = automatic ? automaticBinWidth(values) : configuredBinWidth;
-  let start = Math.floor(minimum / binWidth) * binWidth;
-  let end = Math.ceil(maximum / binWidth) * binWidth;
-  if (end <= start) end = start + binWidth;
-  if (!automatic) {
-    start -= binWidth * 0.5;
-    end += binWidth * 0.5;
-  }
-  const binCount = Math.max(1, Math.ceil((end - start) / binWidth));
-  end = start + binCount * binWidth;
-  const bins = Array.from({ length: binCount }, (_, index) => ({
-    start: start + index * binWidth,
-    end: start + (index + 1) * binWidth,
-    count: 0
-  }));
-  values.forEach((value) => {
-    const index = Math.min(binCount - 1, Math.max(0, Math.floor((value - start) / binWidth)));
-    bins[index].count += 1;
-  });
+  const { start, end, bins } = histogramBins(values, binWidth, !automatic);
 
   const bandwidth = kdeBandwidth(values, binWidth);
   const curve = values.length > 1 ? Array.from({ length: 181 }, (_, index) => {
@@ -2361,23 +2345,35 @@ function exportHeader(field) {
   return field.unit ? `${field.label}（${field.unit}）` : field.label;
 }
 
+function numericExportValue(answer) {
+  const text = String(answer ?? "");
+  const value = numericValue(answer);
+  // Keep measurements that exceed Excel's decimal precision as their original text.
+  const significantDigits = text.trim().replace(".", "").replace(/^0+|0+$/g, "").length;
+  return value === null || significantDigits > 15 || (value === 0 && significantDigits > 0) ? text : value;
+}
+
 function exportColumns(field) {
   if (field.type === "imageAngle") return [{ header: exportHeader(field), value: (answer) => isImageAngleValue(field, answer) ? answer : "" }];
+  if (field.type === "number") return [{ header: exportHeader(field), value: numericExportValue }];
+  if (field.type === "rating") {
+    return [{ header: exportHeader(field), value: (answer) => ratingValue(field, answer) ?? formatAnswer(field, answer, { forExport: true }) }];
+  }
   if (field.type !== "repeatedNumber") {
     return [{ header: exportHeader(field), value: (answer) => formatAnswer(field, answer, { forExport: true }) }];
   }
   const unit = field.unit ? `（${field.unit}）` : "";
   const columns = Array.from({ length: field.repeatCount }, (_, index) => ({
     header: `${field.label}－第${index + 1}次${unit}`,
-    value: (answer) => String(Array.isArray(answer) ? answer[index] ?? "" : "")
+    value: (answer) => numericExportValue(Array.isArray(answer) ? answer[index] : "")
   }));
   columns.push({
     header: `${field.label}－平均值${unit}`,
-    value: (answer) => repeatedStats(answer).mean
+    value: (answer) => numericExportValue(repeatedStats(answer).mean)
   });
   columns.push({
     header: `${field.label}－最大差值${unit}`,
-    value: (answer) => repeatedStats(answer).range
+    value: (answer) => numericExportValue(repeatedStats(answer).range)
   });
   return columns;
 }
@@ -2475,8 +2471,32 @@ function validateBackup(payload) {
   for (const key of ["templates", "records", "drafts", "settings"]) {
     if (!Array.isArray(data?.[key])) throw new Error(`备份中缺少 ${key}`);
   }
-  data.templates.forEach(validateTemplate);
-  return data;
+  const templates = data.templates.map((entry, index) => {
+    const template = validateTemplate(entry);
+    if (entry.key !== undefined && entry.key !== template.key) throw new Error("备份中第 " + (index + 1) + " 份问卷的版本标识不一致");
+    return template;
+  });
+  const templateKeys = new Set(templates.map((template) => template.key));
+  const isText = (value) => typeof value === "string" && value.trim() !== "";
+  const isObject = (value) => value && typeof value === "object" && !Array.isArray(value);
+  for (const [name, rows, key] of [
+    ["问卷", templates, "key"],
+    ["记录", data.records, "id"],
+    ["草稿", data.drafts, "templateKey"],
+    ["设置", data.settings, "key"]
+  ]) {
+    const seen = new Set();
+    for (const [index, row] of rows.entries()) {
+      const error = "备份中第 " + (index + 1) + " 条" + name;
+      if (!isObject(row) || !isText(row[key]) || seen.has(row[key])) throw new Error(error + "的标识缺失或重复");
+      if ((name === "记录" || name === "草稿") && (!templateKeys.has(row.templateKey) || !isObject(row.answers))) {
+        throw new Error(error + "缺少对应问卷或答案");
+      }
+      if (name === "记录" && !isText(row.createdAt)) throw new Error(error + "缺少有效的创建时间");
+      seen.add(row[key]);
+    }
+  }
+  return { ...data, templates };
 }
 
 async function importTemplateFile(file) {

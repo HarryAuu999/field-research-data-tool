@@ -498,8 +498,8 @@ assert(!responses.includes("一般疼痛位置") && !responses.includes("耳朵�
 assert(responses.includes("左耳水平佩戴位置厚度－第1次（mm）"), "Responses缺少重复测量原始值列");
 assert(responses.includes("左耳水平佩戴位置厚度－平均值（mm）"), "Responses缺少重复测量平均值列");
 assert(responses.includes("左耳水平佩戴位置厚度－最大差值（mm）"), "Responses缺少重复测量最大差值列");
-assert(responses.includes("5.3345") && responses.includes("6.12345") && responses.includes("6.22345"), "Responses没有保留修改后的厚度原始值");
-assert(responses.includes("6.17345") && responses.includes("0.1"), "Responses没有正确导出平均值或最大差值");
+assert(["5.3345", "6.12345", "6.22345"].every((value) => responses.includes("<v>" + value + "</v>")), "Responses没有按数值保留修改后的厚度原始值");
+assert(["6.17345", "0.1"].every((value) => responses.includes("<v>" + value + "</v>")), "Responses没有按数值导出平均值或最大差值");
 assert(annotations.includes("normalizedX"), "Annotations工作表不存在");
 
 await clickAction("start-form");

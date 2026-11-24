@@ -181,12 +181,18 @@ export async function replaceDatabaseState(state) {
   const db = await openDatabase();
   const storeNames = Object.values(STORES);
   const transaction = db.transaction(storeNames, "readwrite");
+  const done = transactionDone(transaction);
 
-  for (const name of storeNames) transaction.objectStore(name).clear();
-  for (const template of state.templates) transaction.objectStore(STORES.templates).put(template);
-  for (const record of state.records) transaction.objectStore(STORES.records).put(record);
-  for (const draft of state.drafts) transaction.objectStore(STORES.drafts).put(draft);
-  for (const setting of state.settings) transaction.objectStore(STORES.settings).put(setting);
-
-  await transactionDone(transaction);
+  try {
+    for (const name of storeNames) {
+      const store = transaction.objectStore(name);
+      store.clear();
+      for (const entry of state[name]) store.put(entry);
+    }
+  } catch (error) {
+    transaction.abort();
+    await done.catch(() => {});
+    throw error;
+  }
+  await done;
 }

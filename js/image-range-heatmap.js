@@ -1,4 +1,4 @@
-import { imageRangeStrokes } from "./image-range.js";
+import { imageRangeStrokes } from "./image-range.js?v=1.4.16";
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
