@@ -9,7 +9,7 @@
 | [耳部 ear](ear/README.md) | 三张现役底图的索引；文件保留原路径以兼容历史问卷 |
 | [手部 hand](hand/README.md) | 待贡献 |
 | [足部 foot](foot/README.md) | 待贡献 |
-| [人体 body](body/README.md) | 待贡献 |
+| [人体 body](body/README.md) | 灰度头部左侧视、正后视 |
 
 新文件放入相应分类，例如 `hand/palm-left-v1.png`。已有耳图不搬动、不复制；其名称、预览及来源状态见耳部索引。
 
